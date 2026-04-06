@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ page.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+  <div class="px-6 py-5 sm:flex sm:items-center sm:justify-between border-b border-gray-700">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-100">{{ page.name }}</h1>
+      <p class="mt-1 text-sm text-gray-400">
+        {% if not page.is_published %}
+        <span class="inline-flex rounded-full bg-yellow-900/50 px-2 text-xs font-semibold leading-5 text-yellow-300 mr-2">Draft</span>
+        {% endif %}
+        Updated {{ page.updated_at|date:"N j, Y g:i a" }}{% if page.updated_by %} by {{ page.updated_by }}{% endif %}
+      </p>
+    </div>
+    <div class="mt-4 flex gap-3 sm:mt-0">
+      {% if perms.pages.change_page %}
+      <a href="{% url 'pages:update' slug=page.slug %}"
+         class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Edit
+      </a>
+      {% endif %}
+      {% if perms.pages.delete_page %}
+      <a href="{% url 'pages:delete' slug=page.slug %}"
+         class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">
+        Delete
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="px-6 py-6">
+    <div class="prose prose-invert prose-gray max-w-none">
+      {{ content_html }}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Timeline — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="flex items-center gap-2 mb-4 text-xs text-gray-500">
+  <span>Filter:</span>
+  <a href="{% url 'fossil:timeline' slug=project.slug %}"
+     class="rounded-full px-2.5 py-1 {% if not event_type %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">All</a>
+  <a href="{% url 'fossil:timeline' slug=project.slug %}?type=ci"
+     class="rounded-full px-2.5 py-1 {% if event_type == 'ci' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Checkins</a>
+  <a href="{% url 'fossil:timeline' slug=project.slug %}?type=w"
+     class="rounded-full px-2.5 py-1 {% if event_type == 'w' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Wiki</a>
+  <a href="{% url 'fossil:timeline' slug=project.slug %}?type=t"
+     class="rounded-full px-2.5 py-1 {% if event_type == 't' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Tickets</a>
+</div>
+
+{% include "fossil/partials/timeline_entries.html" %}
+
+{% if entries|length == 50 %}
+<div class="mt-4 text-center">
+  <a href="{% url 'fossil:timeline' slug=project.slug %}?page={{ page|add:1 }}{% if event_type %}&type={{ event_type }}{% endif %}"
+     class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-700">
+    Load more
+  </a>
+</div>
+{% endif %}
+{% endblock %}

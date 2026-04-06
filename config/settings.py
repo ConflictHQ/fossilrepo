@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.humanize",
     # Third-party
     "import_export",
     "simple_history",
@@ -61,6 +62,9 @@ INSTALLED_APPS = [
     "auth1",
     "organization",
     "items",
+    "projects",
+    "pages",
+    "fossil",
     "testdata",
 ]
 
@@ -89,6 +93,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.sidebar",
             ],
         },
     },
@@ -202,6 +207,15 @@ RATELIMIT_VIEW = "django.views.defaults.permission_denied"
 CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
 CONSTANCE_CONFIG = {
     "SITE_NAME": ("Fossilrepo", "Display name for the site"),
+    "FOSSIL_DATA_DIR": ("/data/repos", "Directory where .fossil repository files are stored"),
+    "FOSSIL_STORE_IN_DB": (False, "Store binary snapshots of .fossil files via Django file storage"),
+    "FOSSIL_S3_TRACKING": (False, "Track S3/Litestream replication keys and versions"),
+    "FOSSIL_S3_BUCKET": ("", "S3 bucket name for Fossil repo replication"),
+    "FOSSIL_BINARY_PATH": ("fossil", "Path to the fossil binary"),
+}
+CONSTANCE_CONFIG_FIELDSETS = {
+    "General": ("SITE_NAME",),
+    "Fossil Storage": ("FOSSIL_DATA_DIR", "FOSSIL_STORE_IN_DB", "FOSSIL_S3_TRACKING", "FOSSIL_S3_BUCKET", "FOSSIL_BINARY_PATH"),
 }
 
 # --- Sentry ---

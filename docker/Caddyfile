@@ -1,0 +1,23 @@
+# fossilrepo Caddy configuration
+#
+# Routes *.{domain} subdomains to the fossil server.
+# Each repo gets its own subdomain: reponame.fossilrepos.io
+#
+# In production, replace {$FOSSILREPO_CADDY_DOMAIN} with your domain
+# or set the environment variable.
+
+# Wildcard subdomain routing to fossil server
+*.{$FOSSILREPO_CADDY_DOMAIN:localhost} {
+    # Extract repo name from subdomain
+    @repo host *.{$FOSSILREPO_CADDY_DOMAIN:localhost}
+
+    # Reverse proxy to fossil server
+    # fossil server --repolist serves all repos under /data/repos/
+    # and routes by the first path segment or subdomain
+    reverse_proxy @repo localhost:8080
+}
+
+# Root domain — landing page or redirect
+{$FOSSILREPO_CADDY_DOMAIN:localhost} {
+    respond "fossilrepo server running" 200
+}

@@ -15,6 +15,17 @@ class Organization(BaseCoreModel):
         ordering = ["name"]
 
 
+class Team(BaseCoreModel):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="teams")
+    members = models.ManyToManyField("auth.User", blank=True, related_name="teams")
+
+    objects = ActiveManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ["name"]
+
+
 class OrganizationMember(Tracking):
     is_active = models.BooleanField(default=True)
     member = models.ForeignKey("auth.User", on_delete=models.CASCADE, related_name="memberships")

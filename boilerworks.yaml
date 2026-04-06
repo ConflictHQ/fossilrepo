@@ -1,0 +1,57 @@
+# boilerworks.yaml — fossilrepo project manifest
+#
+# Run `boilerworks init` to generate the project from this file.
+
+# ── Required ──────────────────────────────────────────────────────────────────
+
+project: fossilrepo
+family: django-htmx
+size: full
+
+# ── Topology ──────────────────────────────────────────────────────────────────
+
+topology: standard
+
+# ── Cloud ─────────────────────────────────────────────────────────────────────
+
+cloud: aws
+region: us-east-1
+
+# ── Domain ────────────────────────────────────────────────────────────────────
+
+domain: fossilrepo.dev
+
+# ── Optional add-ons ──────────────────────────────────────────────────────────
+
+mobile: false
+web_presence: false
+
+# ── Compliance ────────────────────────────────────────────────────────────────
+
+compliance: []
+
+# ── Services ──────────────────────────────────────────────────────────────────
+
+services:
+  email: ses
+  storage: s3
+  search: null
+  cache: redis
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+
+data:
+  database: postgres
+  migrations: true
+  seed_data: true
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+
+testing:
+  e2e: null
+  unit: true
+  integration: true
+
+# ── Template versions (auto-managed, do not edit manually) ────────────────────
+
+template_versions: {}

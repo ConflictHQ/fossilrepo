@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ page.name }} — Wiki — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="flex gap-6">
+  <!-- Main wiki content -->
+  <div class="flex-1 min-w-0">
+    <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+      <div class="px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-gray-100">{{ page.name }}</h2>
+        <span class="text-xs text-gray-500">{{ page.last_modified|timesince }} ago by {{ page.user }}</span>
+      </div>
+      <div class="px-6 py-6">
+        <div class="prose prose-invert prose-gray max-w-none">
+          {{ content_html }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right sidebar: wiki page nav -->
+  <aside class="hidden lg:block w-52 flex-shrink-0">
+    <div class="sticky top-6">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Wiki Pages</h3>
+      <nav class="space-y-0.5">
+        {% for p in all_pages %}
+        <a href="{% url 'fossil:wiki_page' slug=project.slug page_name=p.name %}"
+           class="block rounded-md px-3 py-1.5 text-sm {% if p.name == page.name %}bg-gray-800 text-brand-light font-medium border border-gray-700{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+          {{ p.name }}
+        </a>
+        {% endfor %}
+      </nav>
+    </div>
+  </aside>
+</div>
+{% endblock %}

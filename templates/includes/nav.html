@@ -1,63 +1,37 @@
 {% load static %}
-<nav class="bg-gray-900 border-b border-gray-700" x-data="{ mobileOpen: false }">
-  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-    <div class="flex h-16 items-center justify-between">
-      <div class="flex items-center">
+<nav class="bg-gray-900 border-b border-gray-700">
+  <div class="px-4 sm:px-6 lg:px-8">
+    <div class="flex h-14 items-center justify-between">
+      <div class="flex items-center gap-3">
         <a href="{% url 'dashboard' %}" class="flex-shrink-0">
-          <img src="{% static 'img/fossilrepo-logo-dark.svg' %}" alt="Fossilrepo" class="h-8 w-auto">
+          <img src="{% static 'img/fossilrepo-logo-dark.png' %}" alt="Fossilrepo" class="h-7 w-auto">
         </a>
-        <div class="hidden md:block ml-10">
-          <div class="flex items-baseline space-x-4">
-            <a href="{% url 'dashboard' %}"
-               class="{% if request.path == '/dashboard/' %}bg-brand text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">
-              Dashboard
-            </a>
-            {% if perms.items.view_item %}
-            <a href="{% url 'items:list' %}"
-               class="{% if '/items/' in request.path %}bg-brand text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">
-              Items
-            </a>
-            {% endif %}
-            {% if user.is_staff %}
-            <a href="{% url 'admin:index' %}"
-               class="text-gray-400 hover:bg-gray-800 hover:text-white rounded-md px-3 py-2 text-sm font-medium">
-              Admin
-            </a>
-            {% endif %}
-          </div>
-        </div>
       </div>
-      <div class="hidden md:block">
-        <div class="ml-4 flex items-center md:ml-6" x-data="{ open: false }">
-          <div class="relative">
-            <button @click="open = !open" class="flex items-center text-sm text-gray-400 hover:text-white">
-              {{ user.get_full_name|default:user.username }}
-              <svg class="ml-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-            </button>
-            <div x-show="open" @click.outside="open = false" x-transition
-                 class="absolute right-0 z-10 mt-2 w-48 rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-gray-700">
-              <form method="post" action="{% url 'auth1:logout' %}">{% csrf_token %}<button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Sign out</button></form>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="md:hidden">
-        <button @click="mobileOpen = !mobileOpen" class="text-gray-400 hover:text-white">
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-            <path x-show="!mobileOpen" stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
-            <path x-show="mobileOpen" stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+      <div class="flex items-center gap-3">
+        <!-- Theme toggle -->
+        <button x-data="{ dark: document.documentElement.classList.contains('dark') }"
+                @click="dark = !dark; document.documentElement.classList.toggle('dark'); localStorage.setItem('theme', dark ? 'dark' : 'light')"
+                class="rounded-md p-2 text-gray-400 hover:text-white hover:bg-gray-800"
+                title="Toggle theme">
+          <svg x-show="dark" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+          </svg>
+          <svg x-show="!dark" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="display:none">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
           </svg>
         </button>
+        <!-- User menu -->
+        <div class="relative" x-data="{ open: false }">
+          <button @click="open = !open" class="flex items-center text-sm text-gray-400 hover:text-white">
+            {{ user.get_full_name|default:user.username }}
+            <svg class="ml-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </button>
+          <div x-show="open" @click.outside="open = false" x-transition
+               class="absolute right-0 z-10 mt-2 w-48 rounded-md bg-gray-800 py-1 shadow-lg ring-1 ring-gray-700">
+            <form method="post" action="{% url 'auth1:logout' %}">{% csrf_token %}<button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Sign out</button></form>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-  <div x-show="mobileOpen" class="md:hidden">
-    <div class="space-y-1 px-2 pb-3 pt-2">
-      <a href="{% url 'dashboard' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-400 hover:bg-gray-800 hover:text-white">Dashboard</a>
-      {% if perms.items.view_item %}
-      <a href="{% url 'items:list' %}" class="block rounded-md px-3 py-2 text-base font-medium text-gray-400 hover:bg-gray-800 hover:text-white">Items</a>
-      {% endif %}
-      <form method="post" action="{% url 'auth1:logout' %}">{% csrf_token %}<button type="submit" class="block w-full text-left rounded-md px-3 py-2 text-base font-medium text-gray-400 hover:bg-gray-800 hover:text-white">Sign out</button></form>
     </div>
   </div>
 </nav>

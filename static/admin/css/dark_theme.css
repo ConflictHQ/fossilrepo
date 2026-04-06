@@ -367,10 +367,11 @@ body {
 .module caption,
 .inline-group h2 {
     background: var(--darkened-bg);
-    color: var(--body-quiet-color);
+    color: var(--body-loud-color);
     border-left: 3px solid var(--primary);
     padding-left: 12px;
     font-size: 0.75em;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }

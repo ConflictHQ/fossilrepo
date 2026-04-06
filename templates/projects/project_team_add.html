@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Add Team to {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <a href="{% url 'projects:detail' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to {{ project.name }}</a>
+</div>
+
+<div class="mx-auto max-w-2xl">
+  <h1 class="text-2xl font-bold text-gray-100 mb-6">Add Team to {{ project.name }}</h1>
+
+  <form method="post" class="space-y-6 rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+    {% csrf_token %}
+
+    {% for field in form %}
+    <div>
+      <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-300">
+        {{ field.label }}{% if field.field.required %} <span class="text-red-400">*</span>{% endif %}
+      </label>
+      <div class="mt-1">{{ field }}</div>
+      {% if field.errors %}
+      <p class="mt-1 text-sm text-red-400">{{ field.errors.0 }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="flex justify-end gap-3 pt-4">
+      <a href="{% url 'projects:detail' slug=project.slug %}"
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Cancel
+      </a>
+      <button type="submit"
+              class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+        Add Team
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

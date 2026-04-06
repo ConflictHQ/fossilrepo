@@ -1,0 +1,426 @@
+import markdown as md
+from django.contrib.auth.decorators import login_required
+from django.http import Http404
+from django.shortcuts import get_object_or_404, render
+from django.utils.safestring import mark_safe
+
+from core.permissions import P
+from projects.models import Project
+
+from .models import FossilRepository
+from .reader import FossilReader
+
+
+def _get_repo_and_reader(slug):
+    """Return (project, fossil_repo, reader) or raise 404."""
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+    fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
+    if not fossil_repo.exists_on_disk:
+        raise Http404("Repository file not found on disk")
+    reader = FossilReader(fossil_repo.full_path)
+    return project, fossil_repo, reader
+
+
+# --- Code Browser ---
+
+
+@login_required
+def code_browser(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        checkin_uuid = reader.get_latest_checkin_uuid()
+        files = reader.get_files_at_checkin(checkin_uuid) if checkin_uuid else []
+        metadata = reader.get_metadata()
+        latest_commit = reader.get_timeline(limit=1, event_type="ci")
+
+    # Build directory tree from flat file list
+    tree = _build_file_tree(files)
+
+    if request.headers.get("HX-Request"):
+        return render(request, "fossil/partials/file_tree.html", {"tree": tree, "project": project})
+
+    return render(
+        request,
+        "fossil/code_browser.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "tree": tree,
+            "checkin_uuid": checkin_uuid,
+            "metadata": metadata,
+            "latest_commit": latest_commit[0] if latest_commit else None,
+            "active_tab": "code",
+        },
+    )
+
+
+@login_required
+def code_file(request, slug, filepath):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        checkin_uuid = reader.get_latest_checkin_uuid()
+        files = reader.get_files_at_checkin(checkin_uuid) if checkin_uuid else []
+
+        # Find the file by path
+        target = None
+        for f in files:
+            if f.name == filepath:
+                target = f
+                break
+
+        if not target:
+            raise Http404(f"File not found: {filepath}")
+
+        content_bytes = reader.get_file_content(target.uuid)
+
+    # Try to decode as text
+    try:
+        content = content_bytes.decode("utf-8")
+        is_binary = False
+    except UnicodeDecodeError:
+        content = f"Binary file ({len(content_bytes)} bytes)"
+        is_binary = True
+
+    # Determine language for syntax highlighting
+    ext = filepath.rsplit(".", 1)[-1] if "." in filepath else ""
+
+    return render(
+        request,
+        "fossil/code_file.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "filepath": filepath,
+            "content": content,
+            "is_binary": is_binary,
+            "language": ext,
+            "active_tab": "code",
+        },
+    )
+
+
+# --- Timeline ---
+
+
+@login_required
+def timeline(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    event_type = request.GET.get("type", "")
+    page = int(request.GET.get("page", "1"))
+    per_page = 50
+    offset = (page - 1) * per_page
+
+    with reader:
+        entries = reader.get_timeline(limit=per_page, offset=offset, event_type=event_type or None)
+
+    # Compute graph data for template
+    graph_entries = _compute_dag_graph(entries)
+
+    if request.headers.get("HX-Request"):
+        return render(request, "fossil/partials/timeline_entries.html", {"entries": graph_entries, "project": project})
+
+    return render(
+        request,
+        "fossil/timeline.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "entries": graph_entries,
+            "event_type": event_type,
+            "page": page,
+            "active_tab": "timeline",
+        },
+    )
+
+
+# --- Tickets ---
+
+
+@login_required
+def ticket_list(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    status_filter = request.GET.get("status", "")
+    search = request.GET.get("search", "").strip()
+
+    with reader:
+        tickets = reader.get_tickets(status=status_filter or None)
+
+    if search:
+        tickets = [t for t in tickets if search.lower() in t.title.lower()]
+
+    if request.headers.get("HX-Request"):
+        return render(request, "fossil/partials/ticket_table.html", {"tickets": tickets, "project": project})
+
+    return render(
+        request,
+        "fossil/ticket_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "tickets": tickets,
+            "status_filter": status_filter,
+            "search": search,
+            "active_tab": "tickets",
+        },
+    )
+
+
+@login_required
+def ticket_detail(request, slug, ticket_uuid):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        ticket = reader.get_ticket_detail(ticket_uuid)
+
+    if not ticket:
+        raise Http404("Ticket not found")
+
+    return render(
+        request,
+        "fossil/ticket_detail.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "ticket": ticket,
+            "active_tab": "tickets",
+        },
+    )
+
+
+# --- Wiki ---
+
+
+@login_required
+def wiki_list(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        pages = reader.get_wiki_pages()
+        home_page = reader.get_wiki_page("Home")
+
+    home_content_html = ""
+    if home_page:
+        home_content_html = mark_safe(md.markdown(home_page.content, extensions=["fenced_code", "tables", "toc"]))
+
+    return render(
+        request,
+        "fossil/wiki_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "pages": pages,
+            "home_page": home_page,
+            "home_content_html": home_content_html,
+            "active_tab": "wiki",
+        },
+    )
+
+
+@login_required
+def wiki_page(request, slug, page_name):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        page = reader.get_wiki_page(page_name)
+        all_pages = reader.get_wiki_pages()
+
+    if not page:
+        raise Http404(f"Wiki page not found: {page_name}")
+
+    content_html = mark_safe(md.markdown(page.content, extensions=["fenced_code", "tables", "toc"]))
+
+    return render(
+        request,
+        "fossil/wiki_page.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "page": page,
+            "all_pages": all_pages,
+            "content_html": content_html,
+            "active_tab": "wiki",
+        },
+    )
+
+
+# --- Forum ---
+
+
+@login_required
+def forum_list(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        posts = reader.get_forum_posts()
+
+    return render(
+        request,
+        "fossil/forum_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "posts": posts,
+            "active_tab": "forum",
+        },
+    )
+
+
+@login_required
+def forum_thread(request, slug, thread_uuid):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        posts = reader.get_forum_thread(thread_uuid)
+
+    if not posts:
+        raise Http404("Forum thread not found")
+
+    return render(
+        request,
+        "fossil/forum_thread.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "posts": posts,
+            "thread_uuid": thread_uuid,
+            "active_tab": "forum",
+        },
+    )
+
+
+# --- Helpers ---
+
+
+def _build_file_tree(files):
+    """Build a flat sorted list for the top-level directory view (like GitHub).
+
+    Shows directories and files at the root level only. Directories are sorted first.
+    Each directory gets the most recent commit info from its children.
+    """
+    dirs = {}  # dir_name -> most recent file entry
+    root_files = []
+
+    for f in files:
+        # Skip files with characters that break URL routing
+        if "\n" in f.name or "\r" in f.name or "\x00" in f.name:
+            continue
+        parts = f.name.split("/")
+        if len(parts) > 1:
+            # File is inside a directory
+            dir_name = parts[0]
+            if dir_name not in dirs or (
+                f.last_commit_time and (not dirs[dir_name].last_commit_time or f.last_commit_time > dirs[dir_name].last_commit_time)
+            ):
+                dirs[dir_name] = f
+        else:
+            root_files.append(f)
+
+    entries = []
+    # Directories first (sorted)
+    for dir_name in sorted(dirs):
+        f = dirs[dir_name]
+        entries.append(
+            {
+                "name": dir_name,
+                "path": dir_name,
+                "is_dir": True,
+                "commit_message": f.last_commit_message,
+                "commit_time": f.last_commit_time,
+            }
+        )
+    # Then files (sorted)
+    for f in sorted(root_files, key=lambda x: x.name):
+        entries.append(
+            {
+                "name": f.name,
+                "path": f.name,
+                "is_dir": False,
+                "file": f,
+                "commit_message": f.last_commit_message,
+                "commit_time": f.last_commit_time,
+            }
+        )
+
+    return entries
+
+
+def _compute_dag_graph(entries):
+    """Compute DAG graph positions for timeline entries.
+
+    Returns a list of dicts wrapping each entry with graph rendering data:
+    - node_x: pixel x position of the node
+    - lines: list of (x1, x2) connections to draw between this row and the next
+    """
+    rail_pitch = 16  # pixels between rails
+    rail_offset = 20  # left margin
+
+    # Build rid-to-index lookup for connecting lines
+    rid_to_idx = {}
+    for i, entry in enumerate(entries):
+        rid_to_idx[entry.rid] = i
+
+    result = []
+    for i, entry in enumerate(entries):
+        rail = max(entry.rail, 0) if entry.rail >= 0 else 0
+        node_x = rail_offset + rail * rail_pitch
+
+        # Determine what vertical lines to draw through this row
+        # Active rails: any branch that has entries above and below this point
+        active_rails = set()
+
+        # The current entry's rail is active if it has a parent below
+        if entry.event_type == "ci" and entry.parent_rid in rid_to_idx:
+            parent_idx = rid_to_idx[entry.parent_rid]
+            if parent_idx > i:  # parent is below in the list (older)
+                active_rails.add(rail)
+
+        # Check if any entries above connect through this row to entries below
+        for j in range(i):
+            prev = entries[j]
+            if prev.event_type == "ci" and prev.parent_rid in rid_to_idx:
+                parent_idx = rid_to_idx[prev.parent_rid]
+                if parent_idx > i:  # parent is below this row
+                    prev_rail = max(prev.rail, 0)
+                    active_rails.add(prev_rail)
+
+        # Compute line segments as pixel positions
+        lines = [{"x": rail_offset + r * rail_pitch} for r in sorted(active_rails)]
+
+        # Connection from this node's rail to parent's rail (if different = branch/merge line)
+        connector = None
+        if entry.event_type == "ci" and entry.parent_rid in rid_to_idx:
+            parent_idx = rid_to_idx[entry.parent_rid]
+            if parent_idx == i + 1:  # immediate next entry
+                parent_rail = max(entries[parent_idx].rail, 0)
+                if parent_rail != rail:
+                    parent_x = rail_offset + parent_rail * rail_pitch
+                    connector = {
+                        "left": min(node_x, parent_x),
+                        "width": abs(node_x - parent_x),
+                    }
+
+        max_rail = max((e.rail for e in entries if e.rail >= 0), default=0)
+        result.append(
+            {
+                "entry": entry,
+                "node_x": node_x,
+                "lines": lines,
+                "connector": connector,
+                "graph_width": rail_offset + (max_rail + 2) * rail_pitch,
+            }
+        )
+
+    return result
