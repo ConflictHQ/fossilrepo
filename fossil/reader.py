@@ -334,6 +334,46 @@ class FossilReader:
             pass
         return result
 
+    def get_commit_activity(self, weeks: int = 52) -> list[dict]:
+        """Get weekly commit counts for the last N weeks. Returns [{week, count}]."""
+        activity = []
+        try:
+            # Julian day for "now" minus weeks*7 days
+            rows = self.conn.execute(
+                """
+                SELECT cast((julianday('now') - event.mtime) / 7 as integer) as weeks_ago,
+                       count(*) as cnt
+                FROM event
+                WHERE event.type = 'ci'
+                  AND event.mtime > julianday('now') - ?
+                GROUP BY weeks_ago
+                ORDER BY weeks_ago DESC
+                """,
+                (weeks * 7,),
+            ).fetchall()
+
+            # Build a full list with zeros for empty weeks
+            counts = {r["weeks_ago"]: r["cnt"] for r in rows}
+            for w in range(weeks - 1, -1, -1):
+                activity.append({"week": w, "count": counts.get(w, 0)})
+        except sqlite3.OperationalError:
+            pass
+        return activity
+
+    def get_top_contributors(self, limit: int = 10) -> list[dict]:
+        """Get top contributors by checkin count."""
+        contributors = []
+        try:
+            rows = self.conn.execute(
+                "SELECT user, count(*) as cnt FROM event WHERE type='ci' GROUP BY user ORDER BY cnt DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            for r in rows:
+                contributors.append({"user": r["user"], "count": r["cnt"]})
+        except sqlite3.OperationalError:
+            pass
+        return contributors
+
     # --- Timeline ---
 
     def get_timeline(self, limit: int = 50, offset: int = 0, event_type: str | None = None) -> list[TimelineEntry]:

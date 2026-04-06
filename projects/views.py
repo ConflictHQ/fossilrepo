@@ -55,6 +55,8 @@ def project_detail(request, slug):
     # Get Fossil repo stats if available
     repo_stats = None
     recent_commits = []
+    commit_activity = []
+    top_contributors = []
     try:
         from fossil.models import FossilRepository
         from fossil.reader import FossilReader
@@ -64,13 +66,24 @@ def project_detail(request, slug):
             with FossilReader(fossil_repo.full_path) as reader:
                 repo_stats = reader.get_metadata()
                 recent_commits = reader.get_timeline(limit=5, event_type="ci")
+                commit_activity = reader.get_commit_activity(weeks=52)
+                top_contributors = reader.get_top_contributors(limit=8)
     except Exception:
         pass
+
+    import json
 
     return render(
         request,
         "projects/project_detail.html",
-        {"project": project, "project_teams": project_teams, "repo_stats": repo_stats, "recent_commits": recent_commits},
+        {
+            "project": project,
+            "project_teams": project_teams,
+            "repo_stats": repo_stats,
+            "recent_commits": recent_commits,
+            "commit_activity_json": json.dumps([c["count"] for c in commit_activity]),
+            "top_contributors": top_contributors,
+        },
     )
 
 

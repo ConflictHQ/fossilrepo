@@ -86,11 +86,8 @@ def _is_markdown(content: str) -> bool:
     # Has markdown code fences
     if "```" in stripped:
         return True
-    # Starts with HTML block element — it's Fossil wiki/HTML
-    if re.match(r"<(h[1-6]|p|ol|ul|div|table)\b", stripped, re.IGNORECASE):
-        return False
-    # Default: treat as markdown (handles plain text gracefully)
-    return True
+    # Starts with HTML block element — it's Fossil wiki/HTML; otherwise default to markdown
+    return not re.match(r"<(h[1-6]|p|ol|ul|div|table)\b", stripped, re.IGNORECASE)
 
 
 def _rewrite_fossil_links(html: str, project_slug: str) -> str:
