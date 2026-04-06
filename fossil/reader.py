@@ -107,6 +107,81 @@ def _julian_to_datetime(julian: float) -> datetime:
     return datetime.fromtimestamp(unix_ts, tz=UTC)
 
 
+def _apply_fossil_delta(source: bytes, delta: bytes) -> bytes:
+    """Apply a Fossil delta to a source blob to produce the output.
+
+    Fossil delta format: output_size\\n then commands:
+    - @offset,length: copy 'length' bytes from source starting at 'offset'
+    - :length:data: insert 'length' bytes of literal data
+    - length@ or length,offset: shorthand copy commands
+
+    The actual format uses a base-64-like encoding for integers.
+    See: https://fossil-scm.org/home/doc/trunk/www/delta_format.wiki
+    """
+    if not delta:
+        return source
+
+    pos = 0
+    out = bytearray()
+
+    def read_int():
+        nonlocal pos
+        val = 0
+        while pos < len(delta):
+            c = delta[pos : pos + 1]
+            if c in b"0123456789":
+                val = val * 64 + (c[0] - 48)
+            elif c in b"ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                val = val * 64 + (c[0] - 55)
+            elif c in b"abcdefghijklmnopqrstuvwxyz":
+                val = val * 64 + (c[0] - 87)
+            elif c == b".":
+                val = val * 64 + 62
+            elif c == b"/":
+                val = val * 64 + 63
+            else:
+                break
+            pos += 1
+        return val
+
+    # Read output size
+    output_size = read_int()
+    if pos < len(delta) and delta[pos : pos + 1] == b"\n":
+        pos += 1
+
+    while pos < len(delta):
+        count = read_int()
+        if pos >= len(delta):
+            break
+        cmd = delta[pos : pos + 1]
+        pos += 1
+
+        if cmd == b"@":
+            # Copy from source: count bytes starting at offset
+            offset = read_int()
+            if pos < len(delta) and delta[pos : pos + 1] == b",":
+                pos += 1
+            out.extend(source[offset : offset + count])
+        elif cmd == b",":
+            # Copy from source at offset=count, length follows
+            offset = count
+            length = read_int()
+            if pos < len(delta) and delta[pos : pos + 1] in (b"\n", b";"):
+                pos += 1
+            out.extend(source[offset : offset + length])
+        elif cmd == b":":
+            # Insert literal data
+            out.extend(delta[pos : pos + count])
+            pos += count
+        elif cmd == b";":
+            # End of delta with checksum
+            break
+        elif cmd == b"\n":
+            continue
+
+    return bytes(out[:output_size]) if output_size else bytes(out)
+
+
 def _decompress_blob(data: bytes) -> bytes:
     """Decompress a Fossil blob.
 
@@ -441,13 +516,32 @@ class FossilReader:
             return []
 
     def get_file_content(self, blob_uuid: str) -> bytes:
+        """Get file content, resolving delta compression chains."""
         try:
-            row = self.conn.execute("SELECT content FROM blob WHERE uuid=?", (blob_uuid,)).fetchone()
-            if not row or not row[0]:
-                return b""
-            return _decompress_blob(row[0])
-        except sqlite3.OperationalError:
+            return self._resolve_blob(blob_uuid)
+        except Exception:
             return b""
+
+    def _resolve_blob(self, uuid_or_rid, by_rid=False) -> bytes:
+        """Resolve a blob, following delta chains if needed."""
+        if by_rid:
+            row = self.conn.execute("SELECT rid, content FROM blob WHERE rid=?", (uuid_or_rid,)).fetchone()
+        else:
+            row = self.conn.execute("SELECT rid, content FROM blob WHERE uuid=?", (uuid_or_rid,)).fetchone()
+        if not row or not row["content"]:
+            return b""
+
+        rid = row["rid"]
+        data = _decompress_blob(row["content"])
+
+        # Check if this blob is delta-compressed
+        delta_row = self.conn.execute("SELECT srcid FROM delta WHERE rid=?", (rid,)).fetchone()
+        if delta_row:
+            # Recursively resolve the source blob
+            source = self._resolve_blob(delta_row["srcid"], by_rid=True)
+            return _apply_fossil_delta(source, data)
+
+        return data
 
     # --- Tickets ---
 
