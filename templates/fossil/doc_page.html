@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ doc_path }} — Fossil Guide — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl">
+  <div class="mb-4">
+    <a href="{% url 'fossil:docs' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Fossil Guide</a>
+  </div>
+
+  <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+    <div class="px-6 py-4 border-b border-gray-700">
+      <h1 class="text-lg font-semibold text-gray-100 font-mono">{{ doc_path }}</h1>
+    </div>
+    <div class="px-6 py-6">
+      <div class="prose prose-invert prose-gray max-w-none">
+        {{ content_html }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
