@@ -34,3 +34,26 @@ class FossilCLI:
             return True
         except (FileNotFoundError, subprocess.CalledProcessError):
             return False
+
+    def wiki_commit(self, repo_path: Path, page_name: str, content: str, user: str = "") -> bool:
+        """Create or update a wiki page. Pipes content to fossil wiki commit."""
+        cmd = [self.binary, "wiki", "commit", page_name, "-R", str(repo_path)]
+        if user:
+            cmd.extend(["--technote-user", user])
+        result = subprocess.run(cmd, input=content, capture_output=True, text=True, timeout=30)
+        return result.returncode == 0
+
+    def wiki_create(self, repo_path: Path, page_name: str, content: str) -> bool:
+        """Create a new wiki page."""
+        cmd = [self.binary, "wiki", "create", page_name, "-R", str(repo_path)]
+        result = subprocess.run(cmd, input=content, capture_output=True, text=True, timeout=30)
+        return result.returncode == 0
+
+    def ticket_add(self, repo_path: Path, fields: dict) -> bool:
+        """Add a new ticket. Fields dict maps field names to values."""
+        cmd = [self.binary, "ticket", "add", "-R", str(repo_path)]
+        for key, value in fields.items():
+            cmd.append(f"{key}")
+            cmd.append(f"{value}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        return result.returncode == 0

@@ -577,6 +577,100 @@ def forum_thread(request, slug, thread_uuid):
     )
 
 
+# --- Wiki CRUD ---
+
+
+@login_required
+def wiki_create(request, slug):
+    P.PROJECT_CHANGE.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    if request.method == "POST":
+        page_name = request.POST.get("name", "").strip()
+        content = request.POST.get("content", "")
+        if page_name:
+            from fossil.cli import FossilCLI
+
+            cli = FossilCLI()
+            # Try create first, fall back to commit (update)
+            success = cli.wiki_create(fossil_repo.full_path, page_name, content)
+            if not success:
+                success = cli.wiki_commit(fossil_repo.full_path, page_name, content)
+            if success:
+                from django.contrib import messages
+
+                messages.success(request, f'Wiki page "{page_name}" created.')
+                from django.shortcuts import redirect
+
+                return redirect("fossil:wiki_page", slug=slug, page_name=page_name)
+
+    return render(request, "fossil/wiki_form.html", {"project": project, "active_tab": "wiki", "title": "New Wiki Page"})
+
+
+@login_required
+def wiki_edit(request, slug, page_name):
+    P.PROJECT_CHANGE.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        page = reader.get_wiki_page(page_name)
+
+    if not page:
+        raise Http404(f"Wiki page not found: {page_name}")
+
+    if request.method == "POST":
+        content = request.POST.get("content", "")
+        from fossil.cli import FossilCLI
+
+        cli = FossilCLI()
+        success = cli.wiki_commit(fossil_repo.full_path, page_name, content)
+        if success:
+            from django.contrib import messages
+
+            messages.success(request, f'Wiki page "{page_name}" updated.')
+            from django.shortcuts import redirect
+
+            return redirect("fossil:wiki_page", slug=slug, page_name=page_name)
+
+    return render(
+        request,
+        "fossil/wiki_form.html",
+        {"project": project, "page": page, "active_tab": "wiki", "title": f"Edit: {page_name}"},
+    )
+
+
+# --- Ticket CRUD ---
+
+
+@login_required
+def ticket_create(request, slug):
+    P.PROJECT_CHANGE.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        body = request.POST.get("body", "")
+        ticket_type = request.POST.get("type", "Code_Defect")
+        severity = request.POST.get("severity", "")
+        if title:
+            from fossil.cli import FossilCLI
+
+            cli = FossilCLI()
+            fields = {"title": title, "type": ticket_type, "comment": body, "status": "Open"}
+            if severity:
+                fields["severity"] = severity
+            success = cli.ticket_add(fossil_repo.full_path, fields)
+            if success:
+                from django.contrib import messages
+
+                messages.success(request, f'Ticket "{title}" created.')
+                from django.shortcuts import redirect
+
+                return redirect("fossil:tickets", slug=slug)
+
+    return render(request, "fossil/ticket_form.html", {"project": project, "active_tab": "tickets", "title": "New Ticket"})
+
+
 # --- User Activity ---
 
 
