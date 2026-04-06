@@ -132,10 +132,25 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
         # Keep external and unrecognized links as-is
         return match.group(0)
 
+    def replace_scheme_link(match):
+        """Handle Fossil URI schemes like forum:/forumpost/HASH, wiki:PageName, info:HASH."""
+        scheme = match.group(1)
+        path = match.group(2)
+        if scheme == "forum":
+            # forum:/forumpost/HASH -> our forum thread
+            m = re.match(r"/forumpost/([0-9a-f]+)", path)
+            if m:
+                return f'href="{base}/forum/{m.group(1)}/"'
+        elif scheme == "info":
+            return f'href="{base}/checkin/{path}/"'
+        elif scheme == "wiki":
+            return f'href="{base}/wiki/page/{path}"'
+        return match.group(0)
+
     # Rewrite href="/..." links (internal Fossil paths)
     html = re.sub(r'href="(/[^"]*)"', replace_link, html)
-    # Also rewrite href="/wiki?name=..." (markdown renders these with full path)
-    html = re.sub(r'href="(/wiki\?[^"]*)"', replace_link, html)
+    # Rewrite Fossil URI schemes: forum:/..., info:..., wiki:...
+    html = re.sub(r'href="(forum|info|wiki):([^"]*)"', replace_scheme_link, html)
     return html
 
 
