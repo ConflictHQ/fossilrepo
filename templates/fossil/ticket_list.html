@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Tickets — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-4">
+  <input type="search"
+         name="search"
+         value="{{ search }}"
+         placeholder="Search tickets..."
+         class="w-full max-w-md rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
+         hx-get="{% url 'fossil:tickets' slug=project.slug %}"
+         hx-trigger="input changed delay:300ms, search"
+         hx-target="#ticket-table"
+         hx-swap="outerHTML"
+         hx-push-url="true" />
+</div>
+
+{% include "fossil/partials/ticket_table.html" %}
+{% endblock %}

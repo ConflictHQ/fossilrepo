@@ -1,13 +1,26 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-950">
+<html lang="en" class="h-full dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}Fossilrepo{% endblock %}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Apply theme before anything renders to prevent flash
+    (function() {
+      var theme = localStorage.getItem('theme');
+      if (theme === 'light') {
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  {% block extra_head %}{% endblock %}
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
@@ -27,10 +40,71 @@
       input[type="text"], input[type="number"], input[type="email"],
       input[type="password"], input[type="search"], input[type="url"],
       textarea, select {
-        @apply bg-gray-800 border-gray-700 text-gray-100 rounded-md shadow-sm
+        @apply bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600
+               text-gray-900 dark:text-gray-100 rounded-md shadow-sm
                focus:border-brand focus:ring-brand sm:text-sm;
       }
     }
+  </style>
+  <style>
+    /*
+     * Light mode — matches Django admin dark_theme.css palette
+     * Brand: #DC394C red, #8B3138 crimson, #2B2D2C charcoal
+     * Nav bar stays dark. Only main content area switches.
+     */
+    html:not(.dark) body { background-color: #f8f8f8; color: #1a1a1a; }
+    /* Surfaces */
+    html:not(.dark) main .bg-gray-950 { background-color: #f8f8f8 !important; }
+    html:not(.dark) main .bg-gray-900 { background-color: #eeeeee !important; }
+    html:not(.dark) main .bg-gray-800 { background-color: #ffffff !important; }
+    html:not(.dark) main .bg-gray-700 { background-color: #eeeeee !important; }
+    html:not(.dark) main .bg-gray-800\/50,
+    html:not(.dark) main .hover\:bg-gray-800\/50:hover { background-color: #eeeeee !important; }
+    html:not(.dark) main .hover\:bg-gray-800:hover { background-color: #eeeeee !important; }
+    html:not(.dark) main .hover\:bg-gray-700:hover { background-color: #e0e0e0 !important; }
+    html:not(.dark) main .hover\:bg-gray-700\/50:hover { background-color: #eeeeee !important; }
+    html:not(.dark) main .hover\:bg-gray-600:hover { background-color: #e0e0e0 !important; }
+    /* Text */
+    html:not(.dark) main .text-gray-100 { color: #1a1a1a !important; }
+    html:not(.dark) main .text-gray-200 { color: #1a1a1a !important; }
+    html:not(.dark) main .text-gray-300 { color: #666666 !important; }
+    html:not(.dark) main .text-gray-400 { color: #666666 !important; }
+    html:not(.dark) main .text-gray-500 { color: #a8aaa9 !important; }
+    html:not(.dark) main .hover\:text-white:hover { color: #000000 !important; }
+    html:not(.dark) main .hover\:text-gray-200:hover { color: #1a1a1a !important; }
+    /* Borders — matches --hairline-color / --border-color */
+    html:not(.dark) main .border-gray-700 { border-color: #e0e0e0 !important; }
+    html:not(.dark) main .border-gray-600 { border-color: #e0e0e0 !important; }
+    html:not(.dark) main .divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: #e0e0e0 !important; }
+    html:not(.dark) main .ring-gray-700 { --tw-ring-color: #e0e0e0 !important; }
+    html:not(.dark) main .ring-gray-600 { --tw-ring-color: #e0e0e0 !important; }
+    html:not(.dark) main .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; }
+    /* Status badges — matches admin message colors */
+    html:not(.dark) main .bg-green-900\/50 { background-color: #d4edda !important; }
+    html:not(.dark) main .text-green-300 { color: #155724 !important; }
+    html:not(.dark) main .border-green-700 { border-color: #c3e6cb !important; }
+    html:not(.dark) main .bg-yellow-900\/50 { background-color: #fff3cd !important; }
+    html:not(.dark) main .text-yellow-300 { color: #856404 !important; }
+    html:not(.dark) main .text-yellow-400 { color: #856404 !important; }
+    html:not(.dark) main .bg-purple-900\/50 { background-color: #f3e8ff !important; }
+    html:not(.dark) main .text-purple-300 { color: #9333ea !important; }
+    html:not(.dark) main .bg-blue-900\/50 { background-color: #dbeafe !important; }
+    html:not(.dark) main .text-blue-300 { color: #2563eb !important; }
+    html:not(.dark) main .bg-red-900\/50 { background-color: #f8d7da !important; }
+    html:not(.dark) main .text-red-300 { color: #721c24 !important; }
+    html:not(.dark) main .border-red-700 { border-color: #f5c6cb !important; }
+    html:not(.dark) main .text-red-400 { color: #c0392b !important; }
+    html:not(.dark) main .hover\:text-red-300:hover { color: #721c24 !important; }
+    /* Mono text */
+    html:not(.dark) main .font-mono { color: #666666 !important; }
+    /* Prose — matches admin link/text colors */
+    html:not(.dark) main .prose-invert { --tw-prose-body: #1a1a1a; --tw-prose-headings: #000000; --tw-prose-links: #DC394C; --tw-prose-bold: #000000; --tw-prose-code: #1a1a1a; --tw-prose-th-borders: #e0e0e0; --tw-prose-td-borders: #e0e0e0; }
+    /* Brand links — matches admin --link-fg */
+    html:not(.dark) main .text-brand-light { color: #DC394C !important; }
+    html:not(.dark) main .hover\:text-brand:hover { color: #8B3138 !important; }
+    html:not(.dark) main .hover\:border-brand:hover { border-color: #DC394C !important; }
+    /* Selected/hover rows — matches admin --selected-bg */
+    html:not(.dark) main .group:hover { border-color: #DC394C !important; }
   </style>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
@@ -42,30 +116,36 @@
   </script>
 </head>
 <body class="h-full bg-gray-950 text-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  <div class="min-h-full">
+  <div class="min-h-full flex flex-col">
     {% if user.is_authenticated %}
     {% include "includes/nav.html" %}
     {% endif %}
 
-    <main class="{% if user.is_authenticated %}py-6{% endif %}">
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {% if messages %}
-        <div id="messages" class="mb-4 space-y-2">
-          {% for message in messages %}
-          <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
-               x-transition class="rounded-md p-4 {% if message.tags == 'success' %}bg-green-900/50 text-green-300 border border-green-700{% elif message.tags == 'error' %}bg-red-900/50 text-red-300 border border-red-700{% else %}bg-gray-800 text-gray-300 border border-gray-700{% endif %}">
-            <div class="flex justify-between">
-              <p class="text-sm font-medium">{{ message }}</p>
-              <button @click="show = false" class="ml-3 text-sm font-medium underline">&times;</button>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
+    <div class="flex flex-1 overflow-hidden">
+      {% if user.is_authenticated %}
+      {% include "includes/sidebar.html" %}
+      {% endif %}
 
-        {% block content %}{% endblock %}
-      </div>
-    </main>
+      <main class="flex-1 overflow-y-auto {% if user.is_authenticated %}py-6{% endif %}">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {% if messages %}
+          <div id="messages" class="mb-4 space-y-2">
+            {% for message in messages %}
+            <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+                 x-transition class="rounded-md p-4 {% if message.tags == 'success' %}bg-green-900/50 text-green-300 border border-green-700{% elif message.tags == 'error' %}bg-red-900/50 text-red-300 border border-red-700{% else %}bg-gray-800 text-gray-300 border border-gray-700{% endif %}">
+              <div class="flex justify-between">
+                <p class="text-sm font-medium">{{ message }}</p>
+                <button @click="show = false" class="ml-3 text-sm font-medium underline">&times;</button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% block content %}{% endblock %}
+        </div>
+      </main>
+    </div>
   </div>
 </body>
 </html>

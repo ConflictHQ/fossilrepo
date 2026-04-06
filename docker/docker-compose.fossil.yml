@@ -1,0 +1,32 @@
+# fossilrepo local development stack
+#
+# Run: docker compose up
+# Creates a local Fossil server with Caddy routing and Litestream replication.
+
+services:
+  fossilrepo:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.fossil
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - fossil-data:/data/repos
+    environment:
+      # S3 replication (configure for your bucket)
+      - FOSSILREPO_S3_BUCKET=${FOSSILREPO_S3_BUCKET:-}
+      - FOSSILREPO_S3_ENDPOINT=${FOSSILREPO_S3_ENDPOINT:-}
+      - FOSSILREPO_S3_REGION=${FOSSILREPO_S3_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      # Server config
+      - FOSSILREPO_CADDY_DOMAIN=${FOSSILREPO_CADDY_DOMAIN:-localhost}
+      - FOSSILREPO_FOSSIL_PORT=8080
+      - FOSSILREPO_DATA_DIR=/data/repos
+    restart: unless-stopped
+
+volumes:
+  fossil-data:
+    driver: local

@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from core.admin import BaseCoreAdmin
 
-from .models import Organization, OrganizationMember
+from .models import Organization, OrganizationMember, Team
 
 
 class OrganizationMemberInline(admin.TabularInline):
@@ -16,6 +16,13 @@ class OrganizationAdmin(BaseCoreAdmin):
     list_display = ("name", "slug", "website", "created_at")
     search_fields = ("name", "slug")
     inlines = [OrganizationMemberInline]
+
+
+@admin.register(Team)
+class TeamAdmin(BaseCoreAdmin):
+    list_display = ("name", "slug", "organization", "created_at")
+    search_fields = ("name", "slug")
+    filter_horizontal = ("members",)
 
 
 @admin.register(OrganizationMember)

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ ticket.title }} — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-4">
+  <a href="{% url 'fossil:tickets' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to tickets</a>
+</div>
+
+<div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+  <div class="px-6 py-5 border-b border-gray-700">
+    <h2 class="text-xl font-bold text-gray-100">{{ ticket.title|default:"(untitled)" }}</h2>
+    <p class="mt-1 text-sm text-gray-400">
+      <code class="font-mono text-xs text-gray-500">{{ ticket.uuid|truncatechars:16 }}</code>
+    </p>
+  </div>
+  <div class="px-6 py-5">
+    <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-3">
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Status</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ ticket.status|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Type</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ ticket.type|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Owner</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ ticket.owner|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Priority</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ ticket.priority|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Subsystem</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ ticket.subsystem|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Created</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ ticket.created|date:"N j, Y g:i a" }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+{% endblock %}

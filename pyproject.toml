@@ -1,7 +1,8 @@
 [project]
-name = "fossilrepo-django-htmx"
+name = "fossilrepo"
 version = "0.1.0"
-description = "Fossilrepo Django + HTMX template — server-rendered with progressive enhancement"
+description = "Omnibus-style installer for a self-hosted Fossil forge."
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "django>=5.1,<6.0",
@@ -22,7 +23,13 @@ dependencies = [
     "whitenoise>=6.7",
     "boto3>=1.35",
     "sentry-sdk[django]>=2.14",
+    "click>=8.1",
+    "rich>=13.0",
+    "markdown>=3.6",
 ]
+
+[project.scripts]
+fossilrepo-ctl = "ctl.main:cli"
 
 [project.optional-dependencies]
 dev = [
@@ -44,7 +51,7 @@ select = ["E", "F", "I", "W", "UP", "B", "SIM", "N"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["config", "core", "auth1", "organization", "items", "testdata"]
+known-first-party = ["config", "core", "auth1", "organization", "items", "projects", "pages", "fossil", "testdata", "ctl"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -57,13 +64,16 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short --strict-markers"
 
 [tool.coverage.run]
-source = ["core", "auth1", "organization", "items"]
+source = ["core", "auth1", "organization", "items", "projects", "pages", "fossil"]
 omit = ["*/migrations/*", "*/tests/*", "*/testdata/*", "manage.py", "startup.py"]
 
 [tool.coverage.report]
 fail_under = 80
 show_missing = true
 
+[tool.hatch.build.targets.wheel]
+packages = ["ctl", "core", "auth1", "organization", "items", "projects", "pages", "fossil", "config"]
+
 [build-system]
 requires = ["hatchling"]
-build-backend = "hatchling.backends"
+build-backend = "hatchling.build"

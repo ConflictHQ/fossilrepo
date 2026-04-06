@@ -1,0 +1,94 @@
+import markdown
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.safestring import mark_safe
+
+from core.permissions import P
+from organization.views import get_org
+
+from .forms import PageForm
+from .models import Page
+
+
+@login_required
+def page_list(request):
+    P.PAGE_VIEW.check(request.user)
+    pages = Page.objects.filter(is_published=True)
+
+    if request.user.has_perm("pages.change_page") or request.user.is_superuser:
+        pages = Page.objects.all()
+
+    search = request.GET.get("search", "").strip()
+    if search:
+        pages = pages.filter(name__icontains=search)
+
+    if request.headers.get("HX-Request"):
+        return render(request, "pages/partials/page_table.html", {"pages": pages})
+
+    return render(request, "pages/page_list.html", {"pages": pages, "search": search})
+
+
+@login_required
+def page_create(request):
+    P.PAGE_ADD.check(request.user)
+    org = get_org()
+
+    if request.method == "POST":
+        form = PageForm(request.POST)
+        if form.is_valid():
+            page = form.save(commit=False)
+            page.organization = org
+            page.created_by = request.user
+            page.save()
+            messages.success(request, f'Page "{page.name}" created.')
+            return redirect("pages:detail", slug=page.slug)
+    else:
+        form = PageForm()
+
+    return render(request, "pages/page_form.html", {"form": form, "title": "New Page"})
+
+
+@login_required
+def page_detail(request, slug):
+    P.PAGE_VIEW.check(request.user)
+    page = get_object_or_404(Page, slug=slug, deleted_at__isnull=True)
+    content_html = mark_safe(markdown.markdown(page.content, extensions=["fenced_code", "tables", "toc"]))
+    return render(request, "pages/page_detail.html", {"page": page, "content_html": content_html})
+
+
+@login_required
+def page_update(request, slug):
+    P.PAGE_CHANGE.check(request.user)
+    page = get_object_or_404(Page, slug=slug, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        form = PageForm(request.POST, instance=page)
+        if form.is_valid():
+            page = form.save(commit=False)
+            page.updated_by = request.user
+            page.save()
+            messages.success(request, f'Page "{page.name}" updated.')
+            return redirect("pages:detail", slug=page.slug)
+    else:
+        form = PageForm(instance=page)
+
+    return render(request, "pages/page_form.html", {"form": form, "page": page, "title": "Edit Page"})
+
+
+@login_required
+def page_delete(request, slug):
+    P.PAGE_DELETE.check(request.user)
+    page = get_object_or_404(Page, slug=slug, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        page.soft_delete(user=request.user)
+        messages.success(request, f'Page "{page.name}" deleted.')
+
+        if request.headers.get("HX-Request"):
+            return HttpResponse(status=200, headers={"HX-Redirect": "/docs/"})
+
+        return redirect("pages:list")
+
+    return render(request, "pages/page_confirm_delete.html", {"page": page})

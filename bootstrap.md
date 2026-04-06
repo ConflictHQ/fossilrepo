@@ -1,8 +1,89 @@
-# Fossilrepo Django + HTMX -- Bootstrap
+# fossilrepo -- bootstrap
 
 This is the primary conventions document. All agent shims (`CLAUDE.md`, `AGENTS.md`) point here.
 
 An agent given this document and a business requirement should be able to generate correct, idiomatic code without exploring the codebase.
+
+---
+
+## What is fossilrepo
+
+Omnibus-style installer for a self-hosted Fossil forge. One command gets you a full-stack code hosting platform: VCS, issues, wiki, timeline, web UI, SSL, and continuous backups -- all powered by Fossil SCM.
+
+Think GitLab Omnibus, but for Fossil.
+
+---
+
+## Why Fossil
+
+A Fossil repo is a single SQLite file. It contains the full VCS history, issue tracker, wiki, forum, and timeline. No external services. No rate limits. Portable -- hand the file to someone and they have everything.
+
+For teams running CI agents or automation:
+- Agents commit, file tickets, and update the wiki through one CLI and one protocol
+- No API rate limits when many agents are pushing simultaneously
+- The `.fossil` file IS the project artifact -- a self-contained archive
+- Litestream replicates it to S3 continuously -- backup and point-in-time recovery for free
+
+Fossil also has a built-in web UI (skinnable), autosync, peer-to-peer sync, and unversioned content storage (like Git LFS but built-in).
+
+---
+
+## What fossilrepo Does
+
+fossilrepo packages everything needed to run a production Fossil server into one installable unit:
+
+- **Fossil server** -- serves all repos from a single process
+- **Caddy** -- SSL termination, subdomain-per-repo routing (`reponame.your-domain.com`)
+- **Litestream** -- continuous SQLite replication to S3/MinIO (backup + point-in-time recovery)
+- **CLI** -- repo lifecycle management (create, list, delete) and sync tooling
+- **Sync bridge** -- mirror Fossil repos to GitHub/GitLab as downstream read-only copies
+
+New project = `fossil init`. No restart, no config change. Litestream picks it up automatically.
+
+---
+
+## Server Stack
+
+```
+Caddy  (SSL termination, routing, subdomain per repo)
+  +-- fossil server --repolist /data/repos/
+        +-- /data/repos/
+              |-- projecta.fossil
+              |-- projectb.fossil
+              +-- ...
+
+Litestream -> S3/MinIO  (continuous replication, point-in-time recovery)
+```
+
+One binary serves all repos. The whole platform is: repo creation + subdomain provisioning + Litestream config.
+
+### Sync Bridge
+
+Mirrors Fossil to GitHub/GitLab as a downstream copy. Fossil is the source of truth.
+
+Maps:
+- Fossil commits -> Git commits
+- Fossil tickets -> GitHub/GitLab Issues (optional, configurable)
+- Fossil wiki -> repo docs (optional, configurable)
+
+Triggered on demand or on schedule.
+
+---
+
+## Architecture
+
+```
+fossilrepo/
+|-- config/          # Django settings, URLs, Celery
+|-- core/            # Base models, permissions, middleware
+|-- auth1/           # Session-based auth
+|-- organization/    # Org + member management
+|-- items/           # Example CRUD app (reference only)
+|-- docker/          # Fossil-specific: Caddyfile, litestream.yml
+|-- templates/       # HTMX templates
+|-- _old_fossilrepo/ # Original server/sync/cli code (being ported)
++-- docs/            # Architecture guides
+```
 
 ---
 
@@ -31,7 +112,7 @@ An agent given this document and a business requirement should be able to genera
 | `core` | Base models (Tracking, BaseCoreModel), admin (BaseCoreAdmin), permissions (P enum), middleware |
 | `auth1` | Session-based authentication: login/logout views with rate limiting |
 | `organization` | Organization + OrganizationMember models |
-| `items` | Example CRUD domain demonstrating all patterns |
+| `items` | Example CRUD domain demonstrating all patterns (reference only -- new Fossil-specific apps will replace this as the primary domain) |
 | `testdata` | `seed` management command for development data |
 
 ---
@@ -42,7 +123,7 @@ An agent given this document and a business requirement should be able to genera
 
 All business models inherit from one of:
 
-**`Tracking`** (abstract) — audit trails:
+**`Tracking`** (abstract) -- audit trails:
 ```python
 from core.models import Tracking
 
@@ -51,7 +132,7 @@ class Invoice(Tracking):
 ```
 Provides: `version` (auto-increments), `created_at/by`, `updated_at/by`, `deleted_at/by`, `history` (simple_history).
 
-**`BaseCoreModel(Tracking)`** (abstract) — named entities:
+**`BaseCoreModel(Tracking)`** (abstract) -- named entities:
 ```python
 from core.models import BaseCoreModel
 
@@ -133,9 +214,9 @@ class ItemAdmin(BaseCoreAdmin):
 
 ### Templates
 
-- `base.html` — layout with HTMX, Alpine.js, Tailwind CSS, CSRF injection, messages
-- `includes/nav.html` — navigation bar with permission guards
-- `{app}/partials/*.html` — HTMX partial templates (no `{% extends %}`)
+- `base.html` -- layout with HTMX, Alpine.js, Tailwind CSS, CSRF injection, messages
+- `includes/nav.html` -- navigation bar with permission guards
+- `{app}/partials/*.html` -- HTMX partial templates (no `{% extends %}`)
 - CSRF token sent with all HTMX requests via `htmx:configRequest` event
 
 Alpine.js patterns for client-side interactivity:
@@ -241,3 +322,21 @@ make superuser       # Create Django superuser
 make shell           # Shell into container
 make logs            # Tail Django logs
 ```
+
+---
+
+## Platform Vision (fossilrepos.com)
+
+GitLab model:
+- **Self-hosted** -- open source, run it yourself. fossilrepo is the tool.
+- **Managed** -- fossilrepos.com, hosted for you. Subdomain per repo, modern UI, billing.
+
+The platform is Fossil's built-in web UI with a modern skin + thin API wrapper + authentication. Not a rewrite -- Fossil already does the hard parts. The value is the hosting and UX polish.
+
+Not being built yet -- get the self-hosted tool right first.
+
+---
+
+## License
+
+MIT.

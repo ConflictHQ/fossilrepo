@@ -1,0 +1,30 @@
+<div id="team-member-table">
+  <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
+    <table class="min-w-full divide-y divide-gray-700">
+      <thead class="bg-gray-900">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Username</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Email</th>
+          <th class="px-6 py-3 text-right text-xs font-medium uppercase text-gray-400">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700 bg-gray-800">
+        {% for member in team_members %}
+        <tr class="hover:bg-gray-700/50">
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{{ member.username }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ member.email|default:"—" }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+            {% if perms.organization.change_team %}
+            <a href="{% url 'organization:team_member_remove' slug=team.slug username=member.username %}" class="text-red-400 hover:text-red-300">Remove</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-400">No members yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

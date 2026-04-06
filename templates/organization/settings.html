@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Settings — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="md:flex md:items-center md:justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-100">Organization Settings</h1>
+  {% if perms.organization.change_organization %}
+  <a href="{% url 'organization:settings_edit' %}"
+     class="mt-4 md:mt-0 inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+    Edit Settings
+  </a>
+  {% endif %}
+</div>
+
+<div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+  <div class="px-6 py-5">
+    <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Name</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ org.name }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Slug</dt>
+        <dd class="mt-1 text-sm text-gray-400 font-mono">{{ org.slug }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Website</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ org.website|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">GUID</dt>
+        <dd class="mt-1 text-sm text-gray-400 font-mono">{{ org.guid }}</dd>
+      </div>
+      <div class="sm:col-span-2">
+        <dt class="text-sm font-medium text-gray-400">Description</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ org.description|default:"No description." }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Created</dt>
+        <dd class="mt-1 text-sm text-gray-400">{{ org.created_at|date:"N j, Y g:i a" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Updated</dt>
+        <dd class="mt-1 text-sm text-gray-400">{{ org.updated_at|date:"N j, Y g:i a" }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+<div class="mt-8">
+  <div class="md:flex md:items-center md:justify-between mb-4">
+    <h2 class="text-lg font-semibold text-gray-100">Members</h2>
+    <div class="flex gap-3 mt-4 md:mt-0">
+      {% if perms.organization.view_organizationmember %}
+      <a href="{% url 'organization:members' %}"
+         class="inline-flex items-center rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Manage Members
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="mt-4">
+  <div class="md:flex md:items-center md:justify-between mb-4">
+    <h2 class="text-lg font-semibold text-gray-100">Teams</h2>
+    <div class="flex gap-3 mt-4 md:mt-0">
+      {% if perms.organization.view_team %}
+      <a href="{% url 'organization:team_list' %}"
+         class="inline-flex items-center rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Manage Teams
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

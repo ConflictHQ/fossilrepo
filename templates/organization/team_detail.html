@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ team.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <a href="{% url 'organization:team_list' %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Teams</a>
+</div>
+
+<div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+  <div class="px-6 py-5 sm:flex sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-100">{{ team.name }}</h1>
+      <p class="mt-1 text-sm text-gray-400">{{ team.slug }}</p>
+    </div>
+    <div class="mt-4 flex gap-3 sm:mt-0">
+      {% if perms.organization.change_team %}
+      <a href="{% url 'organization:team_update' slug=team.slug %}"
+         class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Edit
+      </a>
+      {% endif %}
+      {% if perms.organization.delete_team %}
+      <a href="{% url 'organization:team_delete' slug=team.slug %}"
+         class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">
+        Delete
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="border-t border-gray-700 px-6 py-5">
+    <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+      <div class="sm:col-span-2">
+        <dt class="text-sm font-medium text-gray-400">Description</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ team.description|default:"No description." }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">GUID</dt>
+        <dd class="mt-1 text-sm text-gray-400 font-mono">{{ team.guid }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Created</dt>
+        <dd class="mt-1 text-sm text-gray-400">{{ team.created_at|date:"N j, Y g:i a" }} by {{ team.created_by|default:"system" }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+<div class="mt-8">
+  <div class="md:flex md:items-center md:justify-between mb-4">
+    <h2 class="text-lg font-semibold text-gray-100">Team Members</h2>
+    {% if perms.organization.change_team %}
+    <a href="{% url 'organization:team_member_add' slug=team.slug %}"
+       class="mt-4 md:mt-0 inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+      Add Member
+    </a>
+    {% endif %}
+  </div>
+
+  {% include "organization/partials/team_member_table.html" %}
+</div>
+{% endblock %}

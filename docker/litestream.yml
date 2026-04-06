@@ -1,0 +1,18 @@
+# Litestream replication configuration
+#
+# Continuously replicates all .fossil files in /data/repos/ to S3.
+# Each .fossil file is a SQLite database — Litestream streams WAL
+# changes to S3 for continuous backup and point-in-time recovery.
+#
+# New .fossil files are picked up automatically when using the
+# "dbs" glob pattern below.
+
+dbs:
+  - path: /data/repos/*.fossil
+    replicas:
+      - type: s3
+        bucket: ${FOSSILREPO_S3_BUCKET}
+        endpoint: ${FOSSILREPO_S3_ENDPOINT}
+        region: ${FOSSILREPO_S3_REGION}
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}

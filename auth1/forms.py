@@ -6,7 +6,7 @@ class LoginForm(AuthenticationForm):
     username = forms.CharField(
         widget=forms.TextInput(
             attrs={
-                "class": "w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500",
+                "class": "w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand",
                 "placeholder": "Username",
                 "autofocus": True,
             }
@@ -15,7 +15,7 @@ class LoginForm(AuthenticationForm):
     password = forms.CharField(
         widget=forms.PasswordInput(
             attrs={
-                "class": "w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500",
+                "class": "w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand",
                 "placeholder": "Password",
             }
         )
