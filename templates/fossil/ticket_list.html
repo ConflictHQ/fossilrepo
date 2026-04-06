@@ -36,20 +36,27 @@
 
 {% include "fossil/partials/ticket_table.html" %}
 
-{% if has_prev or has_next %}
 <div class="mt-4 flex items-center justify-between text-sm">
-  <span class="text-gray-500">{{ total }} ticket{{ total|pluralize }}</span>
+  <div class="flex items-center gap-3">
+    <span class="text-gray-500">{{ total }} ticket{{ total|pluralize }}</span>
+    <div class="flex items-center gap-1 text-xs">
+      <span class="text-gray-600">Show:</span>
+      {% for size in per_page_options %}
+      <a href="{% url 'fossil:tickets' slug=project.slug %}?per_page={{ size }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+         class="px-1.5 py-0.5 rounded {% if size == per_page %}bg-brand text-white{% else %}text-gray-500 hover:text-white{% endif %}">{{ size }}</a>
+      {% endfor %}
+    </div>
+  </div>
   <div class="flex items-center gap-2">
     {% if has_prev %}
-    <a href="{% url 'fossil:tickets' slug=project.slug %}?page={{ page|add:"-1" }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
-       class="rounded-md bg-gray-800 px-3 py-1.5 text-gray-400 hover:text-white border border-gray-700">&larr; Prev</a>
+    <a href="{% url 'fossil:tickets' slug=project.slug %}?page={{ page|add:"-1" }}&per_page={{ per_page }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+       class="rounded-md bg-gray-800 px-3 py-1.5 text-gray-400 hover:text-white border border-gray-700">&larr;</a>
     {% endif %}
-    <span class="text-gray-500">Page {{ page }}</span>
+    <span class="text-gray-500">{{ page }} / {{ total_pages }}</span>
     {% if has_next %}
-    <a href="{% url 'fossil:tickets' slug=project.slug %}?page={{ page|add:"1" }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
-       class="rounded-md bg-gray-800 px-3 py-1.5 text-gray-400 hover:text-white border border-gray-700">Next &rarr;</a>
+    <a href="{% url 'fossil:tickets' slug=project.slug %}?page={{ page|add:"1" }}&per_page={{ per_page }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+       class="rounded-md bg-gray-800 px-3 py-1.5 text-gray-400 hover:text-white border border-gray-700">&rarr;</a>
     {% endif %}
   </div>
 </div>
-{% endif %}
 {% endblock %}

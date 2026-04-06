@@ -423,17 +423,22 @@ def ticket_list(request, slug):
     status_filter = request.GET.get("status", "")
     search = request.GET.get("search", "").strip()
     page = int(request.GET.get("page", "1"))
-    per_page = 50
+    per_page = int(request.GET.get("per_page", "50"))
+    per_page = per_page if per_page in (25, 50, 100) else 50
 
     with reader:
-        tickets = reader.get_tickets(status=status_filter or None, limit=500)
+        tickets = reader.get_tickets(status=status_filter or None, limit=1000)
 
     if search:
         tickets = [t for t in tickets if search.lower() in t.title.lower()]
 
     total = len(tickets)
+    import math
+
+    total_pages = max(1, math.ceil(total / per_page))
+    page = min(page, total_pages)
     tickets = tickets[(page - 1) * per_page : page * per_page]
-    has_next = page * per_page < total
+    has_next = page < total_pages
     has_prev = page > 1
 
     if request.headers.get("HX-Request"):
@@ -449,9 +454,12 @@ def ticket_list(request, slug):
             "status_filter": status_filter,
             "search": search,
             "page": page,
+            "per_page": per_page,
+            "per_page_options": [25, 50, 100],
             "has_next": has_next,
             "has_prev": has_prev,
             "total": total,
+            "total_pages": total_pages,
             "active_tab": "tickets",
         },
     )
