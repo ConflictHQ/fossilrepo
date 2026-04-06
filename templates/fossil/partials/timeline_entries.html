@@ -54,17 +54,21 @@
       <div class="rounded-lg bg-gray-800 border border-gray-700 px-4 py-2.5 hover:border-gray-600 transition-colors">
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
+            {% if item.entry.event_type == "ci" %}
+            <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=item.entry.uuid %}" class="text-sm text-gray-100 leading-snug hover:text-brand-light">{{ item.entry.comment|default:"(no comment)"|truncatechars:120 }}</a>
+            {% else %}
             <p class="text-sm text-gray-100 leading-snug">{{ item.entry.comment|default:"(no comment)"|truncatechars:120 }}</p>
+            {% endif %}
             <div class="mt-1 flex items-center gap-3 flex-wrap">
-              <span class="text-xs text-gray-500">{{ item.entry.user }}</span>
-              <span class="text-xs text-gray-600">{{ item.entry.timestamp|timesince }} ago</span>
+              <span class="text-xs text-gray-400">{{ item.entry.user }}</span>
+              <span class="text-xs text-gray-600">{{ item.entry.timestamp|date:"Y-m-d H:i" }}</span>
               {% if item.entry.branch %}
               <span class="inline-flex items-center rounded-md bg-brand/10 border border-brand/20 px-1.5 py-0.5 text-xs text-brand-light">
                 {{ item.entry.branch }}
               </span>
               {% endif %}
               {% if item.entry.event_type == "ci" %}
-              <code class="text-xs font-mono text-gray-600">{{ item.entry.uuid|truncatechars:10 }}</code>
+              <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=item.entry.uuid %}" class="text-xs font-mono text-brand-light hover:text-brand">{{ item.entry.uuid|truncatechars:10 }}</a>
               {% endif %}
             </div>
           </div>

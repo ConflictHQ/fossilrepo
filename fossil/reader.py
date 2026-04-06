@@ -39,6 +39,22 @@ class FileEntry:
 
 
 @dataclass
+class CheckinDetail:
+    uuid: str
+    timestamp: datetime
+    user: str
+    comment: str
+    branch: str = ""
+    parent_uuid: str = ""
+    is_merge: bool = False
+    files_changed: list = None  # list of dicts: {name, change_type, uuid, prev_uuid}
+
+    def __post_init__(self):
+        if self.files_changed is None:
+            self.files_changed = []
+
+
+@dataclass
 class TicketEntry:
     uuid: str
     title: str
@@ -48,6 +64,9 @@ class TicketEntry:
     owner: str
     subsystem: str = ""
     priority: str = ""
+    severity: str = ""
+    resolution: str = ""
+    body: str = ""  # main comment/description
 
 
 @dataclass
@@ -118,13 +137,16 @@ def _extract_wiki_content(artifact_text: str) -> str:
     """Extract wiki body from a Fossil wiki artifact.
 
     Format: header cards (D/L/P/U lines), then W <size>\\n<content>\\nZ <hash>
+    The W card specifies the byte count of the content that follows.
     """
     import re
 
-    match = re.search(r"^W \d+\n(.*?)(?:\nZ [0-9a-f]+)?$", artifact_text, re.DOTALL | re.MULTILINE)
-    if match:
-        return match.group(1).strip()
-    return ""
+    match = re.search(r"^W (\d+)\n", artifact_text, re.MULTILINE)
+    if not match:
+        return ""
+    start = match.end()
+    size = int(match.group(1))
+    return artifact_text[start : start + size]
 
 
 class FossilReader:
@@ -232,9 +254,7 @@ class FossilReader:
                 # Get parent info from plink for DAG
                 if row["type"] == "ci":
                     try:
-                        parents = self.conn.execute(
-                            "SELECT pid, isprim FROM plink WHERE cid=?", (row["rid"],)
-                        ).fetchall()
+                        parents = self.conn.execute("SELECT pid, isprim FROM plink WHERE cid=?", (row["rid"],)).fetchall()
                         for p in parents:
                             if p["isprim"]:
                                 parent_rid = p["pid"]
@@ -272,6 +292,97 @@ class FossilReader:
             entry.rail = branch_rails[b]
 
         return entries
+
+    # --- Checkin Detail ---
+
+    def get_checkin_detail(self, uuid: str) -> CheckinDetail | None:
+        """Get full details for a specific checkin, including changed files."""
+        try:
+            row = self.conn.execute(
+                "SELECT blob.rid, blob.uuid, event.mtime, event.user, event.comment "
+                "FROM event JOIN blob ON event.objid=blob.rid "
+                "WHERE blob.uuid LIKE ? AND event.type='ci'",
+                (uuid + "%",),
+            ).fetchone()
+            if not row:
+                return None
+
+            rid = row["rid"]
+            full_uuid = row["uuid"]
+
+            # Get branch
+            branch = ""
+            try:
+                br = self.conn.execute(
+                    "SELECT tag.tagname FROM tagxref JOIN tag ON tagxref.tagid=tag.tagid WHERE tagxref.rid=? AND tag.tagname LIKE 'sym-%'",
+                    (rid,),
+                ).fetchone()
+                if br:
+                    branch = br[0].replace("sym-", "", 1)
+            except sqlite3.OperationalError:
+                pass
+
+            # Get parent
+            parent_uuid = ""
+            is_merge = False
+            try:
+                parents = self.conn.execute("SELECT pid, isprim FROM plink WHERE cid=?", (rid,)).fetchall()
+                for p in parents:
+                    if p["isprim"]:
+                        parent_row = self.conn.execute("SELECT uuid FROM blob WHERE rid=?", (p["pid"],)).fetchone()
+                        if parent_row:
+                            parent_uuid = parent_row["uuid"]
+                is_merge = len(parents) > 1
+            except sqlite3.OperationalError:
+                pass
+
+            # Get changed files from mlink
+            files_changed = []
+            try:
+                mlinks = self.conn.execute(
+                    """
+                    SELECT fn.name, ml.fid, ml.pid,
+                           b_new.uuid as new_uuid,
+                           b_old.uuid as old_uuid
+                    FROM mlink ml
+                    JOIN filename fn ON ml.fnid = fn.fnid
+                    LEFT JOIN blob b_new ON ml.fid = b_new.rid
+                    LEFT JOIN blob b_old ON ml.pid = b_old.rid
+                    WHERE ml.mid = ?
+                    ORDER BY fn.name
+                    """,
+                    (rid,),
+                ).fetchall()
+                for ml in mlinks:
+                    if ml["fid"] == 0:
+                        change_type = "deleted"
+                    elif ml["pid"] == 0:
+                        change_type = "added"
+                    else:
+                        change_type = "modified"
+                    files_changed.append(
+                        {
+                            "name": ml["name"],
+                            "change_type": change_type,
+                            "uuid": ml["new_uuid"] or "",
+                            "prev_uuid": ml["old_uuid"] or "",
+                        }
+                    )
+            except sqlite3.OperationalError:
+                pass
+
+            return CheckinDetail(
+                uuid=full_uuid,
+                timestamp=_julian_to_datetime(row["mtime"]),
+                user=row["user"] or "",
+                comment=row["comment"] or "",
+                branch=branch,
+                parent_uuid=parent_uuid,
+                is_merge=is_merge,
+                files_changed=files_changed,
+            )
+        except sqlite3.OperationalError:
+            return None
 
     # --- Code / Files ---
 
@@ -371,7 +482,7 @@ class FossilReader:
     def get_ticket_detail(self, uuid: str) -> TicketEntry | None:
         try:
             row = self.conn.execute(
-                "SELECT tkt_uuid, title, status, type, tkt_ctime, subsystem, priority "
+                "SELECT tkt_uuid, title, status, type, tkt_ctime, subsystem, priority, severity, resolution, comment "
                 "FROM ticket WHERE tkt_uuid LIKE ?",
                 (uuid + "%",),
             ).fetchone()
@@ -386,6 +497,9 @@ class FossilReader:
                 owner="",
                 subsystem=row["subsystem"] or "",
                 priority=row["priority"] or "",
+                severity=row["severity"] or "",
+                resolution=row["resolution"] or "",
+                body=row["comment"] or "",
             )
         except sqlite3.OperationalError:
             return None
@@ -458,26 +572,29 @@ class FossilReader:
     # --- Forum ---
 
     def get_forum_posts(self, limit: int = 50) -> list[ForumPost]:
+        """Get root forum posts (thread starters) with body content."""
         posts = []
         try:
             rows = self.conn.execute(
                 """
-                SELECT blob.uuid, event.mtime, event.user, event.comment
-                FROM event
-                JOIN blob ON event.objid = blob.rid
-                WHERE event.type = 'f'
-                ORDER BY event.mtime DESC
+                SELECT b.uuid, fp.fmtime, e.user, e.comment, b.rid
+                FROM forumpost fp
+                JOIN blob b ON fp.fpid = b.rid
+                JOIN event e ON fp.fpid = e.objid
+                WHERE fp.firt = 0 AND fp.fprev = 0
+                ORDER BY fp.fmtime DESC
                 LIMIT ?
                 """,
                 (limit,),
             ).fetchall()
             for row in rows:
+                body = self._read_forum_body(row["rid"])
                 posts.append(
                     ForumPost(
                         uuid=row["uuid"],
                         title=row["comment"] or "",
-                        body="",
-                        timestamp=_julian_to_datetime(row["mtime"]),
+                        body=body,
+                        timestamp=_julian_to_datetime(row["fmtime"]),
                         user=row["user"] or "",
                     )
                 )
@@ -486,28 +603,50 @@ class FossilReader:
         return posts
 
     def get_forum_thread(self, root_uuid: str) -> list[ForumPost]:
-        # Forum threads in Fossil are linked via the forumpost table
+        """Get all posts in a forum thread by root post UUID."""
         posts = []
         try:
+            # Find root post rid
+            root_row = self.conn.execute("SELECT rid FROM blob WHERE uuid=?", (root_uuid,)).fetchone()
+            if not root_row:
+                return []
+            root_rid = root_row["rid"]
+
             rows = self.conn.execute(
                 """
-                SELECT blob.uuid, event.mtime, event.user, event.comment
-                FROM event
-                JOIN blob ON event.objid = blob.rid
-                WHERE event.type = 'f'
-                ORDER BY event.mtime ASC
-                """
+                SELECT b.uuid, fp.fmtime, e.user, e.comment, b.rid, fp.firt
+                FROM forumpost fp
+                JOIN blob b ON fp.fpid = b.rid
+                JOIN event e ON fp.fpid = e.objid
+                WHERE fp.froot = ?
+                ORDER BY fp.fmtime ASC
+                """,
+                (root_rid,),
             ).fetchall()
             for row in rows:
+                body = self._read_forum_body(row["rid"])
                 posts.append(
                     ForumPost(
                         uuid=row["uuid"],
                         title=row["comment"] or "",
-                        body="",
-                        timestamp=_julian_to_datetime(row["mtime"]),
+                        body=body,
+                        timestamp=_julian_to_datetime(row["fmtime"]),
                         user=row["user"] or "",
+                        in_reply_to=str(row["firt"]) if row["firt"] else "",
                     )
                 )
         except sqlite3.OperationalError:
             pass
         return posts
+
+    def _read_forum_body(self, rid: int) -> str:
+        """Read and extract body text from a forum post artifact."""
+        try:
+            row = self.conn.execute("SELECT content FROM blob WHERE rid=?", (rid,)).fetchone()
+            if not row or not row[0]:
+                return ""
+            data = _decompress_blob(row[0])
+            text = data.decode("utf-8", errors="replace")
+            return _extract_wiki_content(text)
+        except Exception:
+            return ""

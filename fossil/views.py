@@ -25,7 +25,7 @@ def _get_repo_and_reader(slug):
 
 
 @login_required
-def code_browser(request, slug):
+def code_browser(request, slug, dirpath=""):
     P.PROJECT_VIEW.check(request.user)
     project, fossil_repo, reader = _get_repo_and_reader(slug)
 
@@ -35,11 +35,18 @@ def code_browser(request, slug):
         metadata = reader.get_metadata()
         latest_commit = reader.get_timeline(limit=1, event_type="ci")
 
-    # Build directory tree from flat file list
-    tree = _build_file_tree(files)
+    # Build directory listing for the current path
+    tree = _build_file_tree(files, current_dir=dirpath)
+
+    # Build breadcrumbs
+    breadcrumbs = []
+    if dirpath:
+        parts = dirpath.strip("/").split("/")
+        for i, part in enumerate(parts):
+            breadcrumbs.append({"name": part, "path": "/".join(parts[: i + 1])})
 
     if request.headers.get("HX-Request"):
-        return render(request, "fossil/partials/file_tree.html", {"tree": tree, "project": project})
+        return render(request, "fossil/partials/file_tree.html", {"tree": tree, "project": project, "current_dir": dirpath})
 
     return render(
         request,
@@ -48,6 +55,8 @@ def code_browser(request, slug):
             "project": project,
             "fossil_repo": fossil_repo,
             "tree": tree,
+            "current_dir": dirpath,
+            "breadcrumbs": breadcrumbs,
             "checkin_uuid": checkin_uuid,
             "metadata": metadata,
             "latest_commit": latest_commit[0] if latest_commit else None,
@@ -88,6 +97,12 @@ def code_file(request, slug, filepath):
     # Determine language for syntax highlighting
     ext = filepath.rsplit(".", 1)[-1] if "." in filepath else ""
 
+    # Build breadcrumbs for file path
+    parts = filepath.split("/")
+    file_breadcrumbs = []
+    for i, part in enumerate(parts):
+        file_breadcrumbs.append({"name": part, "path": "/".join(parts[: i + 1])})
+
     return render(
         request,
         "fossil/code_file.html",
@@ -95,10 +110,37 @@ def code_file(request, slug, filepath):
             "project": project,
             "fossil_repo": fossil_repo,
             "filepath": filepath,
+            "file_breadcrumbs": file_breadcrumbs,
             "content": content,
             "is_binary": is_binary,
             "language": ext,
             "active_tab": "code",
+        },
+    )
+
+
+# --- Checkin Detail ---
+
+
+@login_required
+def checkin_detail(request, slug, checkin_uuid):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        checkin = reader.get_checkin_detail(checkin_uuid)
+
+    if not checkin:
+        raise Http404("Checkin not found")
+
+    return render(
+        request,
+        "fossil/checkin_detail.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "checkin": checkin,
+            "active_tab": "timeline",
         },
     )
 
@@ -304,48 +346,59 @@ def forum_thread(request, slug, thread_uuid):
 # --- Helpers ---
 
 
-def _build_file_tree(files):
-    """Build a flat sorted list for the top-level directory view (like GitHub).
+def _build_file_tree(files, current_dir=""):
+    """Build a flat sorted list for the directory view at a given path.
 
-    Shows directories and files at the root level only. Directories are sorted first.
-    Each directory gets the most recent commit info from its children.
+    Shows immediate children (dirs and files) of current_dir. Directories first.
+    Each directory gets the most recent commit info from its descendants.
     """
-    dirs = {}  # dir_name -> most recent file entry
-    root_files = []
+    prefix = (current_dir.strip("/") + "/") if current_dir else ""
+    prefix_len = len(prefix)
+
+    dirs = {}  # immediate child dir name -> most recent file entry
+    dir_files = []  # immediate child files
 
     for f in files:
         # Skip files with characters that break URL routing
         if "\n" in f.name or "\r" in f.name or "\x00" in f.name:
             continue
-        parts = f.name.split("/")
+        # Only consider files under current_dir
+        if not f.name.startswith(prefix):
+            continue
+        # Get the relative path after prefix
+        relative = f.name[prefix_len:]
+        parts = relative.split("/")
+
         if len(parts) > 1:
-            # File is inside a directory
-            dir_name = parts[0]
-            if dir_name not in dirs or (
-                f.last_commit_time and (not dirs[dir_name].last_commit_time or f.last_commit_time > dirs[dir_name].last_commit_time)
+            # This file is inside a subdirectory
+            child_dir = parts[0]
+            if child_dir not in dirs or (
+                f.last_commit_time and (not dirs[child_dir].last_commit_time or f.last_commit_time > dirs[child_dir].last_commit_time)
             ):
-                dirs[dir_name] = f
+                dirs[child_dir] = f
         else:
-            root_files.append(f)
+            dir_files.append(f)
 
     entries = []
     # Directories first (sorted)
     for dir_name in sorted(dirs):
         f = dirs[dir_name]
+        full_dir_path = (prefix + dir_name) if prefix else dir_name
         entries.append(
             {
                 "name": dir_name,
-                "path": dir_name,
+                "path": full_dir_path,
                 "is_dir": True,
                 "commit_message": f.last_commit_message,
                 "commit_time": f.last_commit_time,
             }
         )
     # Then files (sorted)
-    for f in sorted(root_files, key=lambda x: x.name):
+    for f in sorted(dir_files, key=lambda x: x.name):
+        filename = f.name[prefix_len:] if prefix else f.name
         entries.append(
             {
-                "name": f.name,
+                "name": filename,
                 "path": f.name,
                 "is_dir": False,
                 "file": f,

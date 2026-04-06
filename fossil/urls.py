@@ -6,8 +6,10 @@ app_name = "fossil"
 
 urlpatterns = [
     path("code/", views.code_browser, name="code"),
-    path("code/<path:filepath>", views.code_file, name="code_file"),
+    path("code/tree/<path:dirpath>/", views.code_browser, name="code_dir"),
+    path("code/file/<path:filepath>", views.code_file, name="code_file"),
     path("timeline/", views.timeline, name="timeline"),
+    path("checkin/<str:checkin_uuid>/", views.checkin_detail, name="checkin_detail"),
     path("tickets/", views.ticket_list, name="tickets"),
     path("tickets/<str:ticket_uuid>/", views.ticket_detail, name="ticket_detail"),
     path("wiki/", views.wiki_list, name="wiki"),

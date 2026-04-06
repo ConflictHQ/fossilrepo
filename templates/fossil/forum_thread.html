@@ -11,13 +11,22 @@
 
 <div class="space-y-3">
   {% for post in posts %}
-  <div class="rounded-lg bg-gray-800 border border-gray-700 px-5 py-4">
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-sm font-medium text-gray-200">{{ post.user }}</span>
-      <span class="text-xs text-gray-500">{{ post.timestamp|date:"N j, Y g:i a" }}</span>
-    </div>
-    <div class="text-sm text-gray-300">
-      {{ post.title|default:post.body|default:"(empty)" }}
+  <div class="rounded-lg bg-gray-800 border border-gray-700 {% if post.in_reply_to %}ml-8{% endif %}">
+    <div class="px-5 py-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-medium text-gray-200">{{ post.user }}</span>
+        <span class="text-xs text-gray-500">{{ post.timestamp|timesince }} ago</span>
+      </div>
+      {% if post.title and forloop.first %}
+      <h2 class="text-lg font-semibold text-gray-100 mb-3">{{ post.title }}</h2>
+      {% endif %}
+      {% if post.body %}
+      <div class="prose prose-invert prose-sm prose-gray max-w-none">
+        {{ post.body|linebreaksbr }}
+      </div>
+      {% else %}
+      <p class="text-sm text-gray-500 italic">{{ post.title|default:"(empty)" }}</p>
+      {% endif %}
     </div>
   </div>
   {% empty %}
