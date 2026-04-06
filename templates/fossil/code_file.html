@@ -21,6 +21,20 @@
   .line-row:hover { background: rgba(220, 57, 76, 0.05); }
   .line-row:target { background: rgba(220, 57, 76, 0.12); }
   .line-row:target .line-num { color: #DC394C; font-weight: 600; }
+  .line-popover {
+    position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
+    margin-left: 4px; z-index: 20; white-space: nowrap;
+    background: #1f2937; border: 1px solid #374151; border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4); padding: 2px;
+    display: flex; gap: 2px;
+  }
+  .line-popover button {
+    display: flex; align-items: center; gap: 4px; padding: 4px 8px;
+    font-size: 0.7rem; color: #d1d5db; background: transparent;
+    border: none; border-radius: 4px; cursor: pointer;
+  }
+  .line-popover button:hover { background: #374151; color: #fff; }
+  .line-popover button.copied { color: #22c55e; }
 </style>
 {% endblock %}
 
@@ -54,7 +68,17 @@
       <tbody>
         {% for line in lines %}
         <tr class="line-row" id="L{{ line.num }}">
-          <td class="line-num"><a href="#L{{ line.num }}">{{ line.num }}</a></td>
+          <td class="line-num" style="position:relative"
+              x-data="{ pop: false, copied: false }"
+              @click.stop="pop = !pop; window.location.hash = 'L{{ line.num }}'"
+              @click.outside="pop = false">
+            {{ line.num }}
+            <div class="line-popover" x-show="pop" x-transition @click.stop>
+              <button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#L{{ line.num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'">
+                <span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span>
+              </button>
+            </div>
+          </td>
           <td class="line-code"><code class="language-{{ language }}">{{ line.text }}</code></td>
         </tr>
         {% endfor %}
