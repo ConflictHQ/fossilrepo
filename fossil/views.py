@@ -304,19 +304,37 @@ def checkin_detail(request, slug, checkin_uuid):
                     lineterm="",
                     n=3,
                 )
+                old_line = 0
+                new_line = 0
                 for line in diff:
                     line_type = "context"
+                    old_num = ""
+                    new_num = ""
                     if line.startswith("+++") or line.startswith("---"):
                         line_type = "header"
                     elif line.startswith("@@"):
                         line_type = "hunk"
+                        # Parse @@ -old_start,old_count +new_start,new_count @@
+                        hunk_match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
+                        if hunk_match:
+                            old_line = int(hunk_match.group(1))
+                            new_line = int(hunk_match.group(2))
                     elif line.startswith("+"):
                         line_type = "add"
                         additions += 1
+                        new_num = new_line
+                        new_line += 1
                     elif line.startswith("-"):
                         line_type = "del"
                         deletions += 1
-                    diff_lines.append({"text": line, "type": line_type})
+                        old_num = old_line
+                        old_line += 1
+                    else:
+                        old_num = old_line
+                        new_num = new_line
+                        old_line += 1
+                        new_line += 1
+                    diff_lines.append({"text": line, "type": line_type, "old_num": old_num, "new_num": new_num})
 
             ext = f["name"].rsplit(".", 1)[-1] if "." in f["name"] else ""
             file_diffs.append(

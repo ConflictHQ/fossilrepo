@@ -117,7 +117,8 @@
         <tbody>
           {% for dl in fd.diff_lines %}
           <tr class="diff-line-{{ dl.type }}">
-            <td class="diff-gutter"></td>
+            <td class="diff-gutter">{{ dl.old_num }}</td>
+            <td class="diff-gutter">{{ dl.new_num }}</td>
             <td>{{ dl.text }}</td>
           </tr>
           {% endfor %}
