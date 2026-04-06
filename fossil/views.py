@@ -163,6 +163,9 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
         m = re.match(r"/([^/]+\.(?:wiki|md|html))", url)
         if m:
             return f'href="{base}/docs/www/{m.group(1)}"'
+        # /setup_*, /admin_* -> these are Fossil server routes, link to admin
+        if re.match(r"/(setup_|admin_)", url):
+            return match.group(0)  # Keep as-is, no good mapping
         # Keep external and unrecognized links as-is
         return match.group(0)
 
@@ -772,10 +775,23 @@ def fossil_doc_page(request, slug, doc_path):
         files = reader.get_files_at_checkin(checkin_uuid) if checkin_uuid else []
 
         target = None
+        # Strip trailing slash for directory-style links
+        clean_path = doc_path.rstrip("/")
         for f in files:
-            if f.name == doc_path:
+            if f.name == clean_path:
                 target = f
                 break
+
+        # If not found, try index files for directory links
+        if not target:
+            for index_name in [f"{clean_path}/index.html", f"{clean_path}/index.md", f"{clean_path}/index.wiki"]:
+                for f in files:
+                    if f.name == index_name:
+                        target = f
+                        doc_path = index_name
+                        break
+                if target:
+                    break
 
         if not target:
             raise Http404(f"Documentation file not found: {doc_path}")
