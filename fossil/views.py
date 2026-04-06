@@ -24,20 +24,45 @@ def _render_fossil_content(content: str) -> str:
     if not content:
         return ""
 
-    # Convert Fossil-specific syntax
-    # [/path|text] -> <a href="/path">text</a>
+    # Detect format from the raw content BEFORE any transformations
+    is_markdown = _is_markdown(content)
+
+    if is_markdown:
+        # Markdown: convert Fossil [/path|text] links to markdown links first
+        content = re.sub(r"\[(/[^|\]]+)\|([^\]]+)\]", r"[\2](\1)", content)
+        content = re.sub(r"<verbatim>(.*?)</verbatim>", r"```\n\1\n```", content, flags=re.DOTALL)
+        return md.markdown(content, extensions=["fenced_code", "tables", "toc"])
+
+    # Fossil wiki / HTML: convert Fossil-specific syntax to HTML
     content = re.sub(r"\[(/[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
-    # [url|text] -> <a href="url">text</a>
     content = re.sub(r"\[(https?://[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
-    # <verbatim>...</verbatim> -> <pre><code>...</code></pre>
     content = re.sub(r"<verbatim>(.*?)</verbatim>", r"<pre><code>\1</code></pre>", content, flags=re.DOTALL)
+    return content
 
-    # If content looks like it has HTML tags, treat as HTML (Fossil wiki)
-    if re.search(r"<(h[1-6]|p|ol|ul|li|div|table|pre|a|br)\b", content, re.IGNORECASE):
-        return content
 
-    # Otherwise try markdown
-    return md.markdown(content, extensions=["fenced_code", "tables", "toc"])
+def _is_markdown(content: str) -> bool:
+    """Detect if content is Markdown vs Fossil wiki/HTML.
+
+    Heuristic: if the content starts with markdown-style headings (#),
+    or has significant markdown syntax patterns, treat as markdown.
+    """
+    stripped = content.strip()
+    # Starts with markdown heading
+    if re.match(r"^#{1,6}\s", stripped):
+        return True
+    # Has multiple markdown headings
+    if len(re.findall(r"^#{1,6}\s", stripped, re.MULTILINE)) >= 2:
+        return True
+    # Has markdown link references [text][ref]
+    if re.search(r"\[.+\]\[.+\]", stripped):
+        return True
+    # Has markdown code fences
+    if "```" in stripped:
+        return True
+    # Starts with HTML block element — it's Fossil wiki/HTML
+    if re.match(r"<(h[1-6]|p|ol|ul|div|table)\b", stripped, re.IGNORECASE):
+        return False
+    return False
 
 
 def _get_repo_and_reader(slug):
