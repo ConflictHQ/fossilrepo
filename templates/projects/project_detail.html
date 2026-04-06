@@ -2,77 +2,135 @@
 {% block title %}{{ project.name }} — Fossilrepo{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <a href="{% url 'projects:list' %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Projects</a>
-</div>
-
-<div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
-  <div class="px-6 py-5 sm:flex sm:items-center sm:justify-between">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-100">{{ project.name }}</h1>
-      <p class="mt-1 text-sm text-gray-400">{{ project.slug }}</p>
-    </div>
-    <div class="mt-4 flex gap-3 sm:mt-0">
-      {% if perms.projects.change_project %}
-      <a href="{% url 'projects:update' slug=project.slug %}"
-         class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
-        Edit
-      </a>
-      {% endif %}
-      {% if perms.projects.delete_project %}
-      <a href="{% url 'projects:delete' slug=project.slug %}"
-         class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">
-        Delete
-      </a>
-      {% endif %}
-    </div>
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-100">{{ project.name }}</h1>
+    <p class="mt-1 text-sm text-gray-400">{{ project.description|default:"No description." }}</p>
   </div>
-
-  <div class="border-t border-gray-700 px-6 py-5">
-    <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-      <div>
-        <dt class="text-sm font-medium text-gray-400">Visibility</dt>
-        <dd class="mt-1 text-sm">
-          {% if project.visibility == "public" %}
-          <span class="inline-flex rounded-full bg-green-900/50 px-2 text-xs font-semibold leading-5 text-green-300">Public</span>
-          {% elif project.visibility == "internal" %}
-          <span class="inline-flex rounded-full bg-yellow-900/50 px-2 text-xs font-semibold leading-5 text-yellow-300">Internal</span>
-          {% else %}
-          <span class="inline-flex rounded-full bg-gray-700 px-2 text-xs font-semibold leading-5 text-gray-300">Private</span>
-          {% endif %}
-        </dd>
-      </div>
-      <div>
-        <dt class="text-sm font-medium text-gray-400">GUID</dt>
-        <dd class="mt-1 text-sm text-gray-400 font-mono">{{ project.guid }}</dd>
-      </div>
-      <div class="sm:col-span-2">
-        <dt class="text-sm font-medium text-gray-400">Description</dt>
-        <dd class="mt-1 text-sm text-gray-100">{{ project.description|default:"No description." }}</dd>
-      </div>
-      <div>
-        <dt class="text-sm font-medium text-gray-400">Created</dt>
-        <dd class="mt-1 text-sm text-gray-400">{{ project.created_at|date:"N j, Y g:i a" }} by {{ project.created_by|default:"system" }}</dd>
-      </div>
-      <div>
-        <dt class="text-sm font-medium text-gray-400">Updated</dt>
-        <dd class="mt-1 text-sm text-gray-400">{{ project.updated_at|date:"N j, Y g:i a" }}</dd>
-      </div>
-    </dl>
-  </div>
-</div>
-
-<div class="mt-8">
-  <div class="md:flex md:items-center md:justify-between mb-4">
-    <h2 class="text-lg font-semibold text-gray-100">Teams</h2>
+  <div class="flex gap-3">
     {% if perms.projects.change_project %}
-    <a href="{% url 'projects:team_add' slug=project.slug %}"
-       class="mt-4 md:mt-0 inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
-      Add Team
+    <a href="{% url 'projects:update' slug=project.slug %}"
+       class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+      Edit
     </a>
     {% endif %}
   </div>
+</div>
 
-  {% include "projects/partials/project_team_table.html" %}
+{% if repo_stats %}
+<!-- Fossil navigation tabs -->
+{% with active_tab="overview" %}
+{% include "fossil/_project_nav.html" %}
+{% endwith %}
+{% endif %}
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+  <!-- Main content -->
+  <div class="lg:col-span-2 space-y-6">
+    {% if repo_stats and recent_commits %}
+    <!-- Recent activity -->
+    <div class="rounded-lg bg-gray-800 border border-gray-700">
+      <div class="px-4 py-3 border-b border-gray-700">
+        <h3 class="text-sm font-medium text-gray-300">Recent Activity</h3>
+      </div>
+      <div class="divide-y divide-gray-700">
+        {% for commit in recent_commits %}
+        <div class="px-4 py-3 flex items-start gap-3">
+          <div class="flex-shrink-0 mt-0.5">
+            <div class="w-2.5 h-2.5 rounded-full bg-brand"></div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=commit.uuid %}"
+               class="text-sm text-gray-200 hover:text-brand-light">{{ commit.comment|truncatechars:80 }}</a>
+            <div class="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
+              <span>{{ commit.user }}</span>
+              <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=commit.uuid %}"
+                 class="font-mono text-brand-light hover:text-brand">{{ commit.uuid|truncatechars:10 }}</a>
+              <span>{{ commit.timestamp|timesince }} ago</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="px-4 py-2 border-t border-gray-700">
+        <a href="{% url 'fossil:timeline' slug=project.slug %}" class="text-xs text-brand-light hover:text-brand">View full timeline &rarr;</a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Teams -->
+    <div class="rounded-lg bg-gray-800 border border-gray-700">
+      <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+        <h3 class="text-sm font-medium text-gray-300">Teams</h3>
+        {% if perms.projects.change_project %}
+        <a href="{% url 'projects:team_add' slug=project.slug %}" class="text-xs text-brand-light hover:text-brand">+ Add Team</a>
+        {% endif %}
+      </div>
+      {% include "projects/partials/project_team_table.html" %}
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="space-y-4">
+    {% if repo_stats %}
+    <!-- Repository stats -->
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+      <h3 class="text-sm font-medium text-gray-300 mb-3">Repository</h3>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-2 text-sm text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Checkins
+          </span>
+          <a href="{% url 'fossil:timeline' slug=project.slug %}" class="text-sm font-medium text-gray-200 hover:text-brand-light">{{ repo_stats.checkin_count|default:"0" }}</a>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-2 text-sm text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            Files
+          </span>
+          <a href="{% url 'fossil:code' slug=project.slug %}" class="text-sm font-medium text-gray-200 hover:text-brand-light">{{ repo_stats.file_count|default:"—" }}</a>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-2 text-sm text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" /></svg>
+            Tickets
+          </span>
+          <a href="{% url 'fossil:tickets' slug=project.slug %}" class="text-sm font-medium text-gray-200 hover:text-brand-light">{{ repo_stats.ticket_count|default:"0" }}</a>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-2 text-sm text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+            Wiki Pages
+          </span>
+          <a href="{% url 'fossil:wiki' slug=project.slug %}" class="text-sm font-medium text-gray-200 hover:text-brand-light">{{ repo_stats.wiki_page_count|default:"0" }}</a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Project info -->
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+      <h3 class="text-sm font-medium text-gray-300 mb-3">About</h3>
+      <dl class="space-y-2 text-sm">
+        <div class="flex items-center justify-between">
+          <dt class="text-gray-500">Visibility</dt>
+          <dd>
+            {% if project.visibility == "public" %}
+            <span class="inline-flex rounded-full bg-green-900/50 px-2 text-xs font-semibold leading-5 text-green-300">Public</span>
+            {% elif project.visibility == "internal" %}
+            <span class="inline-flex rounded-full bg-yellow-900/50 px-2 text-xs font-semibold leading-5 text-yellow-300">Internal</span>
+            {% else %}
+            <span class="inline-flex rounded-full bg-gray-700 px-2 text-xs font-semibold leading-5 text-gray-300">Private</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div class="flex items-center justify-between">
+          <dt class="text-gray-500">Created</dt>
+          <dd class="text-gray-300">{{ project.created_at|date:"Y-m-d" }}</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
 </div>
 {% endblock %}

@@ -266,9 +266,71 @@ def checkin_detail(request, slug, checkin_uuid):
 
     with reader:
         checkin = reader.get_checkin_detail(checkin_uuid)
+        if not checkin:
+            raise Http404("Checkin not found")
 
-    if not checkin:
-        raise Http404("Checkin not found")
+        # Compute diffs for each changed file
+        import difflib
+
+        file_diffs = []
+        for f in checkin.files_changed:
+            old_text = ""
+            new_text = ""
+            if f["prev_uuid"]:
+                try:
+                    old_bytes = reader.get_file_content(f["prev_uuid"])
+                    old_text = old_bytes.decode("utf-8", errors="replace")
+                except Exception:
+                    old_text = ""
+            if f["uuid"]:
+                try:
+                    new_bytes = reader.get_file_content(f["uuid"])
+                    new_text = new_bytes.decode("utf-8", errors="replace")
+                except Exception:
+                    new_text = ""
+
+            # Check if binary
+            is_binary = "\x00" in old_text[:1024] or "\x00" in new_text[:1024]
+            diff_lines = []
+            additions = 0
+            deletions = 0
+
+            if not is_binary and (old_text or new_text):
+                diff = difflib.unified_diff(
+                    old_text.splitlines(keepends=True),
+                    new_text.splitlines(keepends=True),
+                    fromfile=f"a/{f['name']}",
+                    tofile=f"b/{f['name']}",
+                    lineterm="",
+                    n=3,
+                )
+                for line in diff:
+                    line_type = "context"
+                    if line.startswith("+++") or line.startswith("---"):
+                        line_type = "header"
+                    elif line.startswith("@@"):
+                        line_type = "hunk"
+                    elif line.startswith("+"):
+                        line_type = "add"
+                        additions += 1
+                    elif line.startswith("-"):
+                        line_type = "del"
+                        deletions += 1
+                    diff_lines.append({"text": line, "type": line_type})
+
+            ext = f["name"].rsplit(".", 1)[-1] if "." in f["name"] else ""
+            file_diffs.append(
+                {
+                    "name": f["name"],
+                    "change_type": f["change_type"],
+                    "uuid": f["uuid"],
+                    "is_binary": is_binary,
+                    "diff_lines": diff_lines,
+                    "additions": additions,
+                    "deletions": deletions,
+                    "language": ext,
+                }
+            )
 
     return render(
         request,
@@ -277,6 +339,7 @@ def checkin_detail(request, slug, checkin_uuid):
             "project": project,
             "fossil_repo": fossil_repo,
             "checkin": checkin,
+            "file_diffs": file_diffs,
             "active_tab": "timeline",
         },
     )

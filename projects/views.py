@@ -51,7 +51,27 @@ def project_detail(request, slug):
     P.PROJECT_VIEW.check(request.user)
     project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
     project_teams = project.project_teams.filter(deleted_at__isnull=True).select_related("team")
-    return render(request, "projects/project_detail.html", {"project": project, "project_teams": project_teams})
+
+    # Get Fossil repo stats if available
+    repo_stats = None
+    recent_commits = []
+    try:
+        from fossil.models import FossilRepository
+        from fossil.reader import FossilReader
+
+        fossil_repo = FossilRepository.objects.filter(project=project, deleted_at__isnull=True).first()
+        if fossil_repo and fossil_repo.exists_on_disk:
+            with FossilReader(fossil_repo.full_path) as reader:
+                repo_stats = reader.get_metadata()
+                recent_commits = reader.get_timeline(limit=5, event_type="ci")
+    except Exception:
+        pass
+
+    return render(
+        request,
+        "projects/project_detail.html",
+        {"project": project, "project_teams": project_teams, "repo_stats": repo_stats, "recent_commits": recent_commits},
+    )
 
 
 @login_required

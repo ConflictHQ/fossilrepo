@@ -1,6 +1,21 @@
 {% extends "base.html" %}
 {% block title %}{{ checkin.uuid|truncatechars:12 }} — {{ project.name }} — Fossilrepo{% endblock %}
 
+{% block extra_head %}
+<style>
+  .diff-table { border-collapse: collapse; width: 100%; font-size: 0.75rem; font-family: ui-monospace, monospace; }
+  .diff-table td { padding: 0 8px; white-space: pre; vertical-align: top; line-height: 1.4rem; }
+  .diff-line-add { background: rgba(34, 197, 94, 0.1); }
+  .diff-line-add td:last-child { color: #86efac; }
+  .diff-line-del { background: rgba(239, 68, 68, 0.1); }
+  .diff-line-del td:last-child { color: #fca5a5; }
+  .diff-line-hunk { background: rgba(96, 165, 250, 0.08); }
+  .diff-line-hunk td { color: #93c5fd; font-weight: 500; }
+  .diff-line-header td { color: #6b7280; font-weight: 600; }
+  .diff-gutter { width: 1%; user-select: none; color: #4b5563; text-align: right; padding: 0 6px; border-right: 1px solid #374151; }
+</style>
+{% endblock %}
+
 {% block content %}
 <h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
 {% include "fossil/_project_nav.html" %}
@@ -12,7 +27,7 @@
       <p class="text-lg text-gray-100 leading-relaxed">{{ checkin.comment }}</p>
       <div class="mt-3 flex items-center gap-4 flex-wrap text-sm">
         <span class="font-medium text-gray-200">{{ checkin.user }}</span>
-        <span class="text-gray-500">{{ checkin.timestamp|date:"N j, Y g:i a" }}</span>
+        <span class="text-gray-500">{{ checkin.timestamp|date:"Y-m-d H:i" }}</span>
         {% if checkin.branch %}
         <span class="inline-flex items-center rounded-md bg-brand/10 border border-brand/20 px-2 py-0.5 text-xs text-brand-light">
           {{ checkin.branch }}
@@ -23,51 +38,97 @@
         {% endif %}
       </div>
     </div>
-    <div class="px-6 py-3 border-t border-gray-700 bg-gray-800/50 flex items-center gap-6 text-xs">
+    <div class="px-6 py-3 border-t border-gray-700 bg-gray-800/50 flex items-center gap-6 flex-wrap text-xs">
       <div class="flex items-center gap-2">
         <span class="text-gray-500">Commit</span>
-        <code class="font-mono text-gray-300 text-xs break-all">{{ checkin.uuid }}</code>
+        <code class="font-mono text-gray-300 break-all">{{ checkin.uuid }}</code>
       </div>
       {% if checkin.parent_uuid %}
       <div class="flex items-center gap-2">
         <span class="text-gray-500">Parent</span>
         <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=checkin.parent_uuid %}"
-           class="font-mono text-brand-light hover:text-brand text-xs">{{ checkin.parent_uuid|truncatechars:16 }}</a>
+           class="font-mono text-brand-light hover:text-brand">{{ checkin.parent_uuid|truncatechars:16 }}</a>
       </div>
       {% endif %}
-      <div class="flex items-center gap-2">
-        <span class="text-gray-500">Files changed</span>
-        <span class="text-gray-300">{{ checkin.files_changed|length }}</span>
-      </div>
     </div>
   </div>
 
-  <!-- Changed files -->
-  {% if checkin.files_changed %}
-  <div class="rounded-lg bg-gray-800 border border-gray-700">
-    <div class="px-4 py-3 border-b border-gray-700 text-sm font-medium text-gray-300">
-      {{ checkin.files_changed|length }} file{{ checkin.files_changed|length|pluralize }} changed
+  <!-- File summary bar -->
+  {% if file_diffs %}
+  <div class="rounded-lg bg-gray-800 border border-gray-700 px-4 py-3">
+    <div class="flex items-center gap-4 text-sm">
+      <span class="text-gray-300 font-medium">{{ file_diffs|length }} file{{ file_diffs|length|pluralize }} changed</span>
+      {% with total_add=0 total_del=0 %}
+      {% for fd in file_diffs %}
+      {% if fd.additions %}
+      <span class="text-green-400">+{{ fd.additions }}</span>
+      {% endif %}
+      {% if fd.deletions %}
+      <span class="text-red-400">-{{ fd.deletions }}</span>
+      {% endif %}
+      {% endfor %}
+      {% endwith %}
     </div>
-    <div class="divide-y divide-gray-700">
-      {% for f in checkin.files_changed %}
-      <div class="px-4 py-2.5 flex items-center gap-3 hover:bg-gray-700/30">
-        {% if f.change_type == "added" %}
+    <div class="mt-2 flex flex-wrap gap-2">
+      {% for fd in file_diffs %}
+      <a href="#diff-{{ forloop.counter }}" class="text-xs font-mono text-brand-light hover:text-brand">
+        {% if fd.change_type == "added" %}
+        <span class="text-green-400">+</span>
+        {% elif fd.change_type == "deleted" %}
+        <span class="text-red-400">-</span>
+        {% else %}
+        <span class="text-yellow-400">~</span>
+        {% endif %}
+        {{ fd.name }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Diffs -->
+  {% for fd in file_diffs %}
+  <div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden" id="diff-{{ forloop.counter }}">
+    <div class="px-4 py-2.5 border-b border-gray-700 flex items-center justify-between bg-gray-900/50">
+      <div class="flex items-center gap-3">
+        {% if fd.change_type == "added" %}
         <span class="inline-flex items-center justify-center w-5 h-5 rounded text-xs font-bold bg-green-900/50 text-green-300">A</span>
-        {% elif f.change_type == "deleted" %}
+        {% elif fd.change_type == "deleted" %}
         <span class="inline-flex items-center justify-center w-5 h-5 rounded text-xs font-bold bg-red-900/50 text-red-300">D</span>
         {% else %}
         <span class="inline-flex items-center justify-center w-5 h-5 rounded text-xs font-bold bg-yellow-900/50 text-yellow-300">M</span>
         {% endif %}
-        {% if f.uuid %}
-        <a href="{% url 'fossil:code_file' slug=project.slug filepath=f.name %}"
-           class="text-sm font-mono text-brand-light hover:text-brand">{{ f.name }}</a>
+        {% if fd.uuid %}
+        <a href="{% url 'fossil:code_file' slug=project.slug filepath=fd.name %}"
+           class="text-sm font-mono text-brand-light hover:text-brand">{{ fd.name }}</a>
         {% else %}
-        <span class="text-sm font-mono text-gray-400">{{ f.name }}</span>
+        <span class="text-sm font-mono text-gray-400">{{ fd.name }}</span>
         {% endif %}
       </div>
-      {% endfor %}
+      <div class="flex items-center gap-2 text-xs">
+        {% if fd.additions %}<span class="text-green-400">+{{ fd.additions }}</span>{% endif %}
+        {% if fd.deletions %}<span class="text-red-400">-{{ fd.deletions }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      {% if fd.is_binary %}
+      <p class="p-4 text-sm text-gray-500">Binary file</p>
+      {% elif fd.diff_lines %}
+      <table class="diff-table">
+        <tbody>
+          {% for dl in fd.diff_lines %}
+          <tr class="diff-line-{{ dl.type }}">
+            <td class="diff-gutter"></td>
+            <td>{{ dl.text }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="p-4 text-sm text-gray-500">No diff available</p>
+      {% endif %}
     </div>
   </div>
+  {% endfor %}
   {% endif %}
 </div>
 {% endblock %}
