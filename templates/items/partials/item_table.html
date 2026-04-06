@@ -1,0 +1,44 @@
+<div id="item-table">
+  <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
+    <table class="min-w-full divide-y divide-gray-700">
+      <thead class="bg-gray-900">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Name</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">SKU</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Price</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Status</th>
+          <th class="px-6 py-3 text-right text-xs font-medium uppercase text-gray-400">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700 bg-gray-800">
+        {% for item in items %}
+        <tr class="hover:bg-gray-700/50">
+          <td class="px-6 py-4 whitespace-nowrap">
+            <a href="{% url 'items:detail' slug=item.slug %}" class="text-brand-light hover:text-brand font-medium">
+              {{ item.name }}
+            </a>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ item.sku|default:"—" }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-100">${{ item.price }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            {% if item.is_active %}
+            <span class="inline-flex rounded-full bg-green-900/50 px-2 text-xs font-semibold leading-5 text-green-300">Active</span>
+            {% else %}
+            <span class="inline-flex rounded-full bg-gray-700 px-2 text-xs font-semibold leading-5 text-gray-300">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+            {% if perms.items.change_item %}
+            <a href="{% url 'items:update' slug=item.slug %}" class="text-brand-light hover:text-brand">Edit</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-400">No items found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

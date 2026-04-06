@@ -1,0 +1,768 @@
+/*
+ * Fossilrepo Admin Theme — supports dark, light, and system-auto modes
+ * Brand palette:
+ *   #2B2D2C  charcoal   (dark body background)
+ *   #DC394C  red        (primary brand accent)
+ *   #8B3138  crimson    (secondary / hover states)
+ *   #FAFAFA  near-white (foreground on dark)
+ */
+
+/* ── Shared brand accents + dark defaults ───────────────────────────────── */
+
+:root {
+    /* Brand accents — unchanged across all themes */
+    --primary:                #DC394C;
+    --secondary:              #8B3138;
+    --accent:                 #DC394C;
+    --primary-fg:             #FAFAFA;
+
+    --button-fg:              #FAFAFA;
+    --button-bg:              #DC394C;
+    --button-hover-bg:        #c42d3f;
+    --default-button-bg:      #8B3138;
+    --default-button-hover-bg:#6a1921;
+    --close-button-bg:        #4a4c4b;
+    --close-button-hover-bg:  #5a5c5b;
+    --delete-button-bg:       #8B3138;
+    --delete-button-hover-bg: #6a1921;
+
+    --object-tools-fg:        #FAFAFA;
+    --object-tools-bg:        #8B3138;
+    --object-tools-hover-bg:  #6a1921;
+
+    --breadcrumbs-bg:         #DC394C;
+    --breadcrumbs-fg:         #FAFAFA;
+    --breadcrumbs-link-fg:    #FAFAFA;
+    --link-selected-fg:       #DC394C;
+
+    /* Header stays dark in both themes for brand consistency */
+    --header-color:           #FAFAFA;
+    --header-branding-color:  #FAFAFA;
+    --header-bg:              #1f2120;
+    --header-link-color:      #FAFAFA;
+
+    /* Dark theme defaults (applied when no explicit data-theme is set) */
+    --body-fg:                #FAFAFA;
+    --body-bg:                #2B2D2C;
+    --body-quiet-color:       #a8aaa9;
+    --body-loud-color:        #ffffff;
+
+    --link-fg:                #e8677a;
+    --link-hover-color:       #f0929f;
+
+    --hairline-color:         #3d3f3e;
+    --border-color:           #3d3f3e;
+
+    --error-fg:               #ff7a7a;
+    --message-success-bg:     #173317;
+    --message-success-color:  #7ddf7d;
+    --message-success-border: #2d5a2d;
+    --message-warning-bg:     #332e17;
+    --message-warning-color:  #e6c87a;
+    --message-warning-border: #5a4d2d;
+    --message-error-bg:       #331717;
+    --message-error-color:    #ff7a7a;
+    --message-error-border:   #5a2d2d;
+
+    --darkened-bg:            #222423;
+    --selected-bg:            #3d1e24;
+    --selected-row:           #3d1e24;
+    --input-bg:               #1f2120;
+}
+
+/* ── Explicit dark theme (beats Django's html[data-theme="dark"] specificity) */
+
+:root[data-theme="dark"] {
+    --primary:                #DC394C;
+    --secondary:              #8B3138;
+    --accent:                 #DC394C;
+    --primary-fg:             #FAFAFA;
+
+    --button-fg:              #FAFAFA;
+    --button-bg:              #DC394C;
+    --button-hover-bg:        #c42d3f;
+    --default-button-bg:      #8B3138;
+    --default-button-hover-bg:#6a1921;
+    --close-button-bg:        #4a4c4b;
+    --close-button-hover-bg:  #5a5c5b;
+    --delete-button-bg:       #8B3138;
+    --delete-button-hover-bg: #6a1921;
+
+    --object-tools-fg:        #FAFAFA;
+    --object-tools-bg:        #8B3138;
+    --object-tools-hover-bg:  #6a1921;
+
+    --breadcrumbs-bg:         #DC394C;
+    --breadcrumbs-fg:         #FAFAFA;
+    --breadcrumbs-link-fg:    #FAFAFA;
+    --link-selected-fg:       #DC394C;
+
+    --header-bg:              #1f2120;
+    --header-color:           #FAFAFA;
+    --header-branding-color:  #FAFAFA;
+    --header-link-color:      #FAFAFA;
+
+    --body-fg:                #FAFAFA;
+    --body-bg:                #0d0d0d;
+    --body-quiet-color:       #a8aaa9;
+    --body-loud-color:        #ffffff;
+
+    --link-fg:                #e8677a;
+    --link-hover-color:       #f0929f;
+
+    --hairline-color:         #2a2c2b;
+    --border-color:           #2a2c2b;
+
+    --error-fg:               #ff7a7a;
+    --message-success-bg:     #0f1f0f;
+    --message-success-color:  #7ddf7d;
+    --message-success-border: #1e3d1e;
+    --message-warning-bg:     #1f1c0f;
+    --message-warning-color:  #e6c87a;
+    --message-warning-border: #3d3519;
+    --message-error-bg:       #1f0f0f;
+    --message-error-color:    #ff7a7a;
+    --message-error-border:   #3d1a1a;
+
+    --darkened-bg:            #141514;
+    --selected-bg:            #2d1219;
+    --selected-row:           #2d1219;
+    --input-bg:               #111211;
+}
+
+/* ── Light theme ─────────────────────────────────────────────────────────── */
+
+:root[data-theme="light"] {
+    /* Header — dark gray in light mode */
+    --header-bg:              #3a3a3a;
+    --header-color:           #FAFAFA;
+    --header-branding-color:  #FAFAFA;
+    --header-link-color:      #FAFAFA;
+
+    /* Brand accents — must repeat here to beat base.css html[data-theme="light"] specificity */
+    --primary:                #DC394C;
+    --secondary:              #8B3138;
+    --accent:                 #DC394C;
+    --primary-fg:             #FAFAFA;
+
+    --button-fg:              #FAFAFA;
+    --button-bg:              #DC394C;
+    --button-hover-bg:        #c42d3f;
+    --default-button-bg:      #8B3138;
+    --default-button-hover-bg:#6a1921;
+    --delete-button-bg:       #8B3138;
+    --delete-button-hover-bg: #6a1921;
+
+    --object-tools-fg:        #FAFAFA;
+    --object-tools-bg:        #8B3138;
+    --object-tools-hover-bg:  #6a1921;
+
+    --breadcrumbs-bg:         #DC394C;
+    --breadcrumbs-fg:         #FAFAFA;
+    --breadcrumbs-link-fg:    #FAFAFA;
+    --link-selected-fg:       #DC394C;
+
+    --body-fg:                #1a1a1a;
+    --body-bg:                #f8f8f8;
+    --body-quiet-color:       #666666;
+    --body-loud-color:        #000000;
+
+    --link-fg:                #DC394C;
+    --link-hover-color:       #8B3138;
+
+    --hairline-color:         #e0e0e0;
+    --border-color:           #e0e0e0;
+
+    --error-fg:               #c0392b;
+    --message-success-bg:     #d4edda;
+    --message-success-color:  #155724;
+    --message-success-border: #c3e6cb;
+    --message-warning-bg:     #fff3cd;
+    --message-warning-color:  #856404;
+    --message-warning-border: #ffeeba;
+    --message-error-bg:       #f8d7da;
+    --message-error-color:    #721c24;
+    --message-error-border:   #f5c6cb;
+
+    --darkened-bg:            #eeeeee;
+    --selected-bg:            #fde8ea;
+    --selected-row:           #fde8ea;
+    --input-bg:               #ffffff;
+}
+
+/* ── System auto: respect prefers-color-scheme light ─────────────────────── */
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        /* Header — dark gray in light mode */
+        --header-bg:              #3a3a3a;
+        --header-color:           #FAFAFA;
+        --header-branding-color:  #FAFAFA;
+        --header-link-color:      #FAFAFA;
+
+        /* Brand accents */
+        --primary:                #DC394C;
+        --secondary:              #8B3138;
+        --accent:                 #DC394C;
+        --primary-fg:             #FAFAFA;
+
+        --button-fg:              #FAFAFA;
+        --button-bg:              #DC394C;
+        --button-hover-bg:        #c42d3f;
+        --default-button-bg:      #8B3138;
+        --default-button-hover-bg:#6a1921;
+        --delete-button-bg:       #8B3138;
+        --delete-button-hover-bg: #6a1921;
+
+        --object-tools-fg:        #FAFAFA;
+        --object-tools-bg:        #8B3138;
+        --object-tools-hover-bg:  #6a1921;
+
+        --breadcrumbs-bg:         #DC394C;
+        --breadcrumbs-fg:         #FAFAFA;
+        --breadcrumbs-link-fg:    #FAFAFA;
+        --link-selected-fg:       #DC394C;
+
+        --body-fg:                #1a1a1a;
+        --body-bg:                #f8f8f8;
+        --body-quiet-color:       #666666;
+        --body-loud-color:        #000000;
+
+        --link-fg:                #DC394C;
+        --link-hover-color:       #8B3138;
+
+        --hairline-color:         #e0e0e0;
+        --border-color:           #e0e0e0;
+
+        --error-fg:               #c0392b;
+        --message-success-bg:     #d4edda;
+        --message-success-color:  #155724;
+        --message-success-border: #c3e6cb;
+        --message-warning-bg:     #fff3cd;
+        --message-warning-color:  #856404;
+        --message-warning-border: #ffeeba;
+        --message-error-bg:       #f8d7da;
+        --message-error-color:    #721c24;
+        --message-error-border:   #f5c6cb;
+
+        --darkened-bg:            #eeeeee;
+        --selected-bg:            #fde8ea;
+        --selected-row:           #fde8ea;
+        --input-bg:               #ffffff;
+    }
+}
+
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+
+/*
+ * Django's stock base.css gives `.module { background: var(--darkened-bg) }`.
+ * #changelist has class "module", so the 30px margin gap between the table and
+ * the filter also gets --darkened-bg — the same color as the filter itself.
+ * Result: no visible gap.
+ *
+ * clientcove fixes this by shipping a modified base.css with
+ * `.module { background: var(--body-bg) }`. We can't change Django's base.css,
+ * so we target #changelist specifically to make the gap show the body background.
+ */
+#changelist.module {
+    background: transparent;
+    border: none;
+}
+
+/* Prevent table from overflowing into the filter gap — layout owned by changelists.css */
+#changelist .changelist-form-container > div {
+    overflow-x: auto;
+}
+
+/* ── Header — always dark, hardcoded values intentional ─────────────────── */
+
+#header {
+    background: var(--header-bg);
+    border-bottom: 2px solid var(--primary);
+}
+
+#header a:link,
+#header a:visited {
+    color: var(--header-link-color);
+}
+
+#header #branding h1 {
+    line-height: 1;
+    margin: 0;
+}
+
+#header #branding .logo img {
+    height: 40px;
+    width: auto;
+    display: block;
+}
+
+#header #user-tools {
+    color: #a8aaa9;
+}
+
+#header #user-tools a {
+    color: #a8aaa9;
+}
+
+#header #user-tools a:hover {
+    color: #FAFAFA;
+}
+
+/* Quick-links group in header */
+.bw-links {
+    display: inline-flex;
+    gap: 2px;
+    margin-right: 8px;
+    border-right: 1px solid #3d3f3e;
+    padding-right: 10px;
+}
+
+.bw-links a {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: #2e3130;
+    color: #a8aaa9 !important;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-decoration: none !important;
+    transition: background 0.15s, color 0.15s;
+}
+
+.bw-links a:hover {
+    background: var(--primary);
+    color: #FAFAFA !important;
+}
+
+/* ── Light mode header text overrides ───────────────────────────────────── */
+
+/* ── Navigation ─────────────────────────────────────────────────────────── */
+
+div.breadcrumbs {
+    background: var(--breadcrumbs-bg);
+    color: var(--breadcrumbs-fg);
+}
+
+div.breadcrumbs a {
+    color: var(--breadcrumbs-fg);
+    opacity: 0.85;
+}
+
+div.breadcrumbs a:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+/* ── Content area ───────────────────────────────────────────────────────── */
+
+body {
+    background: var(--body-bg);
+    color: var(--body-fg);
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+    background: var(--darkened-bg);
+    color: var(--body-quiet-color);
+    border-left: 3px solid var(--primary);
+    padding-left: 12px;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.module {
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+
+#nav-sidebar {
+    background: var(--darkened-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+#nav-sidebar .current-app .section:link,
+#nav-sidebar .current-app .section:visited {
+    color: var(--primary);
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+
+#result_list thead th {
+    background: var(--input-bg);
+    color: var(--body-fg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+#result_list thead th a,
+#result_list thead th a:visited {
+    color: var(--body-fg);
+}
+
+#result_list tr.row1 {
+    background: var(--body-bg);
+}
+
+#result_list tr.row2 {
+    background: var(--darkened-bg);
+}
+
+#result_list tr:hover td,
+#result_list tr.selected td {
+    background: var(--selected-bg);
+}
+
+/* ── Forms ──────────────────────────────────────────────────────────────── */
+
+input, textarea, select,
+.form-row input, .form-row textarea, .form-row select {
+    background: var(--input-bg);
+    color: var(--body-fg);
+    border: 1px solid var(--border-color);
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(220, 57, 76, 0.25);
+}
+
+.form-row {
+    border-bottom: 1px solid var(--border-color);
+}
+
+fieldset {
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+}
+
+fieldset.collapsed h2 {
+    background: var(--input-bg);
+    color: var(--body-quiet-color);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.button, input[type="submit"], input[type="button"], .submit-row input, a.button {
+    background: var(--button-bg);
+    color: var(--button-fg);
+    border: none;
+}
+
+.button:hover, input[type="submit"]:hover, input[type="button"]:hover,
+.submit-row input:hover, a.button:hover {
+    background: var(--button-hover-bg);
+}
+
+.button.default, input[type="submit"].default, .submit-row input.default {
+    background: var(--default-button-bg);
+}
+
+.button.default:hover, input[type="submit"].default:hover,
+.submit-row input.default:hover {
+    background: var(--default-button-hover-bg);
+}
+
+.deletelink-box a.deletelink,
+.object-tools a.deletelink {
+    background: var(--delete-button-bg);
+}
+
+.deletelink-box a.deletelink:hover,
+.object-tools a.deletelink:hover {
+    background: var(--delete-button-hover-bg);
+}
+
+/* ── Dashboard / change list ────────────────────────────────────────────── */
+
+#changelist .actions {
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+    border-top: none;
+}
+
+/* Search bar */
+#changelist-search input[type="text"] {
+    background: var(--input-bg);
+    color: var(--body-fg);
+    border: 1px solid var(--border-color);
+}
+
+#changelist-search input[type="submit"] {
+    background: var(--hairline-color);
+    color: var(--body-fg);
+    border: none;
+}
+
+#changelist-search input[type="submit"]:hover {
+    background: var(--primary);
+    color: var(--primary-fg);
+}
+
+/* Action bar */
+#changelist .actions label,
+#changelist .actions span {
+    color: var(--body-quiet-color);
+}
+
+#changelist .actions select {
+    background: var(--input-bg);
+    color: var(--body-fg);
+    border: 1px solid var(--border-color);
+}
+
+/* Filter sidebar */
+#changelist-filter {
+    background: var(--input-bg);
+    border-left: 2px solid var(--border-color);
+}
+
+#changelist-filter h2 {
+    background: var(--input-bg);
+    color: var(--body-quiet-color);
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+#changelist-filter h3 {
+    color: var(--body-fg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+#changelist-filter ul {
+    border-top: none;
+}
+
+#changelist-filter li a,
+#changelist-filter li a:link,
+#changelist-filter li a:visited {
+    color: var(--link-fg);
+}
+
+#changelist-filter li a:hover {
+    color: var(--link-hover-color);
+}
+
+#changelist-filter li.selected a,
+#changelist-filter li.selected {
+    color: var(--body-fg);
+}
+
+/* "Show counts" and other filter toolbar links */
+#changelist-filter details summary,
+#changelist-filter .xfull {
+    color: var(--body-quiet-color);
+}
+
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+
+.paginator {
+    color: var(--body-quiet-color);
+    border-top: 1px solid var(--border-color);
+}
+
+.paginator a:link,
+.paginator a:visited {
+    background: var(--darkened-bg);
+    color: var(--body-fg);
+    border: 1px solid var(--border-color);
+}
+
+.paginator a:hover {
+    background: var(--hairline-color);
+    color: var(--body-fg);
+    border-color: var(--border-color);
+}
+
+.paginator .this-page {
+    background: var(--primary);
+    color: var(--primary-fg);
+    border: 1px solid var(--primary);
+}
+
+/* ── Login page ─────────────────────────────────────────────────────────── */
+
+body.login {
+    background: var(--header-bg);
+}
+
+body.login #container {
+    background: var(--body-bg);
+}
+
+/* ── Messages ───────────────────────────────────────────────────────────── */
+
+.messagelist li.success {
+    background: var(--message-success-bg);
+    color: var(--message-success-color);
+    border: 1px solid var(--message-success-border);
+}
+
+.messagelist li.warning {
+    background: var(--message-warning-bg);
+    color: var(--message-warning-color);
+    border: 1px solid var(--message-warning-border);
+}
+
+.messagelist li.error {
+    background: var(--message-error-bg);
+    color: var(--message-error-color);
+    border: 1px solid var(--message-error-border);
+}
+
+/* ── Calendar / date widgets ────────────────────────────────────────────── */
+
+.calendarbox, .clockbox {
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+}
+
+.calendar caption,
+.calendarbox h2 {
+    background: var(--primary);
+    color: var(--primary-fg);
+}
+
+.calendar td a:hover {
+    background: var(--primary);
+    color: var(--primary-fg);
+}
+
+/* ── Misc ───────────────────────────────────────────────────────────────── */
+
+a:link, a:visited {
+    color: var(--link-fg);
+}
+
+a:hover {
+    color: var(--link-hover-color);
+}
+
+.help, .help-tooltip {
+    color: var(--body-quiet-color);
+}
+
+.errornote {
+    background: var(--message-error-bg);
+    border: 1px solid var(--secondary);
+    color: var(--error-fg);
+}
+
+ul.errorlist {
+    color: var(--error-fg);
+}
+
+.inline-related h3,
+.inline-related h4 {
+    background: var(--input-bg);
+    border-top: 2px solid var(--primary);
+    color: var(--body-fg);
+}
+
+/* ── Inline formsets (tabular) ──────────────────────────────────────────── */
+
+.inline-related {
+    background: var(--darkened-bg);
+    border: 1px solid var(--border-color);
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.inline-related .tabular {
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
+}
+
+.inline-related thead {
+    background: var(--input-bg);
+}
+
+.inline-related thead th,
+.inline-related thead td {
+    background: var(--input-bg);
+    color: var(--body-quiet-color);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.inline-related tbody tr {
+    background: var(--darkened-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.inline-related tbody tr:hover {
+    background: var(--selected-bg);
+}
+
+.inline-related tbody tr.empty-form {
+    display: none;
+}
+
+.inline-related .add-row {
+    background: var(--input-bg);
+    border-top: 1px solid var(--border-color);
+}
+
+.inline-related .add-row a {
+    color: var(--primary);
+}
+
+.inline-related .add-row a:hover {
+    color: var(--link-hover-color);
+}
+
+.inline-related td.delete {
+    background: var(--darkened-bg);
+}
+
+.inline-related td.original p {
+    color: var(--body-quiet-color);
+    font-size: 0.8em;
+}
+
+/* ── Read-only field values ──────────────────────────────────────────────── */
+
+.form-row .readonly {
+    color: var(--body-fg);
+    padding: 8px 0;
+}
+
+.form-row label {
+    color: var(--body-quiet-color);
+}
+
+/* ── Module captions: brand color in light mode ──────────────────────────── */
+/* Needs higher specificity than Django's html[data-theme="light"] .module caption */
+
+/* Nav sidebar section headers — dark gray in all light themes */
+/* Scoped to #nav-sidebar so it doesn't hit #changelist-filter h2 */
+:root[data-theme="dark"] #nav-sidebar .module caption,
+:root[data-theme="dark"] #nav-sidebar .module h2 {
+    background: #3a3a3a !important;
+    color: #FAFAFA !important;
+}
+
+:root[data-theme="light"] #nav-sidebar .module caption,
+:root[data-theme="light"] #nav-sidebar .module h2 {
+    background: #3a3a3a !important;
+    color: #FAFAFA !important;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) #nav-sidebar .module caption,
+    :root:not([data-theme="dark"]) #nav-sidebar .module h2 {
+        background: #3a3a3a !important;
+        color: #FAFAFA !important;
+    }
+}

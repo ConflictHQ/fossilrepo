@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-950">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}Fossilrepo{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#DC394C',
+              dark: '#8B3138',
+              hover: '#c42d3f',
+              light: '#e8677a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer base {
+      input[type="text"], input[type="number"], input[type="email"],
+      input[type="password"], input[type="search"], input[type="url"],
+      textarea, select {
+        @apply bg-gray-800 border-gray-700 text-gray-100 rounded-md shadow-sm
+               focus:border-brand focus:ring-brand sm:text-sm;
+      }
+    }
+  </style>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    document.body.addEventListener('htmx:configRequest', function(event) {
+      var token = document.querySelector('meta[name="csrf-token"]');
+      if (token) { event.detail.headers['X-CSRFToken'] = token.content; }
+    });
+  </script>
+</head>
+<body class="h-full bg-gray-950 text-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <div class="min-h-full">
+    {% if user.is_authenticated %}
+    {% include "includes/nav.html" %}
+    {% endif %}
+
+    <main class="{% if user.is_authenticated %}py-6{% endif %}">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {% if messages %}
+        <div id="messages" class="mb-4 space-y-2">
+          {% for message in messages %}
+          <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+               x-transition class="rounded-md p-4 {% if message.tags == 'success' %}bg-green-900/50 text-green-300 border border-green-700{% elif message.tags == 'error' %}bg-red-900/50 text-red-300 border border-red-700{% else %}bg-gray-800 text-gray-300 border border-gray-700{% endif %}">
+            <div class="flex justify-between">
+              <p class="text-sm font-medium">{{ message }}</p>
+              <button @click="show = false" class="ml-3 text-sm font-medium underline">&times;</button>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+</body>
+</html>

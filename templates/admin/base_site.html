@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if subtitle %} {{ subtitle }} | {% endif %}
+    {{ title }} | {{ site_title|default:_('Django site admin') }}
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/dark_theme.css' %}">
+{% endblock %}
+
+{% block welcome-msg %}
+    <strong>{% firstof user.get_short_name user.get_username %}</strong>.
+{% endblock %}
+
+{% block userlinks %}
+    <span class="bw-links">
+        <a target="_blank" href="/">App</a>
+        <a target="_blank" href="/health/">Health</a>
+        <a target="_blank" href="http://localhost:8025">Mailpit</a>
+    </span>
+    {% if user.has_usable_password %}
+    <a href="{% url 'admin:password_change' %}">PWD</a> /
+    {% endif %}
+    <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit">Log out</button>
+    </form>
+    {% include "admin/color_theme_toggle.html" %}
+{% endblock %}
+
+{% block branding %}
+    <h1 id="site-name">
+        <div class="logo">
+            <a role="listitem" class="item" href="/">
+                <img src="{% static 'admin/img/logo-dark.svg' %}" alt="Fossilrepo" height="40">
+            </a>
+        </div>
+    </h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

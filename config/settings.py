@@ -1,0 +1,235 @@
+import logging
+import os
+from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+
+logger = logging.getLogger(__name__)
+
+VERSION = "0.1.0"
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def env_str(name: str, default: str | None = None) -> str | None:
+    return os.getenv(name, default)
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).lower() in ("true", "1", "yes")
+
+
+def env_int(name: str, default: int = 0) -> int:
+    return int(os.getenv(name, str(default)))
+
+
+# --- Security ---
+
+SECRET_KEY = env_str("DJANGO_SECRET_KEY", "change-me-in-production")
+DEBUG = env_bool("DJANGO_DEBUG", False)
+ALLOWED_HOSTS = [h.strip() for h in env_str("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")]
+
+if not DEBUG and SECRET_KEY == "change-me-in-production":
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set to a unique, unpredictable value when DEBUG is False.")
+
+# --- Application ---
+
+ROOT_URLCONF = "config.urls"
+WSGI_APPLICATION = "config.wsgi.application"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+LOGIN_URL = "/auth/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/auth/login/"
+
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    # Third-party
+    "import_export",
+    "simple_history",
+    "django_celery_results",
+    "django_celery_beat",
+    "corsheaders",
+    "constance",
+    "constance.backends.database",
+    # Project apps
+    "core",
+    "auth1",
+    "organization",
+    "items",
+    "testdata",
+]
+
+MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "simple_history.middleware.HistoryRequestMiddleware",
+    "core.middleware.current_user.CurrentUserMiddleware",
+]
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+# --- Database ---
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env_str("POSTGRES_DB", "fossilrepo"),
+        "USER": env_str("POSTGRES_USER", "dbadmin"),
+        "PASSWORD": env_str("POSTGRES_PASSWORD", "Password123"),
+        "HOST": env_str("POSTGRES_HOST", "localhost"),
+        "PORT": env_str("POSTGRES_PORT", "5432"),
+    }
+}
+
+# --- Cache ---
+
+REDIS_URL = env_str("REDIS_URL", "redis://localhost:6379/1")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
+
+# --- Auth ---
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
+CSRF_COOKIE_HTTPONLY = True
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+
+# --- i18n ---
+
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
+USE_I18N = True
+USE_TZ = True
+
+# --- Static ---
+
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "assets"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STORAGES = {
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+
+# --- Media / S3 ---
+
+USE_S3 = env_bool("USE_S3", False)
+
+if USE_S3:
+    STORAGES["default"] = {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"}
+    AWS_ACCESS_KEY_ID = env_str("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = env_str("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = env_str("AWS_STORAGE_BUCKET_NAME", "fossilrepo")
+    AWS_S3_ENDPOINT_URL = env_str("AWS_S3_ENDPOINT_URL", "")
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_QUERYSTRING_AUTH = True
+else:
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
+
+# --- Email ---
+
+EMAIL_BACKEND = env_str("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = env_str("EMAIL_HOST", "localhost")
+EMAIL_PORT = env_int("EMAIL_PORT", 1025)
+DEFAULT_FROM_EMAIL = env_str("FROM_EMAIL", "no-reply@fossilrepo.local")
+
+# --- Celery ---
+
+CELERY_BROKER_URL = env_str("CELERY_BROKER", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 3600
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# --- CORS ---
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [o.strip() for o in env_str("CORS_ALLOWED_ORIGINS", "http://localhost:8000").split(",")]
+
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in env_str("CSRF_TRUSTED_ORIGINS", "http://localhost:8000").split(",")]
+
+# --- Rate limiting ---
+
+RATELIMIT_VIEW = "django.views.defaults.permission_denied"
+
+# --- Constance (runtime feature toggles) ---
+
+CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
+CONSTANCE_CONFIG = {
+    "SITE_NAME": ("Fossilrepo", "Display name for the site"),
+}
+
+# --- Sentry ---
+
+SENTRY_DSN = env_str("SENTRY_DSN")
+if SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=0.1)
+
+# --- Logging ---
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
+
+# --- Import/Export ---
+
+IMPORT_FORMATS = []
+EXPORT_FORMATS = []
+
+# --- Admin ---
+
+ADMIN_SITE_HEADER = "Fossilrepo"
+ADMIN_SITE_TITLE = f"Fossilrepo Admin {VERSION}"

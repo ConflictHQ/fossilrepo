@@ -1,0 +1,4 @@
+/* Tailwind CSS is loaded via CDN in base.html for development.
+   For production, use the Tailwind standalone CLI:
+   npx @tailwindcss/cli -i static/css/input.css -o static/css/output.css --minify
+*/
