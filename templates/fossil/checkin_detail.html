@@ -12,7 +12,7 @@
   .diff-line-hunk { background: rgba(96, 165, 250, 0.08); }
   .diff-line-hunk td { color: #93c5fd; font-weight: 500; }
   .diff-line-header td { color: #6b7280; font-weight: 600; }
-  .diff-gutter { width: 1%; user-select: none; color: #4b5563; text-align: right; padding: 0 6px; border-right: 1px solid #374151; cursor: pointer; }
+  .diff-gutter { width: 1%; user-select: none; color: #4b5563; text-align: right; padding: 0 6px; border-right: 1px solid #374151; cursor: pointer; white-space: nowrap; }
   .diff-gutter:hover { color: #DC394C; }
   .diff-gutter a { color: inherit; text-decoration: none; display: block; }
   .line-row:target { background: rgba(220, 57, 76, 0.15) !important; }
@@ -134,45 +134,7 @@
       <table class="diff-table">
         <tbody>
           {% for dl in fd.diff_lines %}
-          {% if dl.new_num %}
-          <tr class="diff-line-{{ dl.type }} line-row" id="diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}">
-            <td class="diff-gutter">{{ dl.old_num }}</td>
-            <td class="diff-gutter" style="position:relative"
-                x-data="{ pop: false, copied: false }"
-                @click.stop="pop = !pop; window.location.hash = 'diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}'"
-                @click.outside="pop = false">
-              {{ dl.new_num }}
-              <div class="line-popover" x-show="pop" x-transition @click.stop>
-                <button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'">
-                  <span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span>
-                </button>
-              </div>
-            </td>
-            <td>{{ dl.text }}</td>
-          </tr>
-          {% elif dl.old_num %}
-          <tr class="diff-line-{{ dl.type }} line-row" id="diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}">
-            <td class="diff-gutter" style="position:relative"
-                x-data="{ pop: false, copied: false }"
-                @click.stop="pop = !pop; window.location.hash = 'diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}'"
-                @click.outside="pop = false">
-              {{ dl.old_num }}
-              <div class="line-popover" x-show="pop" x-transition @click.stop>
-                <button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'">
-                  <span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span>
-                </button>
-              </div>
-            </td>
-            <td class="diff-gutter"></td>
-            <td>{{ dl.text }}</td>
-          </tr>
-          {% else %}
-          <tr class="diff-line-{{ dl.type }}">
-            <td class="diff-gutter"></td>
-            <td class="diff-gutter"></td>
-            <td>{{ dl.text }}</td>
-          </tr>
-          {% endif %}
+{% if dl.new_num %}<tr class="diff-line-{{ dl.type }} line-row" id="diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}"><td class="diff-gutter">{{ dl.old_num }}</td><td class="diff-gutter" style="position:relative" x-data="{ pop: false, copied: false }" @click.stop="pop = !pop; window.location.hash = 'diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}'" @click.outside="pop = false">{{ dl.new_num }}<div class="line-popover" x-show="pop" x-transition @click.stop><button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'"><span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span></button></div></td><td>{{ dl.text }}</td></tr>{% elif dl.old_num %}<tr class="diff-line-{{ dl.type }} line-row" id="diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}"><td class="diff-gutter" style="position:relative" x-data="{ pop: false, copied: false }" @click.stop="pop = !pop; window.location.hash = 'diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}'" @click.outside="pop = false">{{ dl.old_num }}<div class="line-popover" x-show="pop" x-transition @click.stop><button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'"><span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span></button></div></td><td class="diff-gutter"></td><td>{{ dl.text }}</td></tr>{% else %}<tr class="diff-line-{{ dl.type }}"><td class="diff-gutter"></td><td class="diff-gutter"></td><td>{{ dl.text }}</td></tr>{% endif %}
           {% endfor %}
         </tbody>
       </table>
