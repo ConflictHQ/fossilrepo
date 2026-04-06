@@ -6,18 +6,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <style>
   .code-table { border-collapse: collapse; width: 100%; }
-  .code-table td { padding: 0; vertical-align: top; }
-  .line-num {
-    width: 1%; white-space: nowrap; padding: 0 16px;
+  .code-table td.line-num {
+    width: 1%; white-space: nowrap; padding: 0 16px !important;
     text-align: right; user-select: none; cursor: pointer;
     color: #4b5563; font-size: 0.75rem; line-height: 1.5rem;
-    border-right: 1px solid #374151;
+    border-right: 1px solid #374151; vertical-align: top;
   }
-  .line-num:hover { color: #DC394C; }
-  .line-num a { color: inherit; text-decoration: none; display: block; }
-  .line-code {
-    white-space: pre; padding: 0 16px;
-    font-size: 0.8125rem; line-height: 1.5rem;
+  .code-table td.line-num:hover { color: #DC394C; }
+  .code-table td.line-num a { color: inherit; text-decoration: none; display: block; }
+  .code-table td.line-code {
+    white-space: pre; padding: 0 16px !important;
+    font-size: 0.8125rem; line-height: 1.5rem; vertical-align: top;
   }
   .line-row:hover { background: rgba(220, 57, 76, 0.05); }
   .line-row:target { background: rgba(220, 57, 76, 0.12); }
