@@ -1,95 +1,90 @@
 <style>
-  .dag-col { position: relative; flex-shrink: 0; }
-  .dag-node {
+  .tl-dag { position: relative; flex-shrink: 0; }
+  .tl-node {
     position: absolute; top: 50%; z-index: 2; border-radius: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%); width: 10px; height: 10px;
   }
-  .dag-node-ci { width: 12px; height: 12px; background: #DC394C; border: 2px solid #e8677a; }
-  .dag-node-merge { width: 12px; height: 12px; background: #DC394C; border: 2px solid #e8677a; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
-  .dag-node-w { width: 10px; height: 10px; background: #3b82f6; border: 2px solid #60a5fa; }
-  .dag-node-t { width: 10px; height: 10px; background: #eab308; border: 2px solid #facc15; }
-  .dag-node-f { width: 10px; height: 10px; background: #a855f7; border: 2px solid #c084fc; }
-  .dag-node-other { width: 10px; height: 10px; background: #6b7280; border: 2px solid #9ca3af; }
-  .dag-vline {
-    position: absolute; width: 2px; top: 0; bottom: 0;
-    transform: translateX(-50%);
-  }
-  .dag-vline-ci { background: rgba(220,57,76,0.35); }
-  .dag-vline-other { background: rgba(107,114,128,0.25); }
-  .dag-connect {
-    position: absolute; top: 75%; height: 25%;
-    border: 0; border-bottom: 2px solid rgba(220,57,76,0.35);
-    border-radius: 0 0 6px 0;
-    z-index: 1;
-  }
+  .tl-node-ci { background: #DC394C; border: 2px solid #e8677a; }
+  .tl-node-merge { background: #DC394C; border: 2px solid #e8677a; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
+  .tl-node-w { background: #3b82f6; border: 2px solid #60a5fa; width: 8px; height: 8px; }
+  .tl-node-t { background: #eab308; border: 2px solid #facc15; width: 8px; height: 8px; }
+  .tl-node-f { background: #a855f7; border: 2px solid #c084fc; width: 8px; height: 8px; }
+  .tl-node-other { background: #6b7280; border: 2px solid #9ca3af; width: 8px; height: 8px; }
+  .tl-vline { position: absolute; width: 2px; top: 0; bottom: 0; transform: translateX(-50%); }
+  .tl-vline-ci { background: rgba(220,57,76,0.3); }
+  .tl-vline-other { background: rgba(107,114,128,0.2); }
+  .tl-date { font-size: 0.8rem; font-weight: 700; color: #d1d5db; padding: 8px 0 4px; border-bottom: 1px solid #374151; margin-bottom: 2px; }
+  .tl-row { display: flex; min-height: 28px; align-items: center; }
+  .tl-row:hover { background: rgba(255,255,255,0.02); }
+  .tl-time { width: 42px; flex-shrink: 0; text-align: right; font-size: 0.75rem; color: #6b7280; font-variant-numeric: tabular-nums; }
+  .tl-msg { flex: 1; min-width: 0; font-size: 0.8125rem; color: #e5e5e5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tl-msg a { color: #e5e5e5; text-decoration: none; }
+  .tl-msg a:hover { color: #e8677a; }
+  .tl-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-left: 12px; }
+  .tl-hash { font-family: ui-monospace, monospace; font-size: 0.7rem; color: #DC394C; text-decoration: none; }
+  .tl-hash:hover { color: #e8677a; text-decoration: underline; }
+  .tl-user { font-size: 0.7rem; color: #9ca3af; text-decoration: none; }
+  .tl-user:hover { color: #e8677a; }
+  .tl-branch { font-size: 0.65rem; padding: 1px 6px; border-radius: 9999px; background: rgba(220,57,76,0.1); border: 1px solid rgba(220,57,76,0.2); color: #e8677a; white-space: nowrap; }
+  .tl-badge { font-size: 0.6rem; padding: 0 4px; border-radius: 3px; font-weight: 600; }
+  .tl-badge-w { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .tl-badge-t { background: rgba(234,179,8,0.15); color: #fde047; }
+  .tl-badge-f { background: rgba(168,85,247,0.15); color: #d8b4fe; }
 </style>
 
 <div id="timeline-entries">
   {% if entries %}
+  {% load tz %}
   {% for item in entries %}
-  <div class="flex" style="min-height: 56px;">
+  {% with e=item.entry %}
 
-    <!-- DAG graph column -->
-    <div class="dag-col" style="width: {{ item.graph_width }}px;">
-      <!-- Vertical rail lines -->
+  {# Date header — show when date changes #}
+  {% ifchanged e.timestamp|date:"Y-m-d" %}
+  <div class="tl-date">{{ e.timestamp|date:"Y-m-d, l" }}</div>
+  {% endifchanged %}
+
+  <div class="tl-row">
+    {# DAG column #}
+    <div class="tl-dag" style="width: {{ item.graph_width }}px;">
       {% for line in item.lines %}
-      <div class="dag-vline dag-vline-ci" style="left: {{ line.x }}px;"></div>
+      <div class="tl-vline tl-vline-ci" style="left: {{ line.x }}px;"></div>
       {% endfor %}
-
-      <!-- Node -->
-      <div class="dag-node {% if item.entry.is_merge %}dag-node-merge{% elif item.entry.event_type == 'ci' %}dag-node-ci{% elif item.entry.event_type == 'w' %}dag-node-w{% elif item.entry.event_type == 't' %}dag-node-t{% elif item.entry.event_type == 'f' %}dag-node-f{% else %}dag-node-other{% endif %}"
+      <div class="tl-node {% if e.is_merge %}tl-node-merge{% elif e.event_type == 'ci' %}tl-node-ci{% elif e.event_type == 'w' %}tl-node-w{% elif e.event_type == 't' %}tl-node-t{% elif e.event_type == 'f' %}tl-node-f{% else %}tl-node-other{% endif %}"
            style="left: {{ item.node_x }}px;"></div>
-
-      <!-- Branch/merge connector -->
       {% if item.connector %}
-      <div class="dag-connect"
-           style="left: {{ item.connector.left }}px; width: {{ item.connector.width }}px;
-                  border-left: 2px solid rgba(220,57,76,0.35);
-                  border-right: 2px solid rgba(220,57,76,0.35);"></div>
+      <div style="position:absolute; top:75%; height:25%; left:{{ item.connector.left }}px; width:{{ item.connector.width }}px; border-bottom:2px solid rgba(220,57,76,0.3); border-left:2px solid rgba(220,57,76,0.3); border-right:2px solid rgba(220,57,76,0.3); border-radius:0 0 4px 4px; z-index:1;"></div>
       {% endif %}
     </div>
 
-    <!-- Content -->
-    <div class="flex-1 py-1 min-w-0">
-      <div class="rounded-lg bg-gray-800 border border-gray-700 px-4 py-2.5 hover:border-gray-600 transition-colors">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1 min-w-0">
-            {% if item.entry.event_type == "ci" %}
-            <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=item.entry.uuid %}" class="text-sm text-gray-100 leading-snug hover:text-brand-light">{{ item.entry.comment|default:"(no comment)"|truncatechars:120 }}</a>
-            {% else %}
-            <p class="text-sm text-gray-100 leading-snug">{{ item.entry.comment|default:"(no comment)"|truncatechars:120 }}</p>
-            {% endif %}
-            <div class="mt-1 flex items-center gap-3 flex-wrap">
-              <a href="{% url 'fossil:user_activity' slug=project.slug username=item.entry.user %}" class="text-xs text-gray-400 hover:text-brand-light">{{ item.entry.user }}</a>
-              <span class="text-xs text-gray-600">{{ item.entry.timestamp|date:"Y-m-d H:i" }}</span>
-              {% if item.entry.branch %}
-              <span class="inline-flex items-center rounded-md bg-brand/10 border border-brand/20 px-1.5 py-0.5 text-xs text-brand-light">
-                {{ item.entry.branch }}
-              </span>
-              {% endif %}
-              {% if item.entry.event_type == "ci" %}
-              <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=item.entry.uuid %}" class="text-xs font-mono text-brand-light hover:text-brand">{{ item.entry.uuid|truncatechars:10 }}</a>
-              {% endif %}
-            </div>
-          </div>
-          <div class="flex-shrink-0">
-            {% if item.entry.event_type == "ci" %}
-            <span class="inline-flex rounded-full bg-green-900/50 px-2 py-0.5 text-xs font-semibold text-green-300">checkin</span>
-            {% elif item.entry.event_type == "w" %}
-            <span class="inline-flex rounded-full bg-blue-900/50 px-2 py-0.5 text-xs font-semibold text-blue-300">wiki</span>
-            {% elif item.entry.event_type == "t" %}
-            <span class="inline-flex rounded-full bg-yellow-900/50 px-2 py-0.5 text-xs font-semibold text-yellow-300">ticket</span>
-            {% elif item.entry.event_type == "f" %}
-            <span class="inline-flex rounded-full bg-purple-900/50 px-2 py-0.5 text-xs font-semibold text-purple-300">forum</span>
-            {% else %}
-            <span class="inline-flex rounded-full bg-gray-700 px-2 py-0.5 text-xs font-semibold text-gray-300">{{ item.entry.event_type }}</span>
-            {% endif %}
-          </div>
-        </div>
-      </div>
+    {# Time #}
+    <div class="tl-time">{{ e.timestamp|date:"H:i" }}</div>
+
+    {# Message #}
+    <div class="tl-msg" style="padding-left: 10px;">
+      {% if e.event_type == "ci" %}
+      <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=e.uuid %}">{{ e.comment|default:"(no comment)"|truncatechars:90 }}</a>
+      {% elif e.event_type == "w" %}
+      <span class="tl-badge tl-badge-w">wiki</span> {{ e.comment|default:"(no comment)"|truncatechars:80 }}
+      {% elif e.event_type == "t" %}
+      <span class="tl-badge tl-badge-t">ticket</span> {{ e.comment|default:"(no comment)"|truncatechars:80 }}
+      {% elif e.event_type == "f" %}
+      <span class="tl-badge tl-badge-f">forum</span> {{ e.comment|default:"(no comment)"|truncatechars:80 }}
+      {% else %}
+      {{ e.comment|default:"(no comment)"|truncatechars:80 }}
+      {% endif %}
     </div>
 
+    {# Meta: hash, user, branch #}
+    <div class="tl-meta">
+      {% if e.event_type == "ci" %}
+      <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=e.uuid %}" class="tl-hash">{{ e.uuid|truncatechars:10 }}</a>
+      {% endif %}
+      <a href="{% url 'fossil:user_activity' slug=project.slug username=e.user %}" class="tl-user">{{ e.user }}</a>
+      {% if e.branch %}<span class="tl-branch">{{ e.branch }}</span>{% endif %}
+    </div>
   </div>
+
+  {% endwith %}
   {% endfor %}
   {% else %}
   <p class="text-sm text-gray-500 py-8 text-center">No timeline entries.</p>
