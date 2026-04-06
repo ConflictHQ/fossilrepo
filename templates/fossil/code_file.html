@@ -21,6 +21,7 @@
   .line-row:hover { background: rgba(220, 57, 76, 0.05); }
   .line-row:target { background: rgba(220, 57, 76, 0.12); }
   .line-row:target .line-num { color: #DC394C; font-weight: 600; }
+  .line-row { scroll-margin-top: 40vh; }
   .line-popover {
     position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
     margin-left: 4px; z-index: 20; white-space: nowrap;
@@ -90,13 +91,7 @@
 
 {% if not is_binary %}
 <script>
-  // Highlight each code cell
   document.querySelectorAll('.line-code code').forEach(el => hljs.highlightElement(el));
-  // Scroll to line if hash present
-  if (window.location.hash) {
-    const el = document.querySelector(window.location.hash);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
 </script>
 {% endif %}
 {% endblock %}
