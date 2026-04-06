@@ -444,6 +444,8 @@ def ticket_detail(request, slug, ticket_uuid):
     if not ticket:
         raise Http404("Ticket not found")
 
+    body_html = mark_safe(_render_fossil_content(ticket.body, project_slug=slug)) if ticket.body else ""
+
     return render(
         request,
         "fossil/ticket_detail.html",
@@ -451,6 +453,7 @@ def ticket_detail(request, slug, ticket_uuid):
             "project": project,
             "fossil_repo": fossil_repo,
             "ticket": ticket,
+            "body_html": body_html,
             "active_tab": "tickets",
         },
     )

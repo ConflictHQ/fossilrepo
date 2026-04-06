@@ -58,10 +58,10 @@
   </div>
 
   <!-- Body/description -->
-  {% if ticket.body %}
+  {% if body_html %}
   <div class="px-6 py-5">
     <div class="prose prose-invert prose-gray prose-sm max-w-none">
-      {{ ticket.body|linebreaksbr }}
+      {{ body_html }}
     </div>
   </div>
   {% endif %}

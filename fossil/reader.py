@@ -617,12 +617,27 @@ class FossilReader:
     def get_ticket_detail(self, uuid: str) -> TicketEntry | None:
         try:
             row = self.conn.execute(
-                "SELECT tkt_uuid, title, status, type, tkt_ctime, subsystem, priority, severity, resolution, comment "
+                "SELECT tkt_id, tkt_uuid, title, status, type, tkt_ctime, subsystem, priority, severity, resolution, comment "
                 "FROM ticket WHERE tkt_uuid LIKE ?",
                 (uuid + "%",),
             ).fetchone()
             if not row:
                 return None
+
+            body = row["comment"] or ""
+
+            # If comment is empty, try ticketchng.icomment (newer Fossil stores descriptions there)
+            if not body:
+                try:
+                    chng = self.conn.execute(
+                        "SELECT icomment, login FROM ticketchng WHERE tkt_id=? ORDER BY tkt_mtime ASC LIMIT 1",
+                        (row["tkt_id"],),
+                    ).fetchone()
+                    if chng and chng["icomment"]:
+                        body = chng["icomment"]
+                except sqlite3.OperationalError:
+                    pass
+
             return TicketEntry(
                 uuid=row["tkt_uuid"],
                 title=row["title"] or "",
@@ -634,7 +649,7 @@ class FossilReader:
                 priority=row["priority"] or "",
                 severity=row["severity"] or "",
                 resolution=row["resolution"] or "",
-                body=row["comment"] or "",
+                body=body,
             )
         except sqlite3.OperationalError:
             return None
@@ -653,7 +668,7 @@ class FossilReader:
                 WHERE tag.tagname LIKE 'wiki-%' AND event.type = 'w'
                 GROUP BY tag.tagname
                 HAVING event.mtime = MAX(event.mtime)
-                ORDER BY name
+                ORDER BY event.mtime DESC
                 """
             ).fetchall()
             for row in rows:
