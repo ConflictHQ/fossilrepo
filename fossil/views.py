@@ -28,15 +28,31 @@ def _render_fossil_content(content: str, project_slug: str = "") -> str:
     is_markdown = _is_markdown(content)
 
     if is_markdown:
-        # Markdown: convert Fossil [/path|text] links to markdown links first
-        content = re.sub(r"\[(/[^|\]]+)\|([^\]]+)\]", r"[\2](\1)", content)
+        # Markdown: convert Fossil [path | text] links to markdown links first
+        def _fossil_to_md_link(m):
+            path = m.group(1).strip()
+            text = m.group(2).strip()
+            if path.startswith("./"):
+                path = "/" + path[2:]
+            return f"[{text}]({path})"
+
+        content = re.sub(r"\[([^\]\|]+?)\s*\|\s*([^\]]+?)\]", _fossil_to_md_link, content)
         content = re.sub(r"<verbatim>(.*?)</verbatim>", r"```\n\1\n```", content, flags=re.DOTALL)
         html = md.markdown(content, extensions=["fenced_code", "tables", "toc"])
         return _rewrite_fossil_links(html, project_slug) if project_slug else html
 
     # Fossil wiki / HTML: convert Fossil-specific syntax to HTML
-    content = re.sub(r"\[(/[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
-    content = re.sub(r"\[(https?://[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
+    # Fossil links: [path | text] or [path|text] — spaces around pipe are optional
+    def _fossil_link_replace(match):
+        path = match.group(1).strip()
+        text = match.group(2).strip()
+        # Convert relative paths (./foo) to absolute (/foo)
+        if path.startswith("./"):
+            path = "/" + path[2:]
+        return f'<a href="{path}">{text}</a>'
+
+    # Match [path | text] with flexible whitespace around the pipe
+    content = re.sub(r"\[([^\]\|]+?)\s*\|\s*([^\]]+?)\]", _fossil_link_replace, content)
     content = re.sub(r"<verbatim>(.*?)</verbatim>", r"<pre><code>\1</code></pre>", content, flags=re.DOTALL)
 
     # Convert Fossil wiki list syntax: lines starting with "  *  " to <ul><li>
