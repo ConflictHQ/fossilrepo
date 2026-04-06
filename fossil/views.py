@@ -103,6 +103,11 @@ def code_file(request, slug, filepath):
     for i, part in enumerate(parts):
         file_breadcrumbs.append({"name": part, "path": "/".join(parts[: i + 1])})
 
+    # Split into lines for line-number display
+    lines = content.split("\n") if not is_binary else []
+    # Enumerate for template (1-indexed)
+    numbered_lines = [{"num": i + 1, "text": line} for i, line in enumerate(lines)]
+
     return render(
         request,
         "fossil/code_file.html",
@@ -112,6 +117,8 @@ def code_file(request, slug, filepath):
             "filepath": filepath,
             "file_breadcrumbs": file_breadcrumbs,
             "content": content,
+            "lines": numbered_lines,
+            "line_count": len(lines),
             "is_binary": is_binary,
             "language": ext,
             "active_tab": "code",

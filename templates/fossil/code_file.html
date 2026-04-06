@@ -4,6 +4,24 @@
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  .code-table { border-collapse: collapse; width: 100%; }
+  .code-table td { padding: 0; vertical-align: top; }
+  .line-num {
+    width: 1%; white-space: nowrap; padding: 0 12px;
+    text-align: right; user-select: none; cursor: pointer;
+    color: #4b5563; font-size: 0.75rem; line-height: 1.5rem;
+  }
+  .line-num:hover { color: #DC394C; }
+  .line-num a { color: inherit; text-decoration: none; display: block; }
+  .line-code {
+    white-space: pre; padding: 0 16px 0 0;
+    font-size: 0.8125rem; line-height: 1.5rem;
+  }
+  .line-row:hover { background: rgba(220, 57, 76, 0.05); }
+  .line-row:target { background: rgba(220, 57, 76, 0.12); }
+  .line-row:target .line-num { color: #DC394C; font-weight: 600; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -11,8 +29,8 @@
 {% include "fossil/_project_nav.html" %}
 
 <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
-  <!-- File path breadcrumb -->
-  <div class="px-4 py-3 border-b border-gray-700">
+  <!-- File path breadcrumb + stats -->
+  <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
     <div class="flex items-center gap-1 text-sm font-mono">
       <a href="{% url 'fossil:code' slug=project.slug %}" class="text-brand-light hover:text-brand">{{ project.slug }}</a>
       {% for crumb in file_breadcrumbs %}
@@ -24,17 +42,37 @@
       {% endif %}
       {% endfor %}
     </div>
+    {% if not is_binary %}
+    <span class="text-xs text-gray-500">{{ line_count }} line{{ line_count|pluralize }}</span>
+    {% endif %}
   </div>
   <div class="overflow-x-auto">
     {% if is_binary %}
     <p class="p-4 text-sm text-gray-500">{{ content }}</p>
     {% else %}
-    <pre class="p-0 m-0"><code class="language-{{ language }} text-sm leading-relaxed">{{ content }}</code></pre>
+    <table class="code-table">
+      <tbody>
+        {% for line in lines %}
+        <tr class="line-row" id="L{{ line.num }}">
+          <td class="line-num"><a href="#L{{ line.num }}">{{ line.num }}</a></td>
+          <td class="line-code"><code class="language-{{ language }}">{{ line.text }}</code></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% endif %}
   </div>
 </div>
 
 {% if not is_binary %}
-<script>hljs.highlightAll();</script>
+<script>
+  // Highlight each code cell
+  document.querySelectorAll('.line-code code').forEach(el => hljs.highlightElement(el));
+  // Scroll to line if hash present
+  if (window.location.hash) {
+    const el = document.querySelector(window.location.hash);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+</script>
 {% endif %}
 {% endblock %}

@@ -26,13 +26,13 @@
     <div class="px-6 py-3 border-t border-gray-700 bg-gray-800/50 flex items-center gap-6 text-xs">
       <div class="flex items-center gap-2">
         <span class="text-gray-500">Commit</span>
-        <code class="font-mono text-gray-300">{{ checkin.uuid|truncatechars:16 }}</code>
+        <code class="font-mono text-gray-300 text-xs break-all">{{ checkin.uuid }}</code>
       </div>
       {% if checkin.parent_uuid %}
       <div class="flex items-center gap-2">
         <span class="text-gray-500">Parent</span>
         <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=checkin.parent_uuid %}"
-           class="font-mono text-brand-light hover:text-brand">{{ checkin.parent_uuid|truncatechars:12 }}</a>
+           class="font-mono text-brand-light hover:text-brand text-xs">{{ checkin.parent_uuid|truncatechars:16 }}</a>
       </div>
       {% endif %}
       <div class="flex items-center gap-2">
