@@ -5,12 +5,10 @@ Litestream, Celery, Postgres, Redis) as a single unit.
 """
 
 import subprocess
-import sys
 from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.table import Table
 
 console = Console()
 
