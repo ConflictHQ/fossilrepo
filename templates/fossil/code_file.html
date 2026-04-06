@@ -10,13 +10,20 @@
 <h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
 {% include "fossil/_project_nav.html" %}
 
-<div class="mb-4">
-  <a href="{% url 'fossil:code' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to files</a>
-</div>
-
 <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+  <!-- File path breadcrumb -->
   <div class="px-4 py-3 border-b border-gray-700">
-    <span class="font-mono text-sm text-gray-300">{{ filepath }}</span>
+    <div class="flex items-center gap-1 text-sm font-mono">
+      <a href="{% url 'fossil:code' slug=project.slug %}" class="text-brand-light hover:text-brand">{{ project.slug }}</a>
+      {% for crumb in file_breadcrumbs %}
+      <span class="text-gray-600">/</span>
+      {% if forloop.last %}
+      <span class="text-gray-200">{{ crumb.name }}</span>
+      {% else %}
+      <a href="{% url 'fossil:code_dir' slug=project.slug dirpath=crumb.path %}" class="text-brand-light hover:text-brand">{{ crumb.name }}</a>
+      {% endif %}
+      {% endfor %}
+    </div>
   </div>
   <div class="overflow-x-auto">
     {% if is_binary %}
