@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ username }} — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+  <!-- Main content -->
+  <div class="lg:col-span-2">
+    <div class="rounded-lg bg-gray-800 border border-gray-700">
+      <div class="px-5 py-4 border-b border-gray-700">
+        <h2 class="text-xl font-bold text-gray-100">{{ username }}</h2>
+        <p class="mt-1 text-sm text-gray-400">Contributor activity in {{ project.name }}</p>
+      </div>
+
+      <!-- Recent checkins -->
+      <div class="divide-y divide-gray-700">
+        {% for commit in activity.checkins %}
+        <div class="px-5 py-3 flex items-start gap-3 hover:bg-gray-700/30">
+          <div class="flex-shrink-0 mt-1">
+            <div class="w-2.5 h-2.5 rounded-full bg-brand"></div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=commit.uuid %}"
+               class="text-sm text-gray-200 hover:text-brand-light">{{ commit.comment|truncatechars:100 }}</a>
+            <div class="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
+              <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=commit.uuid %}"
+                 class="font-mono text-brand-light hover:text-brand">{{ commit.uuid|truncatechars:10 }}</a>
+              <span>{{ commit.timestamp|timesince }} ago</span>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <p class="px-5 py-8 text-sm text-gray-500 text-center">No checkins by this user.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar stats -->
+  <div>
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+      <h3 class="text-sm font-medium text-gray-300 mb-3">Contributions</h3>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-2 text-sm text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Checkins
+          </span>
+          <span class="text-sm font-medium text-gray-200">{{ activity.checkin_count }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-2 text-sm text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" /></svg>
+            Ticket changes
+          </span>
+          <span class="text-sm font-medium text-gray-200">{{ activity.ticket_count }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-2 text-sm text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+            Wiki edits
+          </span>
+          <span class="text-sm font-medium text-gray-200">{{ activity.wiki_count }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-2 text-sm text-gray-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
+            Forum posts
+          </span>
+          <span class="text-sm font-medium text-gray-200">{{ activity.forum_count }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
