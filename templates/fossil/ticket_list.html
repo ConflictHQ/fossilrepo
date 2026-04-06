@@ -17,7 +17,10 @@
     <a href="{% url 'fossil:tickets' slug=project.slug %}?status=Closed"
        class="rounded-full px-2.5 py-1 {% if status_filter == 'Closed' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Closed</a>
   </div>
-  <div>
+  <div class="flex items-center gap-3">
+    {% if perms.projects.change_project %}
+    <a href="{% url 'fossil:ticket_create' slug=project.slug %}" class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">New Ticket</a>
+    {% endif %}
     <input type="search"
            name="search"
            value="{{ search }}"

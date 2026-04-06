@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-4">
+  <a href="{% url 'fossil:tickets' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Tickets</a>
+</div>
+
+<div class="mx-auto max-w-2xl">
+  <h2 class="text-xl font-bold text-gray-100 mb-4">{{ title }}</h2>
+
+  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+    {% csrf_token %}
+
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Title <span class="text-red-400">*</span></label>
+      <input type="text" name="title" required placeholder="Ticket title"
+             class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Type</label>
+        <select name="type" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+          <option value="Code_Defect">Code Defect</option>
+          <option value="Feature_Request">Feature Request</option>
+          <option value="Documentation">Documentation</option>
+          <option value="Incident">Incident</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Severity</label>
+        <select name="severity" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+          <option value="">—</option>
+          <option value="Critical">Critical</option>
+          <option value="Important">Important</option>
+          <option value="Minor">Minor</option>
+          <option value="Cosmetic">Cosmetic</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+      <textarea name="body" rows="10" placeholder="Describe the issue..."
+                class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"></textarea>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-2">
+      <a href="{% url 'fossil:tickets' slug=project.slug %}"
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Cancel
+      </a>
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+        Create Ticket
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
