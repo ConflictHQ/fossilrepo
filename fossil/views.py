@@ -422,12 +422,19 @@ def ticket_list(request, slug):
 
     status_filter = request.GET.get("status", "")
     search = request.GET.get("search", "").strip()
+    page = int(request.GET.get("page", "1"))
+    per_page = 50
 
     with reader:
-        tickets = reader.get_tickets(status=status_filter or None)
+        tickets = reader.get_tickets(status=status_filter or None, limit=500)
 
     if search:
         tickets = [t for t in tickets if search.lower() in t.title.lower()]
+
+    total = len(tickets)
+    tickets = tickets[(page - 1) * per_page : page * per_page]
+    has_next = page * per_page < total
+    has_prev = page > 1
 
     if request.headers.get("HX-Request"):
         return render(request, "fossil/partials/ticket_table.html", {"tickets": tickets, "project": project})
@@ -441,6 +448,10 @@ def ticket_list(request, slug):
             "tickets": tickets,
             "status_filter": status_filter,
             "search": search,
+            "page": page,
+            "has_next": has_next,
+            "has_prev": has_prev,
+            "total": total,
             "active_tab": "tickets",
         },
     )
