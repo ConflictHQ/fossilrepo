@@ -813,66 +813,70 @@ def _build_file_tree(files, current_dir=""):
 def _compute_dag_graph(entries):
     """Compute DAG graph positions for timeline entries.
 
-    Returns a list of dicts wrapping each entry with graph rendering data:
-    - node_x: pixel x position of the node
-    - lines: list of (x1, x2) connections to draw between this row and the next
+    Tracks active rails through each row and draws fork/merge connectors
+    where a child is on a different rail than its parent.
     """
-    rail_pitch = 16  # pixels between rails
-    rail_offset = 20  # left margin
+    rail_pitch = 16
+    rail_offset = 20
+    max_rail = max((e.rail for e in entries if e.rail >= 0), default=0)
+    graph_width = rail_offset + (max_rail + 2) * rail_pitch
 
-    # Build rid-to-index lookup for connecting lines
+    # Build rid-to-index and rid-to-rail lookups
     rid_to_idx = {}
+    rid_to_rail = {}
     for i, entry in enumerate(entries):
         rid_to_idx[entry.rid] = i
+        if entry.event_type == "ci":
+            rid_to_rail[entry.rid] = max(entry.rail, 0)
+
+    # For each row, compute:
+    # 1. Which vertical rails are active (have a line passing through)
+    # 2. Whether there's a fork/merge connector to draw
+
+    # Precompute: for each checkin, the range of rows its line spans
+    # (from the entry's row to its parent's row)
+    active_spans = []  # (rail, start_idx, end_idx)
+    for i, entry in enumerate(entries):
+        if entry.event_type == "ci" and entry.parent_rid in rid_to_idx:
+            parent_idx = rid_to_idx[entry.parent_rid]
+            if parent_idx > i:
+                rail = max(entry.rail, 0)
+                active_spans.append((rail, i, parent_idx))
 
     result = []
     for i, entry in enumerate(entries):
         rail = max(entry.rail, 0) if entry.rail >= 0 else 0
         node_x = rail_offset + rail * rail_pitch
 
-        # Determine what vertical lines to draw through this row
-        # Active rails: any branch that has entries above and below this point
+        # Active rails at this row: any span that covers this row
         active_rails = set()
+        for span_rail, span_start, span_end in active_spans:
+            if span_start <= i <= span_end:
+                active_rails.add(span_rail)
 
-        # The current entry's rail is active if it has a parent below
-        if entry.event_type == "ci" and entry.parent_rid in rid_to_idx:
-            parent_idx = rid_to_idx[entry.parent_rid]
-            if parent_idx > i:  # parent is below in the list (older)
-                active_rails.add(rail)
-
-        # Check if any entries above connect through this row to entries below
-        for j in range(i):
-            prev = entries[j]
-            if prev.event_type == "ci" and prev.parent_rid in rid_to_idx:
-                parent_idx = rid_to_idx[prev.parent_rid]
-                if parent_idx > i:  # parent is below this row
-                    prev_rail = max(prev.rail, 0)
-                    active_rails.add(prev_rail)
-
-        # Compute line segments as pixel positions
         lines = [{"x": rail_offset + r * rail_pitch} for r in sorted(active_rails)]
 
-        # Connection from this node's rail to parent's rail (if different = branch/merge line)
+        # Fork/merge connector: if this entry's parent is on a different rail,
+        # draw a horizontal connector at the parent's row (where the line joins)
         connector = None
         if entry.event_type == "ci" and entry.parent_rid in rid_to_idx:
             parent_idx = rid_to_idx[entry.parent_rid]
-            if parent_idx == i + 1:  # immediate next entry
-                parent_rail = max(entries[parent_idx].rail, 0)
-                if parent_rail != rail:
-                    parent_x = rail_offset + parent_rail * rail_pitch
-                    connector = {
-                        "left": min(node_x, parent_x),
-                        "width": abs(node_x - parent_x),
-                    }
+            parent_rail = rid_to_rail.get(entry.parent_rid, 0)
+            if parent_rail != rail and parent_idx == i + 1:
+                # Connector at this row going to parent's rail
+                parent_x = rail_offset + parent_rail * rail_pitch
+                connector = {
+                    "left": min(node_x, parent_x),
+                    "width": abs(node_x - parent_x),
+                }
 
-        max_rail = max((e.rail for e in entries if e.rail >= 0), default=0)
         result.append(
             {
                 "entry": entry,
                 "node_x": node_x,
                 "lines": lines,
                 "connector": connector,
-                "graph_width": rail_offset + (max_rail + 2) * rail_pitch,
+                "graph_width": graph_width,
             }
         )
 
