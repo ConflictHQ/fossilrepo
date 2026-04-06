@@ -120,22 +120,80 @@ def repo() -> None:
 @click.argument("name")
 def create(name: str) -> None:
     """Create a new Fossil repository."""
+    import django
+
+    django.setup()
+
+    from fossil.cli import FossilCLI
+    from fossil.models import FossilRepository
+    from organization.models import Organization
+    from projects.models import Project
+
     console.print(f"[bold]Creating repo:[/bold] {name}")
-    raise NotImplementedError("Repo creation not yet implemented")
+    cli = FossilCLI()
+    if not cli.is_available():
+        console.print("[red]Fossil binary not found.[/red]")
+        return
+
+    org = Organization.objects.first()
+    if not org:
+        console.print("[red]No organization found. Run seed first.[/red]")
+        return
+
+    project, created = Project.objects.get_or_create(name=name, defaults={"organization": org, "visibility": "private"})
+    if created:
+        console.print(f"  Created project: [cyan]{project.slug}[/cyan]")
+
+    fossil_repo = FossilRepository.objects.filter(project=project).first()
+    if fossil_repo and fossil_repo.exists_on_disk:
+        console.print(f"  Repo already exists: [cyan]{fossil_repo.full_path}[/cyan]")
+    elif fossil_repo:
+        cli.init(fossil_repo.full_path)
+        fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
+        fossil_repo.save(update_fields=["file_size_bytes", "updated_at", "version"])
+        console.print(f"  Initialized: [green]{fossil_repo.full_path}[/green]")
+    console.print("[bold green]Done.[/bold green]")
 
 
 @repo.command(name="list")
 def list_repos() -> None:
     """List all Fossil repositories."""
-    raise NotImplementedError("Repo listing not yet implemented")
+    import django
+
+    django.setup()
+    from rich.table import Table
+
+    from fossil.models import FossilRepository
+
+    repos = FossilRepository.objects.all()
+    table = Table(title="Fossil Repositories")
+    table.add_column("Project", style="cyan")
+    table.add_column("Filename")
+    table.add_column("Size", justify="right")
+    table.add_column("On Disk", justify="center")
+    for r in repos:
+        size = f"{r.file_size_bytes / 1024:.0f} KB" if r.file_size_bytes else "—"
+        table.add_row(r.project.name, r.filename, size, "yes" if r.exists_on_disk else "no")
+    console.print(table)
 
 
 @repo.command()
 @click.argument("name")
 def delete(name: str) -> None:
     """Delete a Fossil repository (soft delete)."""
+    import django
+
+    django.setup()
+    from fossil.models import FossilRepository
+
     console.print(f"[bold]Deleting repo:[/bold] {name}")
-    raise NotImplementedError("Repo deletion not yet implemented")
+    repo = FossilRepository.objects.filter(filename=f"{name}.fossil").first()
+    if not repo:
+        console.print(f"[red]Repo not found: {name}.fossil[/red]")
+        return
+    repo.soft_delete()
+    console.print(f"  Soft-deleted: [yellow]{repo.filename}[/yellow]")
+    console.print("[bold green]Done.[/bold green]")
 
 
 # ---------------------------------------------------------------------------

@@ -62,6 +62,30 @@ def sample_page(db, org, admin_user):
 
 
 @pytest.fixture
+def fossil_repo(db, sample_project, admin_user, tmp_path):
+    """Create a FossilRepository with a real .fossil file for testing."""
+    import shutil
+
+    from fossil.models import FossilRepository
+
+    # Copy a test repo to tmp_path
+    src = "/tmp/fossil-setup/frontend-app.fossil"
+    dest = tmp_path / "test-project.fossil"
+    shutil.copy2(src, dest)
+
+    # Override FOSSIL_DATA_DIR for this test
+
+    repo = FossilRepository.objects.create(
+        project=sample_project,
+        filename="test-project.fossil",
+        created_by=admin_user,
+    )
+    # Patch the full_path property to point to our tmp file
+    repo._test_path = dest
+    return repo
+
+
+@pytest.fixture
 def admin_client(client, admin_user):
     client.login(username="admin", password="testpass123")
     return client
