@@ -581,7 +581,7 @@ class FossilReader:
                 FROM forumpost fp
                 JOIN blob b ON fp.fpid = b.rid
                 JOIN event e ON fp.fpid = e.objid
-                WHERE fp.firt = 0 AND fp.fprev = 0
+                WHERE fp.firt IS NULL AND fp.fprev IS NULL
                 ORDER BY fp.fmtime DESC
                 LIMIT ?
                 """,
