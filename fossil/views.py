@@ -37,6 +37,32 @@ def _render_fossil_content(content: str) -> str:
     content = re.sub(r"\[(/[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
     content = re.sub(r"\[(https?://[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
     content = re.sub(r"<verbatim>(.*?)</verbatim>", r"<pre><code>\1</code></pre>", content, flags=re.DOTALL)
+
+    # Convert Fossil wiki list syntax: lines starting with "  *  " to <ul><li>
+    lines = content.split("\n")
+    result = []
+    in_list = False
+    for line in lines:
+        stripped_line = line.strip()
+        if re.match(r"^\*\s", stripped_line) or re.match(r"^\d+\.\s", stripped_line):
+            if not in_list:
+                result.append("<ul>")
+                in_list = True
+            item_text = re.sub(r"^[\*\d+\.]\s*", "", stripped_line)
+            result.append(f"<li>{item_text}</li>")
+        else:
+            if in_list:
+                result.append("</ul>")
+                in_list = False
+            result.append(line)
+    if in_list:
+        result.append("</ul>")
+
+    content = "\n".join(result)
+
+    # Wrap bare text blocks in <p> tags (lines not inside HTML tags)
+    content = re.sub(r"\n\n(?!<)", "\n\n<p>", content)
+
     return content
 
 
