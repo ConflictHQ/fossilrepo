@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Fossil Guide — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl">
+  <h1 class="text-2xl font-bold text-gray-100 mb-2">Fossil Guide</h1>
+  <p class="text-sm text-gray-400 mb-6">Reference documentation for Fossil SCM, bundled with your Fossilrepo installation.</p>
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
+      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Getting Started</h3>
+      <div class="space-y-2">
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/quickstart.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Quick Start Guide</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/build.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Building from Source</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/concepts.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Core Concepts</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/faq.wiki' %}" class="block text-sm text-brand-light hover:text-brand">FAQ</a>
+      </div>
+    </div>
+
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
+      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Version Control</h3>
+      <div class="space-y-2">
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/checkin.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Check-in Overview</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/branching.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Branching</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/merge.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Merging</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/delta_format.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Delta Format</a>
+      </div>
+    </div>
+
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
+      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Built-in Features</h3>
+      <div class="space-y-2">
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/wikitheory.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Wiki</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/tickets.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Ticket System</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/forum.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Forum</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/alerts.md' %}" class="block text-sm text-brand-light hover:text-brand">Email Alerts</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/chat.md' %}" class="block text-sm text-brand-light hover:text-brand">Chat</a>
+      </div>
+    </div>
+
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
+      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Administration</h3>
+      <div class="space-y-2">
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/server/index.md' %}" class="block text-sm text-brand-light hover:text-brand">Server Setup</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/sync.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Sync Protocol</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/backup.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Backups</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/fileformat.wiki' %}" class="block text-sm text-brand-light hover:text-brand">File Format</a>
+      </div>
+    </div>
+
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5 sm:col-span-2">
+      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Reference</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/changes.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Changelog</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/permutedindex.html' %}" class="block text-sm text-brand-light hover:text-brand">Command Reference</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/th1.md' %}" class="block text-sm text-brand-light hover:text-brand">TH1 Scripting</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/fossil-v-git.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Fossil vs Git</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/hashpolicy.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Hash Policy</a>
+        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/embeddeddoc.wiki' %}" class="block text-sm text-brand-light hover:text-brand">Embedded Docs</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -695,6 +695,54 @@ def user_activity(request, slug, username):
     )
 
 
+# --- Fossil Docs ---
+
+FOSSIL_SCM_SLUG = "fossil-scm"
+
+
+@login_required
+def fossil_docs(request, slug):
+    """Curated Fossil documentation index page."""
+    P.PROJECT_VIEW.check(request.user)
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+    return render(request, "fossil/docs_index.html", {"project": project, "fossil_scm_slug": slug, "active_tab": "wiki"})
+
+
+@login_required
+def fossil_doc_page(request, slug, doc_path):
+    """Render a documentation file from the Fossil repo source tree."""
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        checkin_uuid = reader.get_latest_checkin_uuid()
+        files = reader.get_files_at_checkin(checkin_uuid) if checkin_uuid else []
+
+        target = None
+        for f in files:
+            if f.name == doc_path:
+                target = f
+                break
+
+        if not target:
+            raise Http404(f"Documentation file not found: {doc_path}")
+
+        content_bytes = reader.get_file_content(target.uuid)
+
+    try:
+        content = content_bytes.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise Http404("Binary file cannot be rendered as documentation") from e
+
+    content_html = mark_safe(_render_fossil_content(content, project_slug=slug))
+
+    return render(
+        request,
+        "fossil/doc_page.html",
+        {"project": project, "doc_path": doc_path, "content_html": content_html, "active_tab": "wiki"},
+    )
+
+
 # --- Helpers ---
 
 
