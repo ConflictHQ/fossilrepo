@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fossilrepo_test
+          POSTGRES_USER: dbadmin
+          POSTGRES_PASSWORD: Password123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dbadmin -d fossilrepo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_SECRET_KEY: test-secret-key
+      DJANGO_DEBUG: "true"
+      POSTGRES_DB: fossilrepo_test
+      POSTGRES_USER: dbadmin
+      POSTGRES_PASSWORD: Password123
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://localhost:6379/1
+      CELERY_BROKER: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -c "
+          import tomllib, subprocess, sys
+          with open('pyproject.toml', 'rb') as f:
+              d = tomllib.load(f)
+          deps = (d['project'].get('dependencies', []) +
+                  d['project'].get('optional-dependencies', {}).get('dev', []))
+          subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + deps)
+          "
+      - run: python manage.py migrate --noinput
+      - run: python manage.py collectstatic --no-input
+      - run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=80 -v
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      - run: pip-audit --strict --desc || true

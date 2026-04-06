@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dashboard — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="md:flex md:items-center md:justify-between mb-8">
+  <h1 class="text-2xl font-bold text-gray-100">Dashboard</h1>
+</div>
+
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+  {% if perms.items.view_item %}
+  <a href="{% url 'items:list' %}" class="group rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-sm hover:shadow-md hover:border-brand transition-all">
+    <h3 class="text-lg font-semibold text-gray-100 group-hover:text-brand">Items</h3>
+    <p class="mt-2 text-sm text-gray-400">Manage your item catalogue with full CRUD operations.</p>
+  </a>
+  {% endif %}
+
+  {% if user.is_staff %}
+  <a href="{% url 'admin:index' %}" class="group rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-sm hover:shadow-md hover:border-brand transition-all">
+    <h3 class="text-lg font-semibold text-gray-100 group-hover:text-brand">Admin</h3>
+    <p class="mt-2 text-sm text-gray-400">Django admin for managing users, groups, and permissions.</p>
+  </a>
+  {% endif %}
+
+  <div class="rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-sm">
+    <div class="flex items-center gap-4 mb-3">
+      <img src="{% static 'img/fossilrepo-logo-dark.svg' %}" alt="Fossilrepo" class="h-8 w-auto">
+    </div>
+    <h3 class="text-lg font-semibold text-gray-100">Welcome, {{ user.get_full_name|default:user.username }}</h3>
+    <p class="mt-2 text-sm text-gray-400">This is the Fossilrepo Django + HTMX template. Server-rendered with progressive enhancement via HTMX and Alpine.js.</p>
+  </div>
+</div>
+{% endblock %}
