@@ -16,4 +16,5 @@ urlpatterns = [
     path("wiki/page/<path:page_name>", views.wiki_page, name="wiki_page"),
     path("forum/", views.forum_list, name="forum"),
     path("forum/<str:thread_uuid>/", views.forum_thread, name="forum_thread"),
+    path("user/<str:username>/", views.user_activity, name="user_activity"),
 ]

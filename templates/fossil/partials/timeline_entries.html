@@ -60,7 +60,7 @@
             <p class="text-sm text-gray-100 leading-snug">{{ item.entry.comment|default:"(no comment)"|truncatechars:120 }}</p>
             {% endif %}
             <div class="mt-1 flex items-center gap-3 flex-wrap">
-              <span class="text-xs text-gray-400">{{ item.entry.user }}</span>
+              <a href="{% url 'fossil:user_activity' slug=project.slug username=item.entry.user %}" class="text-xs text-gray-400 hover:text-brand-light">{{ item.entry.user }}</a>
               <span class="text-xs text-gray-600">{{ item.entry.timestamp|date:"Y-m-d H:i" }}</span>
               {% if item.entry.branch %}
               <span class="inline-flex items-center rounded-md bg-brand/10 border border-brand/20 px-1.5 py-0.5 text-xs text-brand-light">

@@ -561,6 +561,30 @@ def forum_thread(request, slug, thread_uuid):
     )
 
 
+# --- User Activity ---
+
+
+@login_required
+def user_activity(request, slug, username):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        activity = reader.get_user_activity(username)
+
+    return render(
+        request,
+        "fossil/user_activity.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "username": username,
+            "activity": activity,
+            "active_tab": "timeline",
+        },
+    )
+
+
 # --- Helpers ---
 
 

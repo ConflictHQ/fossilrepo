@@ -293,6 +293,47 @@ class FossilReader:
         except sqlite3.OperationalError:
             return 0
 
+    # --- User Activity ---
+
+    def get_user_activity(self, username: str, limit: int = 50) -> dict:
+        """Get activity summary for a specific user."""
+        result = {"checkins": [], "checkin_count": 0, "ticket_count": 0, "wiki_count": 0, "forum_count": 0}
+        try:
+            # Checkin count
+            row = self.conn.execute("SELECT count(*) FROM event WHERE user=? AND type='ci'", (username,)).fetchone()
+            result["checkin_count"] = row[0] if row else 0
+
+            # Recent checkins
+            rows = self.conn.execute(
+                "SELECT blob.uuid, event.mtime, event.comment FROM event "
+                "JOIN blob ON event.objid=blob.rid WHERE event.user=? AND event.type='ci' "
+                "ORDER BY event.mtime DESC LIMIT ?",
+                (username, limit),
+            ).fetchall()
+            for r in rows:
+                result["checkins"].append(
+                    {
+                        "uuid": r["uuid"],
+                        "timestamp": _julian_to_datetime(r["mtime"]),
+                        "comment": r["comment"] or "",
+                    }
+                )
+
+            # Wiki edit count
+            row = self.conn.execute("SELECT count(*) FROM event WHERE user=? AND type='w'", (username,)).fetchone()
+            result["wiki_count"] = row[0] if row else 0
+
+            # Forum post count
+            row = self.conn.execute("SELECT count(*) FROM event WHERE user=? AND type='f'", (username,)).fetchone()
+            result["forum_count"] = row[0] if row else 0
+
+            # Ticket-related event count
+            row = self.conn.execute("SELECT count(*) FROM event WHERE user=? AND type='t'", (username,)).fetchone()
+            result["ticket_count"] = row[0] if row else 0
+        except sqlite3.OperationalError:
+            pass
+        return result
+
     # --- Timeline ---
 
     def get_timeline(self, limit: int = 50, offset: int = 0, event_type: str | None = None) -> list[TimelineEntry]:

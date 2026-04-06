@@ -17,7 +17,7 @@
       <p class="mt-1 text-sm text-gray-400 line-clamp-2">{{ post.body|truncatechars:200 }}</p>
       {% endif %}
       <div class="mt-2 flex items-center gap-3 text-xs text-gray-500">
-        <span class="font-medium text-gray-400">{{ post.user }}</span>
+        <a href="{% url 'fossil:user_activity' slug=project.slug username=post.user %}" class="font-medium text-gray-400 hover:text-brand-light">{{ post.user }}</a>
         <span>{{ post.timestamp|timesince }} ago</span>
       </div>
     </div>
