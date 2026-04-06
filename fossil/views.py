@@ -13,13 +13,15 @@ from .models import FossilRepository
 from .reader import FossilReader
 
 
-def _render_fossil_content(content: str, project_slug: str = "") -> str:
+def _render_fossil_content(content: str, project_slug: str = "", base_path: str = "") -> str:
     """Render content that may be Fossil wiki markup, HTML, or Markdown.
 
     Fossil wiki pages can contain:
     - Raw HTML (most Fossil wiki pages)
     - Fossil-specific markup: [link|text], <verbatim>...</verbatim>
     - Markdown (newer pages)
+
+    base_path: directory of the current file (e.g. "www/") for resolving relative links.
     """
     if not content:
         return ""
@@ -33,7 +35,9 @@ def _render_fossil_content(content: str, project_slug: str = "") -> str:
             path = m.group(1).strip()
             text = m.group(2).strip()
             if path.startswith("./"):
-                path = "/" + path[2:]
+                path = "/" + base_path + path[2:]
+            elif not path.startswith("/") and not path.startswith("http"):
+                path = "/" + base_path + path
             return f"[{text}]({path})"
 
         content = re.sub(r"\[([^\]\|]+?)\s*\|\s*([^\]]+?)\]", _fossil_to_md_link, content)
@@ -46,9 +50,11 @@ def _render_fossil_content(content: str, project_slug: str = "") -> str:
     def _fossil_link_replace(match):
         path = match.group(1).strip()
         text = match.group(2).strip()
-        # Convert relative paths (./foo) to absolute (/foo)
+        # Convert relative paths to absolute using base_path
         if path.startswith("./"):
-            path = "/" + path[2:]
+            path = "/" + base_path + path[2:]
+        elif not path.startswith("/") and not path.startswith("http"):
+            path = "/" + base_path + path
         return f'<a href="{path}">{text}</a>'
 
     # Match [path | text] with flexible whitespace around the pipe
@@ -145,6 +151,18 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
         # /forum -> forum
         if url.startswith("/forumpost") or url.startswith("/forum"):
             return f'href="{base}/forum/"'
+        # /www/file.wiki or /www/subdir/file -> doc page viewer
+        m = re.match(r"/(www/.+)", url)
+        if m:
+            return f'href="{base}/docs/{m.group(1)}"'
+        # /help/command -> Fossil help (link to fossil docs)
+        m = re.match(r"/help/(.+)", url)
+        if m:
+            return f'href="{base}/docs/www/help.wiki"'
+        # Bare .wiki or .md file paths (from relative link resolution)
+        m = re.match(r"/([^/]+\.(?:wiki|md|html))", url)
+        if m:
+            return f'href="{base}/docs/www/{m.group(1)}"'
         # Keep external and unrecognized links as-is
         return match.group(0)
 
@@ -769,7 +787,11 @@ def fossil_doc_page(request, slug, doc_path):
     except UnicodeDecodeError as e:
         raise Http404("Binary file cannot be rendered as documentation") from e
 
-    content_html = mark_safe(_render_fossil_content(content, project_slug=slug))
+    # Compute base_path for relative link resolution (e.g. "www/" for "www/concepts.wiki")
+    doc_base = "/".join(doc_path.split("/")[:-1])
+    if doc_base:
+        doc_base += "/"
+    content_html = mark_safe(_render_fossil_content(content, project_slug=slug, base_path=doc_base))
 
     return render(
         request,
