@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ project.name }} — Fossilrepo{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <div>
@@ -27,6 +31,16 @@
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
   <!-- Main content -->
   <div class="lg:col-span-2 space-y-6">
+    {% if commit_activity_json %}
+    <!-- Commit activity chart -->
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+      <h3 class="text-sm font-medium text-gray-300 mb-3">Commit Activity (last year)</h3>
+      <div style="height: 120px;">
+        <canvas id="activityChart"></canvas>
+      </div>
+    </div>
+    {% endif %}
+
     {% if repo_stats and recent_commits %}
     <!-- Recent activity -->
     <div class="rounded-lg bg-gray-800 border border-gray-700">
@@ -109,6 +123,22 @@
     </div>
     {% endif %}
 
+    {% if top_contributors %}
+    <!-- Contributors -->
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+      <h3 class="text-sm font-medium text-gray-300 mb-3">Top Contributors</h3>
+      <div class="space-y-1">
+        {% for c in top_contributors %}
+        <a href="{% url 'fossil:user_activity' slug=project.slug username=c.user %}"
+           class="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-gray-700/50">
+          <span class="text-sm text-gray-300">{{ c.user }}</span>
+          <span class="text-xs text-gray-500">{{ c.count }} commits</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Project info -->
     <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
       <h3 class="text-sm font-medium text-gray-300 mb-3">About</h3>
@@ -133,4 +163,34 @@
     </div>
   </div>
 </div>
+
+{% if commit_activity_json %}
+<script>
+  const ctx = document.getElementById('activityChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ commit_activity_json|safe }}.map((_, i) => ''),
+      datasets: [{
+        data: {{ commit_activity_json|safe }},
+        backgroundColor: '#DC394C',
+        borderRadius: 2,
+        barPercentage: 0.8,
+        categoryPercentage: 0.9,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { title: (items) => { const w = 51 - items[0].dataIndex; return w === 0 ? 'This week' : w + ' week' + (w > 1 ? 's' : '') + ' ago'; } }
+      }},
+      scales: {
+        x: { display: false, grid: { display: false } },
+        y: { display: false, grid: { display: false }, beginAtZero: true }
+      }
+    }
+  });
+</script>
+{% endif %}
 {% endblock %}
