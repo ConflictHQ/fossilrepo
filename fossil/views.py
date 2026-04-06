@@ -13,7 +13,7 @@ from .models import FossilRepository
 from .reader import FossilReader
 
 
-def _render_fossil_content(content: str) -> str:
+def _render_fossil_content(content: str, project_slug: str = "") -> str:
     """Render content that may be Fossil wiki markup, HTML, or Markdown.
 
     Fossil wiki pages can contain:
@@ -31,7 +31,8 @@ def _render_fossil_content(content: str) -> str:
         # Markdown: convert Fossil [/path|text] links to markdown links first
         content = re.sub(r"\[(/[^|\]]+)\|([^\]]+)\]", r"[\2](\1)", content)
         content = re.sub(r"<verbatim>(.*?)</verbatim>", r"```\n\1\n```", content, flags=re.DOTALL)
-        return md.markdown(content, extensions=["fenced_code", "tables", "toc"])
+        html = md.markdown(content, extensions=["fenced_code", "tables", "toc"])
+        return _rewrite_fossil_links(html, project_slug) if project_slug else html
 
     # Fossil wiki / HTML: convert Fossil-specific syntax to HTML
     content = re.sub(r"\[(/[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
@@ -63,7 +64,7 @@ def _render_fossil_content(content: str) -> str:
     # Wrap bare text blocks in <p> tags (lines not inside HTML tags)
     content = re.sub(r"\n\n(?!<)", "\n\n<p>", content)
 
-    return content
+    return _rewrite_fossil_links(content, project_slug) if project_slug else content
 
 
 def _is_markdown(content: str) -> bool:
@@ -89,6 +90,55 @@ def _is_markdown(content: str) -> bool:
     if re.match(r"<(h[1-6]|p|ol|ul|div|table)\b", stripped, re.IGNORECASE):
         return False
     return False
+
+
+def _rewrite_fossil_links(html: str, project_slug: str) -> str:
+    """Rewrite internal Fossil URLs to our app's URL structure.
+
+    Fossil links like /doc/trunk/www/file.wiki, /info/HASH, /wiki/PageName,
+    /tktview/HASH get mapped to our fossil app URLs.
+    """
+    if not project_slug:
+        return html
+
+    base = f"/projects/{project_slug}/fossil"
+
+    def replace_link(match):
+        url = match.group(1)
+        # /info/HASH -> checkin detail
+        m = re.match(r"/info/([0-9a-f]+)", url)
+        if m:
+            return f'href="{base}/checkin/{m.group(1)}/"'
+        # /doc/trunk/www/file or /doc/tip/... -> code file view
+        m = re.match(r"/doc/(?:trunk|tip|[^/]+)/(.+)", url)
+        if m:
+            return f'href="{base}/code/file/{m.group(1)}"'
+        # /wiki?name=PageName -> wiki page (query string format)
+        m = re.match(r"/wiki\?name=(.+)", url)
+        if m:
+            return f'href="{base}/wiki/page/{m.group(1)}"'
+        # /wiki/PageName -> wiki page (path format)
+        m = re.match(r"/wiki/(.+)", url)
+        if m:
+            return f'href="{base}/wiki/page/{m.group(1)}"'
+        # /tktview/HASH or /tktview?name=HASH -> ticket detail
+        m = re.match(r"/tktview[?/](?:name=)?([0-9a-f]+)", url)
+        if m:
+            return f'href="{base}/tickets/{m.group(1)}/"'
+        # /timeline -> timeline
+        if url.startswith("/timeline"):
+            return f'href="{base}/timeline/"'
+        # /forum -> forum
+        if url.startswith("/forumpost") or url.startswith("/forum"):
+            return f'href="{base}/forum/"'
+        # Keep external and unrecognized links as-is
+        return match.group(0)
+
+    # Rewrite href="/..." links (internal Fossil paths)
+    html = re.sub(r'href="(/[^"]*)"', replace_link, html)
+    # Also rewrite href="/wiki?name=..." (markdown renders these with full path)
+    html = re.sub(r'href="(/wiki\?[^"]*)"', replace_link, html)
+    return html
 
 
 def _get_repo_and_reader(slug):
@@ -339,7 +389,7 @@ def wiki_list(request, slug):
 
     home_content_html = ""
     if home_page:
-        home_content_html = mark_safe(_render_fossil_content(home_page.content))
+        home_content_html = mark_safe(_render_fossil_content(home_page.content, project_slug=slug))
 
     return render(
         request,
@@ -367,7 +417,7 @@ def wiki_page(request, slug, page_name):
     if not page:
         raise Http404(f"Wiki page not found: {page_name}")
 
-    content_html = mark_safe(_render_fossil_content(page.content))
+    content_html = mark_safe(_render_fossil_content(page.content, project_slug=slug))
 
     return render(
         request,
