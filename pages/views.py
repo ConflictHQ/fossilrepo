@@ -87,7 +87,7 @@ def page_delete(request, slug):
         messages.success(request, f'Page "{page.name}" deleted.')
 
         if request.headers.get("HX-Request"):
-            return HttpResponse(status=200, headers={"HX-Redirect": "/docs/"})
+            return HttpResponse(status=200, headers={"HX-Redirect": "/kb/"})
 
         return redirect("pages:list")
 

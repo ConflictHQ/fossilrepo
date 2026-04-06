@@ -193,7 +193,7 @@ urlpatterns = [
     path("settings/", include("organization.urls")),
     path("projects/", include("projects.urls")),
     path("projects/<slug:slug>/fossil/", include("fossil.urls")),
-    path("docs/", include("pages.urls")),
+    path("kb/", include("pages.urls")),
     path("items/", include("items.urls")),
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health"),
