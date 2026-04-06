@@ -1,3 +1,5 @@
+import re
+
 import markdown as md
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
@@ -9,6 +11,33 @@ from projects.models import Project
 
 from .models import FossilRepository
 from .reader import FossilReader
+
+
+def _render_fossil_content(content: str) -> str:
+    """Render content that may be Fossil wiki markup, HTML, or Markdown.
+
+    Fossil wiki pages can contain:
+    - Raw HTML (most Fossil wiki pages)
+    - Fossil-specific markup: [link|text], <verbatim>...</verbatim>
+    - Markdown (newer pages)
+    """
+    if not content:
+        return ""
+
+    # Convert Fossil-specific syntax
+    # [/path|text] -> <a href="/path">text</a>
+    content = re.sub(r"\[(/[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
+    # [url|text] -> <a href="url">text</a>
+    content = re.sub(r"\[(https?://[^|\]]+)\|([^\]]+)\]", r'<a href="\1">\2</a>', content)
+    # <verbatim>...</verbatim> -> <pre><code>...</code></pre>
+    content = re.sub(r"<verbatim>(.*?)</verbatim>", r"<pre><code>\1</code></pre>", content, flags=re.DOTALL)
+
+    # If content looks like it has HTML tags, treat as HTML (Fossil wiki)
+    if re.search(r"<(h[1-6]|p|ol|ul|li|div|table|pre|a|br)\b", content, re.IGNORECASE):
+        return content
+
+    # Otherwise try markdown
+    return md.markdown(content, extensions=["fenced_code", "tables", "toc"])
 
 
 def _get_repo_and_reader(slug):
@@ -259,7 +288,7 @@ def wiki_list(request, slug):
 
     home_content_html = ""
     if home_page:
-        home_content_html = mark_safe(md.markdown(home_page.content, extensions=["fenced_code", "tables", "toc"]))
+        home_content_html = mark_safe(_render_fossil_content(home_page.content))
 
     return render(
         request,
@@ -287,7 +316,7 @@ def wiki_page(request, slug, page_name):
     if not page:
         raise Http404(f"Wiki page not found: {page_name}")
 
-    content_html = mark_safe(md.markdown(page.content, extensions=["fenced_code", "tables", "toc"]))
+    content_html = mark_safe(_render_fossil_content(page.content))
 
     return render(
         request,

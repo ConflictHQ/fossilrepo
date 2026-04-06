@@ -5,17 +5,30 @@
 <h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
 {% include "fossil/_project_nav.html" %}
 
-<div class="mb-4">
-  <input type="search"
-         name="search"
-         value="{{ search }}"
-         placeholder="Search tickets..."
-         class="w-full max-w-md rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
-         hx-get="{% url 'fossil:tickets' slug=project.slug %}"
-         hx-trigger="input changed delay:300ms, search"
-         hx-target="#ticket-table"
-         hx-swap="outerHTML"
-         hx-push-url="true" />
+<div class="flex items-center justify-between mb-4">
+  <div class="flex items-center gap-2 text-xs text-gray-500">
+    <span>Status:</span>
+    <a href="{% url 'fossil:tickets' slug=project.slug %}"
+       class="rounded-full px-2.5 py-1 {% if not status_filter %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">All</a>
+    <a href="{% url 'fossil:tickets' slug=project.slug %}?status=Open"
+       class="rounded-full px-2.5 py-1 {% if status_filter == 'Open' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Open</a>
+    <a href="{% url 'fossil:tickets' slug=project.slug %}?status=Fixed"
+       class="rounded-full px-2.5 py-1 {% if status_filter == 'Fixed' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Fixed</a>
+    <a href="{% url 'fossil:tickets' slug=project.slug %}?status=Closed"
+       class="rounded-full px-2.5 py-1 {% if status_filter == 'Closed' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Closed</a>
+  </div>
+  <div>
+    <input type="search"
+           name="search"
+           value="{{ search }}"
+           placeholder="Search tickets..."
+           class="rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand text-sm px-3 py-1.5"
+           hx-get="{% url 'fossil:tickets' slug=project.slug %}{% if status_filter %}?status={{ status_filter }}{% endif %}"
+           hx-trigger="input changed delay:300ms, search"
+           hx-target="#ticket-table"
+           hx-swap="outerHTML"
+           hx-push-url="true" />
+  </div>
 </div>
 
 {% include "fossil/partials/ticket_table.html" %}
