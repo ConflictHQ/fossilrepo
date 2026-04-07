@@ -45,6 +45,7 @@ dependencies = [
     "markdown>=3.6",
     "requests>=2.31",
     "cryptography>=43.0",
+    "mcp>=1.0",
 ]
 
 [project.urls]
@@ -56,6 +57,7 @@ Demo = "https://fossilrepo.io"
 
 [project.scripts]
 fossilrepo-ctl = "ctl.main:cli"
+fossilrepo-mcp = "mcp_server.__main__:run"
 
 [project.optional-dependencies]
 dev = [
@@ -77,7 +79,7 @@ select = ["E", "F", "I", "W", "UP", "B", "SIM", "N"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["config", "core", "accounts", "organization", "projects", "pages", "fossil", "testdata", "ctl"]
+known-first-party = ["config", "core", "accounts", "organization", "projects", "pages", "fossil", "testdata", "ctl", "mcp_server"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -98,7 +100,7 @@ fail_under = 80
 show_missing = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["ctl", "core", "accounts", "organization", "projects", "pages", "fossil", "config"]
+packages = ["ctl", "core", "accounts", "organization", "projects", "pages", "fossil", "config", "mcp_server"]
 
 [build-system]
 requires = ["hatchling"]

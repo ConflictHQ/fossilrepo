@@ -10,6 +10,8 @@ urlpatterns = [
     path("api/project", api_views.api_project, name="api_project"),
     path("api/timeline", api_views.api_timeline, name="api_timeline"),
     path("api/tickets", api_views.api_tickets, name="api_tickets"),
+    # Unclaimed must be before <str:ticket_uuid> to avoid matching "unclaimed" as a UUID
+    path("api/tickets/unclaimed", api_views.api_tickets_unclaimed, name="api_tickets_unclaimed"),
     path("api/tickets/<str:ticket_uuid>", api_views.api_ticket_detail, name="api_ticket_detail"),
     path("api/wiki", api_views.api_wiki_list, name="api_wiki_list"),
     path("api/wiki/<path:page_name>", api_views.api_wiki_page, name="api_wiki_page"),
@@ -17,6 +19,29 @@ urlpatterns = [
     path("api/tags", api_views.api_tags, name="api_tags"),
     path("api/releases", api_views.api_releases, name="api_releases"),
     path("api/search", api_views.api_search, name="api_search"),
+    # Batch API
+    path("api/batch", api_views.api_batch, name="api_batch"),
+    # Agent Workspaces
+    path("api/workspaces", api_views.api_workspace_list, name="api_workspace_list"),
+    path("api/workspaces/create", api_views.api_workspace_create, name="api_workspace_create"),
+    path("api/workspaces/<str:workspace_name>", api_views.api_workspace_detail, name="api_workspace_detail"),
+    path("api/workspaces/<str:workspace_name>/commit", api_views.api_workspace_commit, name="api_workspace_commit"),
+    path("api/workspaces/<str:workspace_name>/merge", api_views.api_workspace_merge, name="api_workspace_merge"),
+    path("api/workspaces/<str:workspace_name>/abandon", api_views.api_workspace_abandon, name="api_workspace_abandon"),
+    # Task Claiming
+    path("api/tickets/<str:ticket_uuid>/claim", api_views.api_ticket_claim, name="api_ticket_claim"),
+    path("api/tickets/<str:ticket_uuid>/release", api_views.api_ticket_release, name="api_ticket_release"),
+    path("api/tickets/<str:ticket_uuid>/submit", api_views.api_ticket_submit, name="api_ticket_submit"),
+    # Server-Sent Events
+    path("api/events", api_views.api_events, name="api_events"),
+    # Code Reviews
+    path("api/reviews", api_views.api_review_list, name="api_review_list"),
+    path("api/reviews/create", api_views.api_review_create, name="api_review_create"),
+    path("api/reviews/<int:review_id>", api_views.api_review_detail, name="api_review_detail"),
+    path("api/reviews/<int:review_id>/comment", api_views.api_review_comment, name="api_review_comment"),
+    path("api/reviews/<int:review_id>/approve", api_views.api_review_approve, name="api_review_approve"),
+    path("api/reviews/<int:review_id>/request-changes", api_views.api_review_request_changes, name="api_review_request_changes"),
+    path("api/reviews/<int:review_id>/merge", api_views.api_review_merge, name="api_review_merge"),
     #
     path("code/", views.code_browser, name="code"),
     path("code/tree/<path:dirpath>/", views.code_browser, name="code_dir"),

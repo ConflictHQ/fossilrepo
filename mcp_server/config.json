@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "fossilrepo": {
+      "command": "fossilrepo-mcp",
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "config.settings"
+      }
+    }
+  }
+}

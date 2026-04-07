@@ -67,9 +67,11 @@ class FossilSnapshot(Tracking):
 
 
 # Import related models so they're discoverable by Django
+from fossil.agent_claims import TicketClaim  # noqa: E402, F401
 from fossil.api_tokens import APIToken  # noqa: E402, F401
 from fossil.branch_protection import BranchProtection  # noqa: E402, F401
 from fossil.ci import StatusCheck  # noqa: E402, F401
+from fossil.code_reviews import CodeReview, ReviewComment  # noqa: E402, F401
 from fossil.forum import ForumPost  # noqa: E402, F401
 from fossil.notifications import Notification, NotificationPreference, ProjectWatch  # noqa: E402, F401
 from fossil.releases import Release, ReleaseAsset  # noqa: E402, F401
@@ -78,3 +80,4 @@ from fossil.ticket_fields import TicketFieldDefinition  # noqa: E402, F401
 from fossil.ticket_reports import TicketReport  # noqa: E402, F401
 from fossil.user_keys import UserSSHKey  # noqa: E402, F401
 from fossil.webhooks import Webhook, WebhookDelivery  # noqa: E402, F401
+from fossil.workspaces import AgentWorkspace  # noqa: E402, F401

@@ -2,9 +2,11 @@ from django.contrib import admin
 
 from core.admin import BaseCoreAdmin
 
+from .agent_claims import TicketClaim
 from .api_tokens import APIToken
 from .branch_protection import BranchProtection
 from .ci import StatusCheck
+from .code_reviews import CodeReview, ReviewComment
 from .forum import ForumPost
 from .models import FossilRepository, FossilSnapshot
 from .notifications import Notification, NotificationPreference, ProjectWatch
@@ -14,6 +16,7 @@ from .ticket_fields import TicketFieldDefinition
 from .ticket_reports import TicketReport
 from .user_keys import UserSSHKey
 from .webhooks import Webhook, WebhookDelivery
+from .workspaces import AgentWorkspace
 
 
 class FossilSnapshotInline(admin.TabularInline):
@@ -181,3 +184,41 @@ class TicketReportAdmin(BaseCoreAdmin):
     list_filter = ("is_public",)
     search_fields = ("title", "description")
     raw_id_fields = ("repository",)
+
+
+@admin.register(AgentWorkspace)
+class AgentWorkspaceAdmin(BaseCoreAdmin):
+    list_display = ("name", "repository", "branch", "status", "agent_id", "commits_made", "created_at")
+    list_filter = ("status",)
+    search_fields = ("name", "agent_id", "branch")
+    raw_id_fields = ("repository",)
+
+
+@admin.register(TicketClaim)
+class TicketClaimAdmin(BaseCoreAdmin):
+    list_display = ("ticket_uuid", "repository", "agent_id", "status", "claimed_at", "released_at")
+    list_filter = ("status",)
+    search_fields = ("ticket_uuid", "agent_id")
+    raw_id_fields = ("repository", "workspace")
+
+
+class ReviewCommentInline(admin.TabularInline):
+    model = ReviewComment
+    extra = 0
+    readonly_fields = ("author", "file_path", "line_number", "body", "created_at")
+
+
+@admin.register(CodeReview)
+class CodeReviewAdmin(BaseCoreAdmin):
+    list_display = ("title", "repository", "status", "agent_id", "created_at")
+    list_filter = ("status",)
+    search_fields = ("title", "agent_id", "ticket_uuid")
+    raw_id_fields = ("repository", "workspace")
+    inlines = [ReviewCommentInline]
+
+
+@admin.register(ReviewComment)
+class ReviewCommentAdmin(BaseCoreAdmin):
+    list_display = ("review", "author", "file_path", "line_number", "created_at")
+    search_fields = ("body", "author", "file_path")
+    raw_id_fields = ("review",)
