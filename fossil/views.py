@@ -43,7 +43,7 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
 
         content = re.sub(r"\[([^\]\|]+?)\s*\|\s*([^\]]+?)\]", _fossil_to_md_link, content)
         content = re.sub(r"<verbatim>(.*?)</verbatim>", r"```\n\1\n```", content, flags=re.DOTALL)
-        html = md.markdown(content, extensions=["fenced_code", "tables", "toc"])
+        html = md.markdown(content, extensions=["fenced_code", "tables", "toc", "footnotes", "def_list", "attr_list"])
 
         # Post-process: render pikchr fenced code blocks to SVG
         def _render_pikchr_md(m):
