@@ -1452,6 +1452,41 @@ def sync_pull(request, slug):
 
         return redirect("fossil:sync", slug=slug)
 
+    elif action == "push" and fossil_repo.remote_url:
+        if cli.is_available():
+            cli.ensure_default_user(fossil_repo.full_path)
+            result = cli.push(fossil_repo.full_path)
+            from django.contrib import messages
+
+            if result["success"]:
+                from django.utils import timezone
+
+                fossil_repo.last_sync_at = timezone.now()
+                fossil_repo.save(update_fields=["last_sync_at", "updated_at", "version"])
+                if result.get("artifacts_sent", 0) > 0:
+                    messages.success(request, f"Pushed {result['artifacts_sent']} artifacts to remote.")
+                else:
+                    messages.info(request, "Remote is already up to date.")
+            else:
+                messages.error(request, f"Push failed: {result.get('message', 'Unknown error')}")
+
+    elif action == "sync_bidirectional" and fossil_repo.remote_url:
+        if cli.is_available():
+            cli.ensure_default_user(fossil_repo.full_path)
+            result = cli.sync(fossil_repo.full_path)
+            from django.contrib import messages
+            from django.utils import timezone
+
+            if result["success"]:
+                fossil_repo.last_sync_at = timezone.now()
+                with reader:
+                    fossil_repo.checkin_count = reader.get_checkin_count()
+                    fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
+                fossil_repo.save(update_fields=["last_sync_at", "checkin_count", "file_size_bytes", "updated_at", "version"])
+                messages.success(request, "Bidirectional sync complete.")
+            else:
+                messages.error(request, f"Sync failed: {result.get('message', 'Unknown error')}")
+
     elif action == "pull" and fossil_repo.remote_url:
         if cli.is_available():
             cli.ensure_default_user(fossil_repo.full_path)

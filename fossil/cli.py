@@ -168,6 +168,34 @@ class FossilCLI:
             shutil.rmtree(tmpdir, ignore_errors=True)
         return lines
 
+    def push(self, repo_path: Path, remote_url: str = "") -> dict:
+        """Push to the remote. Returns {success, artifacts_sent, message}."""
+        import re
+
+        cmd = [self.binary, "push", "-R", str(repo_path)]
+        if remote_url:
+            cmd.append(remote_url)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=self._env)
+            artifacts = 0
+            m = re.search(r"sent:\s*(\d+)", result.stdout)
+            if m:
+                artifacts = int(m.group(1))
+            return {"success": result.returncode == 0, "artifacts_sent": artifacts, "message": result.stdout.strip()}
+        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+            return {"success": False, "artifacts_sent": 0, "message": str(e)}
+
+    def sync(self, repo_path: Path, remote_url: str = "") -> dict:
+        """Bidirectional sync with remote. Returns {success, message}."""
+        cmd = [self.binary, "sync", "-R", str(repo_path)]
+        if remote_url:
+            cmd.append(remote_url)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=self._env)
+            return {"success": result.returncode == 0, "message": result.stdout.strip()}
+        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+            return {"success": False, "message": str(e)}
+
     def pull(self, repo_path: Path) -> dict:
         """Pull updates from the remote. Returns {success, artifacts_received, message}."""
         try:
