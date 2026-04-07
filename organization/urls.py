@@ -16,6 +16,10 @@ urlpatterns = [
     path("members/<str:username>/edit/", views.user_edit, name="user_edit"),
     path("members/<str:username>/password/", views.user_password, name="user_password"),
     path("members/<str:username>/remove/", views.member_remove, name="member_remove"),
+    # Roles
+    path("roles/", views.role_list, name="role_list"),
+    path("roles/initialize/", views.role_initialize, name="role_initialize"),
+    path("roles/<slug:slug>/", views.role_detail, name="role_detail"),
     # Teams
     path("teams/", views.team_list, name="team_list"),
     path("teams/create/", views.team_create, name="team_create"),

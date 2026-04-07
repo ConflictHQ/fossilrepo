@@ -7,8 +7,8 @@ from core.permissions import P
 from organization.models import Team
 from organization.views import get_org
 
-from .forms import ProjectForm, ProjectTeamAddForm, ProjectTeamEditForm
-from .models import Project, ProjectTeam
+from .forms import ProjectForm, ProjectGroupForm, ProjectTeamAddForm, ProjectTeamEditForm
+from .models import Project, ProjectGroup, ProjectTeam
 
 
 @login_required
@@ -238,3 +238,82 @@ def project_team_remove(request, slug, team_slug):
         return redirect("projects:detail", slug=project.slug)
 
     return render(request, "projects/project_team_confirm_remove.html", {"project": project, "team": team})
+
+
+# --- Project Groups ---
+
+
+@login_required
+def group_list(request):
+    P.PROJECT_GROUP_VIEW.check(request.user)
+    groups = ProjectGroup.objects.all().prefetch_related("projects")
+
+    if request.headers.get("HX-Request"):
+        return render(request, "projects/partials/group_table.html", {"groups": groups})
+
+    return render(request, "projects/group_list.html", {"groups": groups})
+
+
+@login_required
+def group_create(request):
+    P.PROJECT_GROUP_ADD.check(request.user)
+
+    if request.method == "POST":
+        form = ProjectGroupForm(request.POST)
+        if form.is_valid():
+            group = form.save(commit=False)
+            group.created_by = request.user
+            group.save()
+            messages.success(request, f'Group "{group.name}" created.')
+            return redirect("projects:group_detail", slug=group.slug)
+    else:
+        form = ProjectGroupForm()
+
+    return render(request, "projects/group_form.html", {"form": form, "title": "New Group"})
+
+
+@login_required
+def group_detail(request, slug):
+    P.PROJECT_GROUP_VIEW.check(request.user)
+    group = get_object_or_404(ProjectGroup, slug=slug, deleted_at__isnull=True)
+    group_projects = Project.objects.filter(group=group)
+
+    return render(request, "projects/group_detail.html", {"group": group, "group_projects": group_projects})
+
+
+@login_required
+def group_edit(request, slug):
+    P.PROJECT_GROUP_CHANGE.check(request.user)
+    group = get_object_or_404(ProjectGroup, slug=slug, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        form = ProjectGroupForm(request.POST, instance=group)
+        if form.is_valid():
+            group = form.save(commit=False)
+            group.updated_by = request.user
+            group.save()
+            messages.success(request, f'Group "{group.name}" updated.')
+            return redirect("projects:group_detail", slug=group.slug)
+    else:
+        form = ProjectGroupForm(instance=group)
+
+    return render(request, "projects/group_form.html", {"form": form, "group": group, "title": "Edit Group"})
+
+
+@login_required
+def group_delete(request, slug):
+    P.PROJECT_GROUP_DELETE.check(request.user)
+    group = get_object_or_404(ProjectGroup, slug=slug, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        # Unlink projects from this group before soft-deleting
+        Project.objects.filter(group=group).update(group=None)
+        group.soft_delete(user=request.user)
+        messages.success(request, f'Group "{group.name}" deleted.')
+
+        if request.headers.get("HX-Request"):
+            return HttpResponse(status=200, headers={"HX-Redirect": "/projects/groups/"})
+
+        return redirect("projects:group_list")
+
+    return render(request, "projects/group_confirm_delete.html", {"group": group})

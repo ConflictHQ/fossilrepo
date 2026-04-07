@@ -70,6 +70,17 @@
         <dt class="text-sm font-medium text-gray-400">Member Since</dt>
         <dd class="mt-1 text-sm text-gray-400">{{ membership.created_at|date:"N j, Y g:i a" }}</dd>
       </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Role</dt>
+        <dd class="mt-1">
+          {% if membership.role %}
+          <a href="{% url 'organization:role_detail' slug=membership.role.slug %}" class="inline-flex rounded-full bg-purple-900/50 px-2 text-xs font-semibold leading-5 text-purple-300 hover:text-purple-200">{{ membership.role.name }}</a>
+          <p class="mt-1 text-xs text-gray-500">{{ membership.role.description }}</p>
+          {% else %}
+          <span class="text-sm text-gray-500">No role assigned</span>
+          {% endif %}
+        </dd>
+      </div>
       {% endif %}
     </dl>
   </div>

@@ -2,7 +2,13 @@ from django.contrib import admin
 
 from core.admin import BaseCoreAdmin
 
-from .models import Project, ProjectTeam
+from .models import Project, ProjectGroup, ProjectTeam
+
+
+@admin.register(ProjectGroup)
+class ProjectGroupAdmin(BaseCoreAdmin):
+    list_display = ("name", "slug", "created_at")
+    search_fields = ("name", "slug")
 
 
 class ProjectTeamInline(admin.TabularInline):
@@ -13,8 +19,8 @@ class ProjectTeamInline(admin.TabularInline):
 
 @admin.register(Project)
 class ProjectAdmin(BaseCoreAdmin):
-    list_display = ("name", "slug", "visibility", "created_at", "created_by")
-    list_filter = ("visibility", "created_at")
+    list_display = ("name", "slug", "group", "visibility", "created_at", "created_by")
+    list_filter = ("visibility", "group", "created_at")
     search_fields = ("name", "slug", "description")
     inlines = [ProjectTeamInline]
 

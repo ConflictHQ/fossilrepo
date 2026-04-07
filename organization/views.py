@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db import models
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -15,7 +16,7 @@ from .forms import (
     UserEditForm,
     UserPasswordForm,
 )
-from .models import Organization, OrganizationMember, Team
+from .models import Organization, OrganizationMember, OrgRole, Team
 
 
 def get_org():
@@ -58,7 +59,7 @@ def org_settings_edit(request):
 def member_list(request):
     P.ORGANIZATION_MEMBER_VIEW.check(request.user)
     org = get_org()
-    members = OrganizationMember.objects.filter(organization=org).select_related("member")
+    members = OrganizationMember.objects.filter(organization=org).select_related("member", "role")
 
     search = request.GET.get("search", "").strip()
     if search:
@@ -244,7 +245,10 @@ def user_create(request):
         form = UserCreateForm(request.POST)
         if form.is_valid():
             user = form.save()
-            OrganizationMember.objects.create(member=user, organization=org, created_by=request.user)
+            role = form.cleaned_data.get("role")
+            OrganizationMember.objects.create(member=user, organization=org, role=role, created_by=request.user)
+            if role:
+                role.apply_to_user(user)
             messages.success(request, f'User "{user.username}" created and added as member.')
             return redirect("organization:members")
     else:
@@ -258,7 +262,9 @@ def user_detail(request, username):
     P.ORGANIZATION_MEMBER_VIEW.check(request.user)
     org = get_org()
     target_user = get_object_or_404(User, username=username)
-    membership = OrganizationMember.objects.filter(member=target_user, organization=org, deleted_at__isnull=True).first()
+    membership = (
+        OrganizationMember.objects.filter(member=target_user, organization=org, deleted_at__isnull=True).select_related("role").first()
+    )
     user_teams = Team.objects.filter(members=target_user, organization=org, deleted_at__isnull=True)
 
     from fossil.user_keys import UserSSHKey
@@ -284,17 +290,33 @@ def user_detail(request, username):
 @login_required
 def user_edit(request, username):
     _check_user_management_permission(request)
+    org = get_org()
     target_user = get_object_or_404(User, username=username)
     editing_self = request.user.pk == target_user.pk
+    membership = (
+        OrganizationMember.objects.filter(member=target_user, organization=org, deleted_at__isnull=True).select_related("role").first()
+    )
 
     if request.method == "POST":
         form = UserEditForm(request.POST, instance=target_user, editing_self=editing_self)
         if form.is_valid():
             form.save()
+            role = form.cleaned_data.get("role")
+            if membership:
+                membership.role = role
+                membership.updated_by = request.user
+                membership.save()
+            if role:
+                role.apply_to_user(target_user)
+            else:
+                OrgRole.remove_role_groups(target_user)
             messages.success(request, f'User "{target_user.username}" updated.')
             return redirect("organization:members")
     else:
-        form = UserEditForm(instance=target_user, editing_self=editing_self)
+        initial = {}
+        if membership and membership.role:
+            initial["role"] = membership.role.pk
+        form = UserEditForm(instance=target_user, editing_self=editing_self, initial=initial)
 
     return render(
         request,
@@ -323,3 +345,57 @@ def user_password(request, username):
         form = UserPasswordForm()
 
     return render(request, "organization/user_password.html", {"form": form, "target_user": target_user})
+
+
+# --- Roles ---
+
+
+@login_required
+def role_list(request):
+    P.ORGANIZATION_VIEW.check(request.user)
+    roles = OrgRole.objects.annotate(
+        member_count=models.Count("members", filter=models.Q(members__deleted_at__isnull=True)),
+        permission_count=models.Count("permissions"),
+    )
+    return render(request, "organization/role_list.html", {"roles": roles})
+
+
+@login_required
+def role_detail(request, slug):
+    P.ORGANIZATION_VIEW.check(request.user)
+    role = get_object_or_404(OrgRole, slug=slug, deleted_at__isnull=True)
+    role_permissions = role.permissions.select_related("content_type").order_by("content_type__app_label", "codename")
+
+    # Group permissions by app label
+    grouped = {}
+    app_labels = {
+        "organization": "Organization",
+        "projects": "Projects",
+        "pages": "Pages",
+        "fossil": "Fossil",
+    }
+    for perm in role_permissions:
+        app = perm.content_type.app_label
+        label = app_labels.get(app, app.title())
+        grouped.setdefault(label, []).append(perm)
+
+    role_members = OrganizationMember.objects.filter(role=role, deleted_at__isnull=True).select_related("member")
+
+    return render(
+        request,
+        "organization/role_detail.html",
+        {"role": role, "grouped_permissions": grouped, "role_members": role_members},
+    )
+
+
+@login_required
+def role_initialize(request):
+    P.ORGANIZATION_CHANGE.check(request.user)
+
+    if request.method == "POST":
+        from django.core.management import call_command
+
+        call_command("seed_roles")
+        messages.success(request, "Roles initialized successfully.")
+
+    return redirect("organization:role_list")
