@@ -29,5 +29,11 @@ class BranchProtection(Tracking):
         """Return required_contexts as a list, filtering blanks."""
         return [c.strip() for c in self.required_contexts.splitlines() if c.strip()]
 
+    def matches_branch(self, branch_name):
+        """Check if a branch name matches this protection rule's pattern."""
+        import fnmatch
+
+        return fnmatch.fnmatch(branch_name, self.branch_pattern)
+
     def __str__(self):
         return f"{self.branch_pattern} ({self.repository})"

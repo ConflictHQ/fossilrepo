@@ -203,27 +203,41 @@ def send_digest(mode="daily"):
     """Send digest emails to users who prefer batch delivery.
 
     Collects unread notifications for users with the given delivery mode
-    and sends a single summary email. Marks those notifications as read
-    after sending.
+    and sends a single summary email with HTML template. Marks those
+    notifications as read after sending.
     """
     from django.conf import settings
     from django.core.mail import send_mail
+    from django.template.loader import render_to_string
 
     from fossil.notifications import Notification, NotificationPreference
 
     prefs = NotificationPreference.objects.filter(delivery_mode=mode).select_related("user")
     for pref in prefs:
-        unread = Notification.objects.filter(user=pref.user, read=False)
+        unread = Notification.objects.filter(user=pref.user, read=False).select_related("project")
         if not unread.exists():
             continue
 
         count = unread.count()
-        lines = [f"You have {count} new notification{'s' if count != 1 else ''}:\n"]
-        for notif in unread[:50]:
-            lines.append(f"- [{notif.event_type}] {notif.project.name}: {notif.title}")
+        notifications_list = list(unread[:50])
+        overflow_count = count - 50 if count > 50 else 0
 
-        if count > 50:
-            lines.append(f"\n... and {count - 50} more.")
+        # Plain text fallback
+        lines = [f"You have {count} new notification{'s' if count != 1 else ''}:\n"]
+        for notif in notifications_list:
+            lines.append(f"- [{notif.event_type}] {notif.project.name}: {notif.title}")
+        if overflow_count:
+            lines.append(f"\n... and {overflow_count} more.")
+
+        # HTML version
+        html_body = render_to_string("email/digest.html", {
+            "digest_type": mode,
+            "count": count,
+            "notifications": notifications_list,
+            "overflow_count": overflow_count,
+            "dashboard_url": "/",
+            "preferences_url": "/auth/notifications/",
+        })
 
         try:
             send_mail(
@@ -231,6 +245,7 @@ def send_digest(mode="daily"):
                 message="\n".join(lines),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[pref.user.email],
+                html_message=html_body,
                 fail_silently=True,
             )
         except Exception:

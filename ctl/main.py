@@ -358,6 +358,95 @@ def bundle_export(project_slug: str, output_path: str) -> None:
         console.print("[red]Export timed out after 5 minutes.[/red]")
 
 
+# ---------------------------------------------------------------------------
+# Update commands
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.option("--source", type=click.Choice(["auto", "pypi", "git", "docker"]), default="auto", help="Update source.")
+def check_update(source: str) -> None:
+    """Check for available updates."""
+    import importlib.metadata
+
+    import requests
+
+    current = importlib.metadata.version("fossilrepo")
+    console.print(f"[bold]Current version:[/bold] {current}")
+
+    if source == "auto":
+        # Detect install source
+        if (PROJECT_ROOT / ".git").exists():
+            source = "git"
+        elif COMPOSE_FILE.exists():
+            source = "docker"
+        else:
+            source = "pypi"
+
+    latest = None
+    if source == "pypi":
+        console.print("[dim]Checking PyPI...[/dim]")
+        try:
+            resp = requests.get("https://pypi.org/pypi/fossilrepo/json", timeout=10)
+            if resp.status_code == 200:
+                latest = resp.json()["info"]["version"]
+        except Exception:
+            console.print("[yellow]Could not reach PyPI[/yellow]")
+
+    elif source == "git":
+        console.print("[dim]Checking GitHub releases...[/dim]")
+        try:
+            resp = requests.get("https://api.github.com/repos/ConflictHQ/fossilrepo/releases/latest", timeout=10)
+            if resp.status_code == 200:
+                latest = resp.json()["tag_name"].lstrip("v")
+        except Exception:
+            console.print("[yellow]Could not reach GitHub[/yellow]")
+
+    elif source == "docker":
+        console.print("[dim]Checking Docker Hub...[/dim]")
+        try:
+            resp = requests.get("https://hub.docker.com/v2/repositories/conflicthq/fossilrepo/tags/latest", timeout=10)
+            if resp.status_code == 200:
+                latest = resp.json().get("name", "unknown")
+        except Exception:
+            console.print("[yellow]Could not reach Docker Hub[/yellow]")
+
+    if latest:
+        if latest != current:
+            console.print(f"[bold green]Update available:[/bold green] {current} → {latest} (source: {source})")
+        else:
+            console.print(f"[green]Up to date.[/green] ({current}, source: {source})")
+    else:
+        console.print("[yellow]Could not determine latest version.[/yellow]")
+
+
+@cli.command()
+@click.option("--source", type=click.Choice(["auto", "pypi", "git"]), default="auto", help="Update source.")
+@click.confirmation_option(prompt="This will update fossilrepo and restart services. Continue?")
+def update(source: str) -> None:
+    """Update fossilrepo to the latest version."""
+    if source == "auto":
+        if (PROJECT_ROOT / ".git").exists():
+            source = "git"
+        else:
+            source = "pypi"
+
+    if source == "git":
+        console.print("[bold]Pulling latest from git...[/bold]")
+        subprocess.run(["git", "pull", "--ff-only"], cwd=str(PROJECT_ROOT), check=True)
+        console.print("[bold]Installing dependencies...[/bold]")
+        subprocess.run(["pip", "install", "-e", "."], cwd=str(PROJECT_ROOT), check=True)
+    elif source == "pypi":
+        console.print("[bold]Upgrading from PyPI...[/bold]")
+        subprocess.run(["pip", "install", "--upgrade", "fossilrepo"], check=True)
+
+    console.print("[bold]Running migrations...[/bold]")
+    subprocess.run(["python", "manage.py", "migrate", "--noinput"], cwd=str(PROJECT_ROOT), check=True)
+    console.print("[bold]Collecting static files...[/bold]")
+    subprocess.run(["python", "manage.py", "collectstatic", "--noinput"], cwd=str(PROJECT_ROOT), check=True)
+    console.print("[bold green]Update complete. Restart services to apply.[/bold green]")
+
+
 @bundle.command(name="import")
 @click.argument("project_slug")
 @click.argument("input_path")

@@ -14,10 +14,17 @@ from .forms import ProjectForm, ProjectGroupForm, ProjectTeamAddForm, ProjectTea
 from .models import Project, ProjectGroup, ProjectStar, ProjectTeam
 
 
-@login_required
 def project_list(request):
-    P.PROJECT_VIEW.check(request.user)
-    projects = Project.objects.all()
+    if request.user.is_authenticated:
+        # Authenticated users with PROJECT_VIEW perm see all non-deleted projects;
+        # those without it see only public + internal.
+        if P.PROJECT_VIEW.check(request.user, raise_error=False):
+            projects = Project.objects.all()
+        else:
+            projects = Project.objects.filter(visibility__in=[Project.Visibility.PUBLIC, Project.Visibility.INTERNAL])
+    else:
+        # Anonymous users see only public projects.
+        projects = Project.objects.filter(visibility=Project.Visibility.PUBLIC)
 
     search = request.GET.get("search", "").strip()
     if search:
@@ -102,10 +109,11 @@ def _clone_fossil_repo(request, project, clone_url):
         messages.warning(request, "Clone timed out -- the repository may be large. Try pulling later.")
 
 
-@login_required
 def project_detail(request, slug):
-    P.PROJECT_VIEW.check(request.user)
+    from projects.access import require_project_read
+
     project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+    require_project_read(request, project)
     project_teams = project.project_teams.filter(deleted_at__isnull=True).select_related("team")
 
     # Get Fossil repo stats if available

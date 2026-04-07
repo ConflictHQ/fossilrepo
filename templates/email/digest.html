@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 20px; margin: 0; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header { padding: 20px 0; border-bottom: 1px solid #1f1f1f; }
+    .logo { font-size: 20px; font-weight: 700; color: #ffffff; }
+    .logo span { color: #DC394C; }
+    .content { padding: 20px 0; }
+    h2 { color: #ffffff; font-size: 18px; margin: 0 0 16px 0; }
+    .event-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .event-checkin { background: #1e3a5f; color: #93c5fd; }
+    .event-ticket { background: #3f1f1f; color: #fca5a5; }
+    .event-wiki { background: #1f3f1f; color: #86efac; }
+    .event-release { background: #3f3f1f; color: #fde68a; }
+    .event-forum { background: #2d1f3f; color: #c4b5fd; }
+    .event-row { padding: 8px 0; border-bottom: 1px solid #1f1f1f; }
+    .project-name { color: #DC394C; font-weight: 600; }
+    .more-notice { padding: 12px 0; color: #9ca3af; font-style: italic; }
+    .button { display: inline-block; padding: 10px 20px; background: #DC394C; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 16px; }
+    .footer { padding: 20px 0; border-top: 1px solid #1f1f1f; font-size: 12px; color: #6b7280; }
+    .unsubscribe { color: #9ca3af; text-decoration: underline; }
+  </style>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 20px; margin: 0;">
+  <div class="container" style="max-width: 600px; margin: 0 auto;">
+    <div class="header" style="padding: 20px 0; border-bottom: 1px solid #1f1f1f;">
+      <div class="logo" style="font-size: 20px; font-weight: 700; color: #ffffff;">fossil<span style="color: #DC394C;">repo</span></div>
+    </div>
+    <div class="content" style="padding: 20px 0;">
+      <h2 style="color: #ffffff; font-size: 18px; margin: 0 0 16px 0;">{{ digest_type|title }} Digest — {{ count }} update{{ count|pluralize }}</h2>
+      {% for notification in notifications %}
+      <div class="event-row" style="padding: 8px 0; border-bottom: 1px solid #1f1f1f;">
+        <span class="event-badge event-{{ notification.event_type }}" style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;{% if notification.event_type == 'checkin' %} background: #1e3a5f; color: #93c5fd;{% elif notification.event_type == 'ticket' %} background: #3f1f1f; color: #fca5a5;{% elif notification.event_type == 'wiki' %} background: #1f3f1f; color: #86efac;{% elif notification.event_type == 'release' %} background: #3f3f1f; color: #fde68a;{% elif notification.event_type == 'forum' %} background: #2d1f3f; color: #c4b5fd;{% else %} background: #2a2a2a; color: #d4d4d4;{% endif %}">{{ notification.event_type }}</span>
+        <strong class="project-name" style="color: #DC394C; font-weight: 600;">{{ notification.project.name }}</strong>: {{ notification.title }}
+      </div>
+      {% endfor %}
+      {% if overflow_count %}
+      <div class="more-notice" style="padding: 12px 0; color: #9ca3af; font-style: italic;">... and {{ overflow_count }} more.</div>
+      {% endif %}
+      <a href="{{ dashboard_url }}" class="button" style="display: inline-block; padding: 10px 20px; background: #DC394C; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 16px;">View All Notifications</a>
+    </div>
+    <div class="footer" style="padding: 20px 0; border-top: 1px solid #1f1f1f; font-size: 12px; color: #6b7280;">
+      <p>This is your {{ digest_type }} digest from fossilrepo.</p>
+      <p><a href="{{ preferences_url }}" class="unsubscribe" style="color: #9ca3af; text-decoration: underline;">Manage notification preferences</a></p>
+    </div>
+  </div>
+</body>
+</html>
