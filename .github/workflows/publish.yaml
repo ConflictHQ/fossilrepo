@@ -65,7 +65,9 @@ jobs:
           ") -d vendor/
 
           # Create archives with source + install.sh + vendored deps
+          # Use --warning=no-file-changed to avoid exit code 1 on concurrent writes
           tar czf "fossilrepo-${VERSION}.tar.gz" \
+            --warning=no-file-changed \
             --transform "s,^,fossilrepo-${VERSION}/," \
             --exclude='.git' \
             --exclude='__pycache__' \
@@ -73,7 +75,7 @@ jobs:
             --exclude='.ruff_cache' \
             --exclude='node_modules' \
             --exclude='assets' \
-            .
+            . || [[ $? -eq 1 ]]
 
           # Zip version
           mkdir -p "/tmp/fossilrepo-${VERSION}"
