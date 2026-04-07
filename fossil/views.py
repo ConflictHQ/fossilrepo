@@ -245,13 +245,10 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
     # Rewrite Fossil URI schemes: forum:/..., info:..., wiki:...
     html = re.sub(r'href="(forum|info|wiki):([^"]*)"', replace_scheme_link, html)
 
-    # Rewrite external fossil-scm.org links to local views
+    # Rewrite external fossil-scm.org/home links (source repo) to local views
+    # Do NOT rewrite fossil-scm.org/forum links — those are a separate repo/instance
     def replace_external_fossil(match):
         path = match.group(1)
-        # /forum/forumpost/HASH
-        m = re.match(r"/forum/forumpost/([0-9a-f]+)", path)
-        if m:
-            return f'href="{base}/forum/{m.group(1)}/"'
         # /info/HASH
         m = re.match(r"/info/([0-9a-f]+)", path)
         if m:
@@ -260,9 +257,13 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
         m = re.match(r"/wiki/(.+)", path)
         if m:
             return f'href="{base}/wiki/page/{m.group(1)}"'
+        # /doc/trunk/www/file -> docs
+        m = re.match(r"/doc/(?:trunk|tip|[^/]+)/(.+)", path)
+        if m:
+            return f'href="{base}/docs/{m.group(1)}"'
         return match.group(0)
 
-    html = re.sub(r'href="https?://(?:www\.)?fossil-scm\.org(?:/home)?(/[^"]*)"', replace_external_fossil, html)
+    html = re.sub(r'href="https?://(?:www\.)?fossil-scm\.org/home(/[^"]*)"', replace_external_fossil, html)
     return html
 
 
@@ -931,6 +932,80 @@ def branch_list(request, slug):
             "project": project,
             "fossil_repo": fossil_repo,
             "branches": branches,
+            "active_tab": "code",
+        },
+    )
+
+
+# --- Tags ---
+
+
+@login_required
+def tag_list(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        tags = reader.get_tags()
+
+    return render(
+        request,
+        "fossil/tag_list.html",
+        {"project": project, "tags": tags, "active_tab": "code"},
+    )
+
+
+# --- Raw File Download ---
+
+
+@login_required
+def code_raw(request, slug, filepath):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        checkin_uuid = reader.get_latest_checkin_uuid()
+        files = reader.get_files_at_checkin(checkin_uuid) if checkin_uuid else []
+        target = None
+        for f in files:
+            if f.name == filepath:
+                target = f
+                break
+        if not target:
+            raise Http404(f"File not found: {filepath}")
+        content_bytes = reader.get_file_content(target.uuid)
+
+    from django.http import HttpResponse as DjHttpResponse
+
+    filename = filepath.split("/")[-1]
+    response = DjHttpResponse(content_bytes, content_type="application/octet-stream")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+# --- Repository Statistics ---
+
+
+@login_required
+def repo_stats(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        stats = reader.get_repo_statistics()
+        top_contributors = reader.get_top_contributors(limit=15)
+        activity = reader.get_commit_activity(weeks=52)
+
+    import json
+
+    return render(
+        request,
+        "fossil/repo_stats.html",
+        {
+            "project": project,
+            "stats": stats,
+            "top_contributors": top_contributors,
+            "activity_json": json.dumps([c["count"] for c in activity]),
             "active_tab": "code",
         },
     )

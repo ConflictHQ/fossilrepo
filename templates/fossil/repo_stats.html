@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Statistics — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <div class="text-2xl font-bold text-gray-100">{{ stats.checkin_count|default:"0" }}</div>
+    <div class="text-xs text-gray-500 mt-1">Checkins</div>
+  </div>
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <div class="text-2xl font-bold text-gray-100">{{ stats.contributors|default:"0" }}</div>
+    <div class="text-xs text-gray-500 mt-1">Contributors</div>
+  </div>
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <div class="text-2xl font-bold text-gray-100">{{ stats.total_artifacts|default:"0" }}</div>
+    <div class="text-xs text-gray-500 mt-1">Artifacts</div>
+  </div>
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <div class="text-2xl font-bold text-gray-100">{{ stats.db_size_mb|default:"0" }} MB</div>
+    <div class="text-xs text-gray-500 mt-1">Repository Size</div>
+  </div>
+</div>
+
+{% if activity_json %}
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-4 mb-6">
+  <h3 class="text-sm font-medium text-gray-300 mb-3">Commit Activity (52 weeks)</h3>
+  <div style="height: 160px;">
+    <canvas id="statsChart"></canvas>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+  <!-- Event breakdown -->
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <h3 class="text-sm font-medium text-gray-300 mb-3">Event Breakdown</h3>
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Checkins</span>
+        <span class="text-sm font-medium text-gray-200">{{ stats.checkin_count|default:"0" }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Wiki edits</span>
+        <span class="text-sm font-medium text-gray-200">{{ stats.wiki_events|default:"0" }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Ticket changes</span>
+        <span class="text-sm font-medium text-gray-200">{{ stats.ticket_events|default:"0" }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Forum posts</span>
+        <span class="text-sm font-medium text-gray-200">{{ stats.forum_events|default:"0" }}</span>
+      </div>
+      {% if stats.first_checkin %}
+      <div class="flex items-center justify-between pt-2 border-t border-gray-700">
+        <span class="text-sm text-gray-500">First checkin</span>
+        <span class="text-sm text-gray-400">{{ stats.first_checkin|date:"Y-m-d" }}</span>
+      </div>
+      {% endif %}
+      {% if stats.last_checkin %}
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-500">Last checkin</span>
+        <span class="text-sm text-gray-400">{{ stats.last_checkin|date:"Y-m-d" }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Top contributors -->
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <h3 class="text-sm font-medium text-gray-300 mb-3">Top Contributors</h3>
+    <div class="space-y-1">
+      {% for c in top_contributors %}
+      <a href="{% url 'fossil:user_activity' slug=project.slug username=c.user %}" class="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-gray-700/50">
+        <span class="text-sm text-gray-300">{{ c.user }}</span>
+        <div class="flex items-center gap-2">
+          <div class="w-24 bg-gray-700 rounded-full h-1.5">
+            <div class="bg-brand rounded-full h-1.5" style="width: {% widthratio c.count top_contributors.0.count 100 %}%"></div>
+          </div>
+          <span class="text-xs text-gray-500 w-16 text-right">{{ c.count }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% if activity_json %}
+<script>
+  new Chart(document.getElementById('statsChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: {{ activity_json|safe }}.map((_, i) => ''),
+      datasets: [{
+        data: {{ activity_json|safe }},
+        backgroundColor: '#DC394C',
+        borderRadius: 2,
+        barPercentage: 0.8,
+        categoryPercentage: 0.9,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { title: (items) => { const w = 51 - items[0].dataIndex; return w === 0 ? 'This week' : w + ' week' + (w > 1 ? 's' : '') + ' ago'; } }
+      }},
+      scales: {
+        x: { display: false, grid: { display: false } },
+        y: { display: false, grid: { display: false }, beginAtZero: true }
+      }
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}
