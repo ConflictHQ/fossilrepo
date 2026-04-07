@@ -6,8 +6,8 @@
   .blame-table { border-collapse: collapse; width: 100%; font-size: 0.75rem; font-family: ui-monospace, monospace; }
   .blame-table td { padding: 0; vertical-align: top; line-height: 1.5rem; }
   .blame-meta { width: 1%; white-space: nowrap; padding: 0 8px !important; color: #6b7280; border-right: 1px solid #374151; }
-  .blame-meta a { color: inherit; text-decoration: none; }
-  .blame-meta a:hover { color: #DC394C; }
+  .blame-meta a { text-decoration: none; }
+  .blame-meta a:hover { color: #DC394C !important; }
   .blame-num { width: 1%; white-space: nowrap; padding: 0 10px !important; text-align: right; color: #4b5563; border-right: 1px solid #374151; }
   .blame-code { white-space: pre; padding: 0 16px !important; font-size: 0.8125rem; }
   .blame-row:hover { background: rgba(220, 57, 76, 0.04); }
@@ -44,11 +44,11 @@
       <tbody>
         {% for bl in blame_lines %}
         <tr class="blame-row">
-          <td class="blame-meta">
-            <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=bl.uuid %}">{{ bl.uuid|truncatechars:8 }}</a>
+          <td class="blame-meta" style="color: {{ bl.age_color }}; background: {{ bl.age_bg }};" title="{{ bl.date }} by {{ bl.user }}">
+            <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=bl.uuid %}" style="color: inherit;">{{ bl.uuid|truncatechars:8 }}</a>
           </td>
-          <td class="blame-meta">
-            <a href="{% url 'fossil:user_activity' slug=project.slug username=bl.user %}">{{ bl.user }}</a>
+          <td class="blame-meta" style="color: {{ bl.age_color }}; background: {{ bl.age_bg }};" title="{{ bl.date }} by {{ bl.user }}">
+            <a href="{% url 'fossil:user_activity' slug=project.slug username=bl.user %}" style="color: inherit;">{{ bl.user }}</a>
           </td>
           <td class="blame-num">{{ forloop.counter }}</td>
           <td class="blame-code">{{ bl.text }}</td>

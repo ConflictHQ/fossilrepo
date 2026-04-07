@@ -4,6 +4,7 @@ from core.admin import BaseCoreAdmin
 
 from .models import FossilRepository, FossilSnapshot
 from .notifications import Notification, ProjectWatch
+from .releases import Release, ReleaseAsset
 from .sync_models import GitMirror, SSHKey, SyncLog
 from .user_keys import UserSSHKey
 
@@ -70,6 +71,24 @@ class ProjectWatchAdmin(BaseCoreAdmin):
     list_filter = ("event_filter", "email_enabled")
     search_fields = ("user__username", "project__name")
     raw_id_fields = ("user", "project")
+
+
+class ReleaseAssetInline(admin.TabularInline):
+    model = ReleaseAsset
+    extra = 0
+
+
+@admin.register(Release)
+class ReleaseAdmin(BaseCoreAdmin):
+    list_display = ("tag_name", "name", "repository", "is_prerelease", "is_draft", "published_at")
+    list_filter = ("is_prerelease", "is_draft")
+    search_fields = ("tag_name", "name")
+    inlines = [ReleaseAssetInline]
+
+
+@admin.register(ReleaseAsset)
+class ReleaseAssetAdmin(BaseCoreAdmin):
+    list_display = ("name", "release", "file_size_bytes", "download_count")
 
 
 @admin.register(SyncLog)

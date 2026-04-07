@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-4">
+  <a href="{% url 'fossil:releases' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Releases</a>
+</div>
+
+<div class="mx-auto max-w-3xl" x-data="{ tab: 'write' }">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-gray-100">{{ form_title }}</h2>
+    <div class="flex items-center gap-1 text-xs">
+      <button @click="tab = 'write'" :class="tab === 'write' ? 'bg-brand text-white' : 'text-gray-500 hover:text-white'" class="px-3 py-1 rounded">Write</button>
+      <button @click="tab = 'preview'; document.getElementById('preview-pane').innerHTML = marked.parse(document.getElementById('body-input').value)" :class="tab === 'preview' ? 'bg-brand text-white' : 'text-gray-500 hover:text-white'" class="px-3 py-1 rounded">Preview</button>
+    </div>
+  </div>
+
+  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Tag Name <span class="text-red-400">*</span></label>
+        <input type="text" name="tag_name" required placeholder="v1.0.0"
+               value="{% if release %}{{ release.tag_name }}{% endif %}"
+               class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Release Name <span class="text-red-400">*</span></label>
+        <input type="text" name="name" required placeholder="Version 1.0.0 -- Initial Release"
+               value="{% if release %}{{ release.name }}{% endif %}"
+               class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm" />
+      </div>
+    </div>
+
+    {% if recent_checkins %}
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Target Checkin (optional)</label>
+      <select name="checkin_uuid"
+              class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+        <option value="">-- None --</option>
+        {% for ci in recent_checkins %}
+        <option value="{{ ci.uuid }}"
+                {% if release and release.checkin_uuid == ci.uuid %}selected{% endif %}>
+          {{ ci.uuid|truncatechars:12 }} -- {{ ci.comment|truncatechars:60 }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <div x-show="tab === 'write'">
+      <label class="block text-sm font-medium text-gray-300 mb-1">Changelog (Markdown)</label>
+      <textarea id="body-input" name="body" rows="14" placeholder="## What's new&#10;&#10;- Feature A&#10;- Bug fix B"
+                class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono">{% if release %}{{ release.body }}{% endif %}</textarea>
+    </div>
+
+    <div x-show="tab === 'preview'" style="display:none">
+      <div id="preview-pane" class="prose prose-invert prose-gray max-w-none min-h-[14rem] p-4 rounded-md border border-gray-700 bg-gray-900">
+        <p class="text-gray-500 italic">Click Preview to render...</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-6">
+      <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+        <input type="checkbox" name="is_prerelease"
+               {% if release and release.is_prerelease %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand" />
+        Pre-release
+      </label>
+      <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+        <input type="checkbox" name="is_draft"
+               {% if release and release.is_draft %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand" />
+        Draft
+      </label>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-2">
+      <a href="{% url 'fossil:releases' slug=project.slug %}"
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Cancel
+      </a>
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+        {{ submit_label }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
