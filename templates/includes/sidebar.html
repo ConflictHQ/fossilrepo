@@ -123,7 +123,7 @@
 
     <!-- Admin section (collapsible) -->
     {% if perms.organization.view_organization or user.is_staff %}
-    <div x-data="{ adminOpen: '/settings/' in window.location.pathname || '/projects/groups/' in window.location.pathname }">
+    <div x-data="{ adminOpen: window.location.pathname.includes('/settings/') || window.location.pathname.includes('/projects/groups/') }">
       <button @click="collapsed ? (collapsed = false, adminOpen = true) : (adminOpen = !adminOpen)"
               class="flex items-center justify-between w-full rounded-md px-2 py-2 text-sm font-medium {% if '/settings/' in request.path or '/projects/groups/' in request.path %}text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}"
               :title="collapsed ? 'Admin' : ''">
