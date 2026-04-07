@@ -11,9 +11,7 @@ on:
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPO: fossilrepo
-  ECS_CLUSTER: dev-fossilrepo
-  ECS_SERVICE: dev-fossilrepo-app
-  TASK_FAMILY: dev-fossilrepo-app
+  INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
 
 jobs:
   ci:
@@ -50,40 +48,16 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPO:latest
 
-      - name: Deploy to ECS
-        env:
-          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Deploy to EC2 via SSM
         run: |
-          TASK_DEF=$(aws ecs describe-task-definition \
-            --task-definition $TASK_FAMILY \
-            --query 'taskDefinition' \
-            --output json)
-
-          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq \
-            --arg IMAGE "$ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG" \
-            '.containerDefinitions[0].image = $IMAGE |
-             del(.taskDefinitionArn, .revision, .status,
-                 .requiresAttributes, .compatibilities,
-                 .registeredAt, .registeredBy, .deregisteredAt)')
-
-          NEW_TASK_ARN=$(aws ecs register-task-definition \
-            --cli-input-json "$NEW_TASK_DEF" \
-            --query 'taskDefinition.taskDefinitionArn' \
-            --output text)
-
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_SERVICE \
-            --task-definition "$NEW_TASK_ARN" \
-            --force-new-deployment
-
-          echo "Deployed $NEW_TASK_ARN to $ECS_SERVICE"
-
-      - name: Wait for deployment to stabilize
-        run: |
-          echo "Waiting for ECS service to reach steady state..."
-          aws ecs wait services-stable \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_SERVICE
-          echo "Deployment stable."
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "aws ecr get-login-password --region '${{ env.AWS_REGION }}' | docker login --username AWS --password-stdin '${{ steps.ecr.outputs.registry }}'",
+              "cd /opt/fossilrepo && docker compose pull app && docker compose up -d app",
+              "sleep 10 && docker compose exec -T app python manage.py migrate --noinput"
+            ]' \
+            --timeout-seconds 300 \
+            --output text
+          echo "Deploy command sent to $INSTANCE_ID"
