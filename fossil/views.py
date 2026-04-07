@@ -279,15 +279,9 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
 
     html = re.sub(r'href="https?://(?:www\.)?fossil-scm\.org/home(/[^"]*)"', replace_external_fossil, html)
 
-    # Also rewrite fossil-scm.org/forum links to our local forum
-    def replace_external_forum(match):
-        path = match.group(1)
-        m = re.match(r"/forumpost/([0-9a-f]+)", path)
-        if m:
-            return f'href="{base}/forum/{m.group(1)}/"'
-        return f'href="{base}/forum/"'
-
-    html = re.sub(r'href="https?://(?:www\.)?fossil-scm\.org/forum(/[^"]*)"', replace_external_forum, html)
+    # Do NOT rewrite fossil-scm.org/forum links — that's a separate Fossil
+    # instance. If we have it locally as a different project, the user can
+    # navigate there directly. Rewriting cross-repo links is fragile.
     return html
 
 
