@@ -33,9 +33,11 @@ class TestPageViews:
         response = admin_client.get("/kb/?search=Getting")
         assert response.status_code == 200
 
-    def test_page_list_denied(self, no_perm_client):
+    def test_page_list_accessible_to_all(self, no_perm_client, sample_page):
+        # Published pages are visible to everyone, including users without PAGE_VIEW perm
         response = no_perm_client.get("/kb/")
-        assert response.status_code == 403
+        assert response.status_code == 200
+        assert sample_page.name in response.content.decode()
 
     def test_page_create(self, admin_client, org):
         response = admin_client.post("/kb/create/", {"name": "New Page", "content": "# New", "is_published": True})
@@ -52,8 +54,15 @@ class TestPageViews:
         content = response.content.decode()
         assert "<h1>" in content or "Getting Started" in content
 
-    def test_page_detail_denied(self, no_perm_client, sample_page):
+    def test_page_detail_accessible_for_published(self, no_perm_client, sample_page):
+        # Published pages are viewable by anyone, even without PAGE_VIEW permission
         response = no_perm_client.get(f"/kb/{sample_page.slug}/")
+        assert response.status_code == 200
+
+    def test_page_detail_denied_for_draft(self, no_perm_client, org, admin_user):
+        # Unpublished drafts require auth + edit permission
+        draft = Page.objects.create(name="Draft Only", content="Secret", organization=org, is_published=False, created_by=admin_user)
+        response = no_perm_client.get(f"/kb/{draft.slug}/")
         assert response.status_code == 403
 
     def test_page_update(self, admin_client, sample_page):

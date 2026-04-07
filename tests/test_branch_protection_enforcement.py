@@ -172,9 +172,7 @@ class TestXferBranchProtectionEnforcement:
         assert response.status_code == 200
         assert _get_localauth(mock_proxy) is True
 
-    def test_status_checks_passing_writer_gets_localauth(
-        self, writer_client, sample_project, fossil_repo_obj, protection_with_checks
-    ):
+    def test_status_checks_passing_writer_gets_localauth(self, writer_client, sample_project, fossil_repo_obj, protection_with_checks):
         """Writer gets push access when all required status checks pass."""
         StatusCheck.objects.create(repository=fossil_repo_obj, checkin_uuid="latest1", context="ci/tests", state="success")
         StatusCheck.objects.create(repository=fossil_repo_obj, checkin_uuid="latest1", context="ci/lint", state="success")
@@ -188,9 +186,7 @@ class TestXferBranchProtectionEnforcement:
         assert response.status_code == 200
         assert _get_localauth(mock_proxy) is True
 
-    def test_status_checks_failing_writer_denied_localauth(
-        self, writer_client, sample_project, fossil_repo_obj, protection_with_checks
-    ):
+    def test_status_checks_failing_writer_denied_localauth(self, writer_client, sample_project, fossil_repo_obj, protection_with_checks):
         """Writer denied push when a required status check is failing."""
         StatusCheck.objects.create(repository=fossil_repo_obj, checkin_uuid="latest2", context="ci/tests", state="success")
         StatusCheck.objects.create(repository=fossil_repo_obj, checkin_uuid="latest2", context="ci/lint", state="failure")
@@ -204,9 +200,7 @@ class TestXferBranchProtectionEnforcement:
         assert response.status_code == 200
         assert _get_localauth(mock_proxy) is False
 
-    def test_status_checks_missing_context_denies_localauth(
-        self, writer_client, sample_project, fossil_repo_obj, protection_with_checks
-    ):
+    def test_status_checks_missing_context_denies_localauth(self, writer_client, sample_project, fossil_repo_obj, protection_with_checks):
         """Writer denied push when a required context has no status check at all."""
         # Only create one of the two required checks
         StatusCheck.objects.create(repository=fossil_repo_obj, checkin_uuid="latest3", context="ci/tests", state="success")

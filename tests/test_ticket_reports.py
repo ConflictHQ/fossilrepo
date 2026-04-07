@@ -190,7 +190,8 @@ class TestTicketReportsListView:
 
     def test_list_denied_for_anon(self, client, sample_project):
         response = client.get(f"/projects/{sample_project.slug}/fossil/tickets/reports/")
-        assert response.status_code == 302  # redirect to login
+        # Private project: anonymous user gets 403 from require_project_read
+        assert response.status_code == 403
 
 
 # --- Create View Tests ---
@@ -319,4 +320,5 @@ class TestTicketReportRunView:
 
     def test_run_denied_for_anon(self, client, sample_project, public_report):
         response = client.get(f"/projects/{sample_project.slug}/fossil/tickets/reports/{public_report.pk}/")
-        assert response.status_code == 302  # redirect to login
+        # Private project: anonymous user gets 403 from require_project_read
+        assert response.status_code == 403

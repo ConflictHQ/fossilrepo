@@ -230,14 +230,17 @@ def send_digest(mode="daily"):
             lines.append(f"\n... and {overflow_count} more.")
 
         # HTML version
-        html_body = render_to_string("email/digest.html", {
-            "digest_type": mode,
-            "count": count,
-            "notifications": notifications_list,
-            "overflow_count": overflow_count,
-            "dashboard_url": "/",
-            "preferences_url": "/auth/notifications/",
-        })
+        html_body = render_to_string(
+            "email/digest.html",
+            {
+                "digest_type": mode,
+                "count": count,
+                "notifications": notifications_list,
+                "overflow_count": overflow_count,
+                "dashboard_url": "/",
+                "preferences_url": "/auth/notifications/",
+            },
+        )
 
         try:
             send_mail(
