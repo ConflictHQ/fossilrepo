@@ -45,12 +45,6 @@ class P(Enum):
     PAGE_CHANGE = "pages.change_page"
     PAGE_DELETE = "pages.delete_page"
 
-    # Items (example domain)
-    ITEM_VIEW = "items.view_item"
-    ITEM_ADD = "items.add_item"
-    ITEM_CHANGE = "items.change_item"
-    ITEM_DELETE = "items.delete_item"
-
     def check(self, user, raise_error=True):
         """Check if user has this permission. Superusers always pass."""
         if not user or not user.is_authenticated:

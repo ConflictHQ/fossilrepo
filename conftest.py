@@ -17,7 +17,7 @@ def viewer_user(db):
     user = User.objects.create_user(username="viewer", email="viewer@test.com", password="testpass123")
     group, _ = Group.objects.get_or_create(name="Viewers")
     view_perms = Permission.objects.filter(
-        content_type__app_label__in=["items", "organization", "projects", "pages"],
+        content_type__app_label__in=["organization", "projects", "pages"],
         codename__startswith="view_",
     )
     group.permissions.set(view_perms)

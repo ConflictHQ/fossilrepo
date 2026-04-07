@@ -76,9 +76,8 @@ Triggered on demand or on schedule.
 fossilrepo/
 |-- config/          # Django settings, URLs, Celery
 |-- core/            # Base models, permissions, middleware
-|-- auth1/           # Session-based auth
+|-- accounts/           # Session-based auth
 |-- organization/    # Org + member management
-|-- items/           # Example CRUD app (reference only)
 |-- docker/          # Fossil-specific: Caddyfile, litestream.yml
 |-- templates/       # HTMX templates
 |-- _old_fossilrepo/ # Original server/sync/cli code (being ported)
@@ -91,7 +90,7 @@ fossilrepo/
 
 | Layer | What's there |
 |---|---|
-| Auth | Session-based auth (auth1), login/logout views with templates, rate limiting |
+| Auth | Session-based auth (accounts), login/logout views with templates, rate limiting |
 | Data | Postgres 16, `Tracking` base model (version, created/updated/deleted by+at, soft deletes, history) |
 | API | Django views returning HTML (full pages + HTMX partials) |
 | Permissions | Group-based via `P` enum, checked in every view |
@@ -99,7 +98,7 @@ fossilrepo/
 | Admin | Django Admin with `BaseCoreAdmin` (import/export, tracking fields) |
 | Infra | Docker Compose: postgres, redis, celery-worker, celery-beat, mailpit |
 | CI | GitHub Actions: lint (Ruff) + tests (Postgres + Redis services) |
-| Seed | `python manage.py seed` creates admin/viewer users, sample items |
+| Seed | `python manage.py seed` creates admin/viewer users, sample data |
 | Frontend | HTMX 2.0 + Alpine.js 3 + Tailwind CSS, server-rendered templates |
 
 ---
@@ -110,9 +109,8 @@ fossilrepo/
 |---|---|
 | `config` | Django settings, URLs, Celery configuration |
 | `core` | Base models (Tracking, BaseCoreModel), admin (BaseCoreAdmin), permissions (P enum), middleware |
-| `auth1` | Session-based authentication: login/logout views with rate limiting |
+| `accounts` | Session-based authentication: login/logout views with rate limiting |
 | `organization` | Organization + OrganizationMember models |
-| `items` | Example CRUD domain demonstrating all patterns (reference only -- new Fossil-specific apps will replace this as the primary domain) |
 | `testdata` | `seed` management command for development data |
 
 ---
@@ -136,8 +134,8 @@ Provides: `version` (auto-increments), `created_at/by`, `updated_at/by`, `delete
 ```python
 from core.models import BaseCoreModel
 
-class Item(BaseCoreModel):
-    price = models.DecimalField(...)
+class Project(BaseCoreModel):
+    visibility = models.CharField(...)
 ```
 Adds: `guid` (UUID), `name`, `slug` (auto-generated, unique), `description`.
 
@@ -153,24 +151,24 @@ Views return full pages for normal requests, HTMX partials for `HX-Request`:
 
 ```python
 @login_required
-def item_list(request):
-    P.ITEM_VIEW.check(request.user)
-    items = Item.objects.all()
+def project_list(request):
+    P.PROJECT_VIEW.check(request.user)
+    projects = Project.objects.all()
 
     if request.headers.get("HX-Request"):
-        return render(request, "items/partials/item_table.html", {"items": items})
+        return render(request, "projects/partials/project_table.html", {"projects": projects})
 
-    return render(request, "items/item_list.html", {"items": items})
+    return render(request, "projects/project_list.html", {"projects": projects})
 ```
 
 **URL patterns** follow CRUD convention:
 ```python
 urlpatterns = [
-    path("", views.item_list, name="list"),
-    path("create/", views.item_create, name="create"),
-    path("<slug:slug>/", views.item_detail, name="detail"),
-    path("<slug:slug>/edit/", views.item_update, name="update"),
-    path("<slug:slug>/delete/", views.item_delete, name="delete"),
+    path("", views.project_list, name="list"),
+    path("create/", views.project_create, name="create"),
+    path("<slug:slug>/", views.project_detail, name="detail"),
+    path("<slug:slug>/edit/", views.project_update, name="update"),
+    path("<slug:slug>/delete/", views.project_delete, name="delete"),
 ]
 ```
 
@@ -183,14 +181,14 @@ Group-based. Never user-based. Checked in every view.
 ```python
 from core.permissions import P
 
-P.ITEM_VIEW.check(request.user)          # raises PermissionDenied if denied
-P.ITEM_ADD.check(request.user, raise_error=False)  # returns False instead
+P.PROJECT_VIEW.check(request.user)          # raises PermissionDenied if denied
+P.PROJECT_ADD.check(request.user, raise_error=False)  # returns False instead
 ```
 
 Template guards:
 ```html
-{% if perms.items.view_item %}
-  <a href="{% url 'items:list' %}">Items</a>
+{% if perms.projects.view_project %}
+  <a href="{% url 'projects:list' %}">Projects</a>
 {% endif %}
 ```
 
@@ -202,9 +200,9 @@ All admin classes inherit `BaseCoreAdmin`:
 ```python
 from core.admin import BaseCoreAdmin
 
-@admin.register(Item)
-class ItemAdmin(BaseCoreAdmin):
-    list_display = ("name", "slug", "price", "created_at")
+@admin.register(Project)
+class ProjectAdmin(BaseCoreAdmin):
+    list_display = ("name", "slug", "visibility", "created_at")
     search_fields = ("name", "slug")
 ```
 
@@ -235,17 +233,17 @@ pytest + real Postgres. Assert against database state.
 
 ```python
 @pytest.mark.django_db
-class TestItemCreate:
-    def test_create_saves_item(self, admin_client, admin_user):
-        response = admin_client.post(reverse("items:create"), {
-            "name": "Widget", "price": "9.99", ...
+class TestProjectCreate:
+    def test_create_saves_project(self, admin_client, admin_user, org):
+        response = admin_client.post(reverse("projects:create"), {
+            "name": "New App", "visibility": "private", ...
         })
         assert response.status_code == 302
-        item = Item.objects.get(name="Widget")
-        assert item.created_by == admin_user
+        project = Project.objects.get(name="New App")
+        assert project.created_by == admin_user
 
     def test_create_denied_for_viewer(self, viewer_client):
-        response = viewer_client.get(reverse("items:create"))
+        response = viewer_client.get(reverse("projects:create"))
         assert response.status_code == 403
 ```
 
