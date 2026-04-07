@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load fossil_filters %}
 {% block title %}Branches — {{ project.name }} — Fossilrepo{% endblock %}
 
 {% block content %}
@@ -46,7 +47,7 @@
           </a>
         </td>
         <td class="px-4 py-3">
-          <a href="{% url 'fossil:user_activity' slug=project.slug username=branch.last_user %}" class="text-sm text-gray-400 hover:text-brand-light">{{ branch.last_user }}</a>
+          <a href="{% url 'fossil:user_activity' slug=project.slug username=branch.last_user %}" class="text-sm text-gray-400 hover:text-brand-light">{{ branch.last_user|display_user }}</a>
         </td>
         <td class="px-4 py-3 text-sm text-gray-400 text-right">{{ branch.checkin_count }}</td>
         <td class="px-4 py-3 text-sm text-gray-500 text-right">{{ branch.last_checkin|timesince }} ago</td>

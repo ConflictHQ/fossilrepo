@@ -2522,7 +2522,7 @@ def branch_list(request, slug):
             "pagination": pagination,
             "per_page": per_page,
             "per_page_options": PER_PAGE_OPTIONS,
-            "active_tab": "code",
+            "active_tab": "branches",
         },
     )
 

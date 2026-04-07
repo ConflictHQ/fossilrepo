@@ -107,7 +107,7 @@
       {% if e.event_type == "ci" %}
       {% include "fossil/_copy_hash.html" with hash=e.uuid slug=project.slug %}
       {% endif %}
-      <a href="{% url 'fossil:user_activity' slug=project.slug username=e.user %}" class="tl-user">{{ e.user }}</a>
+      <a href="{% url 'fossil:user_activity' slug=project.slug username=e.user %}" class="tl-user">{{ e.user|display_user }}</a>
       {% if e.branch %}<span class="tl-branch">{{ e.branch }}</span>{% endif %}
     </div>
   </div>

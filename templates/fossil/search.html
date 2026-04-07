@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load fossil_filters %}
 {% block title %}Search — {{ project.name }} — Fossilrepo{% endblock %}
 
 {% block content %}
@@ -24,7 +25,7 @@
       <div class="px-4 py-3">
         <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=c.uuid %}" class="text-sm text-gray-200 hover:text-brand-light">{{ c.comment|truncatechars:100 }}</a>
         <div class="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
-          <a href="{% url 'fossil:user_activity' slug=project.slug username=c.user %}" class="hover:text-gray-300">{{ c.user }}</a>
+          <a href="{% url 'fossil:user_activity' slug=project.slug username=c.user %}" class="hover:text-gray-300">{{ c.user|display_user }}</a>
           <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=c.uuid %}" class="font-mono text-brand-light">{{ c.uuid|truncatechars:10 }}</a>
           <span>{{ c.timestamp|timesince }} ago</span>
         </div>

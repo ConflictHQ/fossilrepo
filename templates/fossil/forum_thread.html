@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load fossil_filters %}
 {% block title %}Forum Thread — {{ project.name }} — Fossilrepo{% endblock %}
 
 {% block content %}
@@ -15,9 +16,9 @@
     <div class="px-5 py-4">
       <div class="flex items-center justify-between mb-2">
         {% if is_django_thread %}
-        <span class="text-sm font-medium text-gray-200">{{ item.post.user }}</span>
+        <span class="text-sm font-medium text-gray-200">{{ item.post.user|display_user }}</span>
         {% else %}
-        <a href="{% url 'fossil:user_activity' slug=project.slug username=item.post.user %}" class="text-sm font-medium text-gray-200 hover:text-brand-light">{{ item.post.user }}</a>
+        <a href="{% url 'fossil:user_activity' slug=project.slug username=item.post.user %}" class="text-sm font-medium text-gray-200 hover:text-brand-light">{{ item.post.user|display_user }}</a>
         {% endif %}
         <span class="text-xs text-gray-500">{{ item.post.timestamp|timesince }} ago</span>
       </div>

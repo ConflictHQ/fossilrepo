@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load fossil_filters %}
 {% block title %}History: {{ filepath }} — {{ project.name }} — Fossilrepo{% endblock %}
 
 {% block content %}
@@ -23,7 +24,7 @@
       <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=commit.uuid %}"
          class="text-sm text-gray-200 hover:text-brand-light">{{ commit.comment|truncatechars:100 }}</a>
       <div class="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
-        <a href="{% url 'fossil:user_activity' slug=project.slug username=commit.user %}" class="hover:text-gray-300">{{ commit.user }}</a>
+        <a href="{% url 'fossil:user_activity' slug=project.slug username=commit.user %}" class="hover:text-gray-300">{{ commit.user|display_user }}</a>
         <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=commit.uuid %}" class="font-mono text-brand-light hover:text-brand">{{ commit.uuid|truncatechars:10 }}</a>
         <span>{{ commit.timestamp|date:"Y-m-d H:i" }}</span>
       </div>

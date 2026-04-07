@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load fossil_filters %}
 {% block title %}Statistics — {{ project.name }} — Fossilrepo{% endblock %}
 
 {% block extra_head %}
@@ -79,7 +80,7 @@
     <div class="space-y-1">
       {% for c in top_contributors %}
       <a href="{% url 'fossil:user_activity' slug=project.slug username=c.user %}" class="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-gray-700/50">
-        <span class="text-sm text-gray-300">{{ c.user }}</span>
+        <span class="text-sm text-gray-300">{{ c.user|display_user }}</span>
         <div class="flex items-center gap-2">
           <div class="w-24 bg-gray-700 rounded-full h-1.5">
             <div class="bg-brand rounded-full h-1.5" style="width: {% widthratio c.count top_contributors.0.count 100 %}%"></div>

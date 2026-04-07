@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load fossil_filters %}
 {% block title %}Technotes — {{ project.name }} — Fossilrepo{% endblock %}
 
 {% block content %}
@@ -37,7 +38,7 @@
       <div class="flex-1 min-w-0">
         <p class="text-sm text-gray-200">{{ note.comment|truncatechars:200 }}</p>
         <div class="mt-2 flex items-center gap-3 text-xs text-gray-500">
-          <span class="hover:text-brand-light">{{ note.user }}</span>
+          <span class="hover:text-brand-light">{{ note.user|display_user }}</span>
           <span class="font-mono text-brand-light">{{ note.uuid|truncatechars:10 }}</span>
           <span>{{ note.timestamp|date:"Y-m-d H:i" }}</span>
         </div>
