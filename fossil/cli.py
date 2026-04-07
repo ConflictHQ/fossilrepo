@@ -89,6 +89,34 @@ class FossilCLI:
             pass
         return ""
 
+    def tarball(self, repo_path: Path, checkin: str) -> bytes:
+        """Generate a tar.gz archive of a checkin. Returns raw bytes."""
+        result = subprocess.run(
+            [self.binary, "tarball", checkin, "-R", str(repo_path), "/dev/stdout"],
+            capture_output=True,
+            timeout=120,
+            env=self._env,
+        )
+        if result.returncode != 0:
+            return b""
+        return result.stdout
+
+    def zip_archive(self, repo_path: Path, checkin: str) -> bytes:
+        """Generate a zip archive of a checkin. Returns raw bytes."""
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=True) as tmp:
+            result = subprocess.run(
+                [self.binary, "zip", checkin, tmp.name, "-R", str(repo_path)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=self._env,
+            )
+            if result.returncode != 0:
+                return b""
+            return Path(tmp.name).read_bytes()
+
     def blame(self, repo_path: Path, filename: str) -> list[dict]:
         """Run fossil blame on a file. Returns [{user, uuid, line_num, text}].
 

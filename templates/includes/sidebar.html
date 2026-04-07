@@ -1,19 +1,22 @@
 <aside x-data="{ collapsed: localStorage.getItem('sidebarCollapsed') === 'true', projectsOpen: true, docsOpen: false }"
        :class="collapsed ? 'w-14' : 'w-60'"
        class="hidden lg:flex lg:flex-col flex-shrink-0 bg-gray-900 border-r border-gray-700 overflow-y-auto overflow-x-hidden transition-all duration-200">
-  <nav class="flex-1 px-2 py-4 space-y-1">
 
-    <!-- Collapse toggle -->
-    <button @click="collapsed = !collapsed; localStorage.setItem('sidebarCollapsed', collapsed)"
-            class="flex items-center justify-center w-full rounded-md px-2 py-2 text-gray-500 hover:text-white hover:bg-gray-800 mb-2"
-            :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
-      <svg x-show="!collapsed" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+  <!-- Sidebar header — branded -->
+  <div class="px-3 py-4 border-b border-gray-800 flex-shrink-0">
+    <a href="{% url 'dashboard' %}" class="flex items-center gap-2" :title="collapsed ? 'Fossilrepo' : ''">
+      <svg class="h-6 w-6 flex-shrink-0 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10" stroke-opacity="0.6"/>
+        <circle cx="12" cy="12" r="4" fill="currentColor" fill-opacity="0.3"/>
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke-opacity="0.4"/>
       </svg>
-      <svg x-show="collapsed" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="display:none">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
-      </svg>
-    </button>
+      <span x-show="!collapsed" class="text-sm font-bold tracking-tight">
+        <span class="text-gray-100">fossil</span><span class="text-brand">repo</span>
+      </span>
+    </a>
+  </div>
+
+  <nav class="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
 
     <!-- Dashboard -->
     <a href="{% url 'dashboard' %}"
@@ -184,4 +187,16 @@
     {% endif %}
 
   </nav>
+
+  <!-- Bottom-pinned collapse toggle -->
+  <div class="flex-shrink-0 border-t border-gray-800 px-2 py-2">
+    <button @click="collapsed = !collapsed; localStorage.setItem('sidebarCollapsed', collapsed)"
+            class="flex items-center gap-2 w-full rounded-md px-2 py-2 text-xs text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+            :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+      <svg :class="collapsed && 'rotate-180'" class="h-4 w-4 flex-shrink-0 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+      </svg>
+      <span x-show="!collapsed" class="truncate">Collapse</span>
+    </button>
+  </div>
 </aside>

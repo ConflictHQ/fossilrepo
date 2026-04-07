@@ -3162,6 +3162,41 @@ def release_asset_download(request, slug, tag_name, asset_id):
     return FileResponse(asset.file.open("rb"), as_attachment=True, filename=asset.name)
 
 
+def release_source_archive(request, slug, tag_name, fmt):
+    """Download source archive (tar.gz or zip) for a release's checkin."""
+    from django.http import FileResponse
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "read")
+
+    from fossil.releases import Release
+
+    release = get_object_or_404(Release, repository=fossil_repo, tag_name=tag_name, deleted_at__isnull=True)
+
+    if not release.checkin_uuid:
+        raise Http404("No checkin linked to this release.")
+
+    from .cli import FossilCLI
+
+    cli = FossilCLI()
+    if fmt == "tar.gz":
+        data = cli.tarball(fossil_repo.full_path, release.checkin_uuid)
+        content_type = "application/gzip"
+        filename = f"{project.slug}-{tag_name}.tar.gz"
+    elif fmt == "zip":
+        data = cli.zip_archive(fossil_repo.full_path, release.checkin_uuid)
+        content_type = "application/zip"
+        filename = f"{project.slug}-{tag_name}.zip"
+    else:
+        raise Http404
+
+    if not data:
+        raise Http404("Failed to generate archive.")
+
+    import io
+
+    return FileResponse(io.BytesIO(data), as_attachment=True, filename=filename, content_type=content_type)
+
+
 # --- CI Status Check API ---
 
 

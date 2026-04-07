@@ -80,6 +80,7 @@ urlpatterns = [
     path("releases/<str:tag_name>/delete/", views.release_delete, name="release_delete"),
     path("releases/<str:tag_name>/upload/", views.release_asset_upload, name="release_asset_upload"),
     path("releases/<str:tag_name>/assets/<int:asset_id>/", views.release_asset_download, name="release_asset_download"),
+    path("releases/<str:tag_name>/source.<str:fmt>", views.release_source_archive, name="release_source_archive"),
     # CI Status API
     path("api/status", views.status_check_api, name="status_check_api"),
     path("api/status/<str:checkin_uuid>/badge.svg", views.status_badge, name="status_badge"),
