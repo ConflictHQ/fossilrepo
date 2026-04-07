@@ -1,9 +1,11 @@
 import contextlib
+import math
 import re
 from datetime import datetime
 
 import markdown as md
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
@@ -14,6 +16,33 @@ from projects.models import Project
 
 from .models import FossilRepository
 from .reader import FossilReader
+
+
+def _manual_paginate(items, request, per_page=25):
+    """Paginate a plain list (FossilReader results) and return (sliced_items, pagination_dict).
+
+    The pagination dict has keys compatible with the _pagination_manual.html partial:
+    has_previous, has_next, previous_page_number, next_page_number, number, num_pages, count.
+    """
+    total = len(items)
+    num_pages = max(1, math.ceil(total / per_page))
+    try:
+        page = int(request.GET.get("page", 1))
+    except (ValueError, TypeError):
+        page = 1
+    page = max(1, min(page, num_pages))
+    offset = (page - 1) * per_page
+    sliced = items[offset : offset + per_page]
+    pagination = {
+        "has_previous": page > 1,
+        "has_next": offset + per_page < total,
+        "previous_page_number": page - 1,
+        "next_page_number": page + 1,
+        "number": page,
+        "num_pages": num_pages,
+        "count": total,
+    }
+    return sliced, pagination
 
 
 def _render_fossil_content(content: str, project_slug: str = "", base_path: str = "") -> str:
@@ -684,8 +713,6 @@ def ticket_list(request, slug):
         tickets = [t for t in tickets if search.lower() in t.title.lower()]
 
     total = len(tickets)
-    import math
-
     total_pages = max(1, math.ceil(total / per_page))
     page = min(page, total_pages)
     tickets = tickets[(page - 1) * per_page : page * per_page]
@@ -761,9 +788,31 @@ def wiki_list(request, slug):
         pages = reader.get_wiki_pages()
         home_page = reader.get_wiki_page("Home")
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        pages = [p for p in pages if search.lower() in p.name.lower()]
+
+    pages, pagination = _manual_paginate(pages, request)
+
     home_content_html = ""
     if home_page:
         home_content_html = mark_safe(sanitize_html(_render_fossil_content(home_page.content, project_slug=slug)))
+
+    if request.headers.get("HX-Request"):
+        return render(
+            request,
+            "fossil/wiki_list.html",
+            {
+                "project": project,
+                "fossil_repo": fossil_repo,
+                "pages": pages,
+                "home_page": home_page,
+                "home_content_html": home_content_html,
+                "search": search,
+                "pagination": pagination,
+                "active_tab": "wiki",
+            },
+        )
 
     return render(
         request,
@@ -774,6 +823,8 @@ def wiki_list(request, slug):
             "pages": pages,
             "home_page": home_page,
             "home_content_html": home_content_html,
+            "search": search,
+            "pagination": pagination,
             "active_tab": "wiki",
         },
     )
@@ -846,6 +897,13 @@ def forum_list(request, slug):
     # Sort merged list by timestamp descending
     merged.sort(key=lambda x: x["timestamp"], reverse=True)
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        search_lower = search.lower()
+        merged = [p for p in merged if search_lower in (p.get("title") or "").lower() or search_lower in (p.get("body") or "").lower()]
+
+    merged, pagination = _manual_paginate(merged, request)
+
     has_write = can_write_project(request.user, project)
 
     return render(
@@ -856,6 +914,8 @@ def forum_list(request, slug):
             "fossil_repo": fossil_repo,
             "posts": merged,
             "has_write": has_write,
+            "search": search,
+            "pagination": pagination,
             "active_tab": "forum",
         },
     )
@@ -1028,13 +1088,22 @@ def webhook_list(request, slug):
 
     webhooks = Webhook.objects.filter(repository=fossil_repo)
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        webhooks = webhooks.filter(url__icontains=search)
+
+    paginator = Paginator(webhooks, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
     return render(
         request,
         "fossil/webhook_list.html",
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "webhooks": webhooks,
+            "webhooks": page_obj,
+            "page_obj": page_obj,
+            "search": search,
             "active_tab": "settings",
         },
     )
@@ -1890,12 +1959,26 @@ def technote_list(request, slug):
     with reader:
         notes = reader.get_technotes()
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        search_lower = search.lower()
+        notes = [n for n in notes if search_lower in (n.comment or "").lower()]
+
+    notes, pagination = _manual_paginate(notes, request)
+
     has_write = can_write_project(request.user, project)
 
     return render(
         request,
         "fossil/technote_list.html",
-        {"project": project, "notes": notes, "has_write": has_write, "active_tab": "wiki"},
+        {
+            "project": project,
+            "notes": notes,
+            "has_write": has_write,
+            "search": search,
+            "pagination": pagination,
+            "active_tab": "wiki",
+        },
     )
 
 
@@ -2012,6 +2095,13 @@ def unversioned_list(request, slug):
     with reader:
         files = reader.get_unversioned_files()
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        search_lower = search.lower()
+        files = [f for f in files if search_lower in f.name.lower()]
+
+    files, pagination = _manual_paginate(files, request)
+
     has_admin = can_admin_project(request.user, project)
 
     return render(
@@ -2021,6 +2111,8 @@ def unversioned_list(request, slug):
             "project": project,
             "files": files,
             "has_admin": has_admin,
+            "search": search,
+            "pagination": pagination,
             "active_tab": "files",
         },
     )
@@ -2333,6 +2425,13 @@ def branch_list(request, slug):
     with reader:
         branches = reader.get_branches()
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        search_lower = search.lower()
+        branches = [b for b in branches if search_lower in b.name.lower()]
+
+    branches, pagination = _manual_paginate(branches, request)
+
     return render(
         request,
         "fossil/branch_list.html",
@@ -2340,6 +2439,8 @@ def branch_list(request, slug):
             "project": project,
             "fossil_repo": fossil_repo,
             "branches": branches,
+            "search": search,
+            "pagination": pagination,
             "active_tab": "code",
         },
     )
@@ -2354,10 +2455,23 @@ def tag_list(request, slug):
     with reader:
         tags = reader.get_tags()
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        search_lower = search.lower()
+        tags = [t for t in tags if search_lower in t.name.lower()]
+
+    tags, pagination = _manual_paginate(tags, request)
+
     return render(
         request,
         "fossil/tag_list.html",
-        {"project": project, "tags": tags, "active_tab": "code"},
+        {
+            "project": project,
+            "tags": tags,
+            "search": search,
+            "pagination": pagination,
+            "active_tab": "code",
+        },
     )
 
 
@@ -2795,14 +2909,24 @@ def release_list(request, slug):
     if not has_write:
         releases = releases.filter(is_draft=False)
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        releases = releases.filter(tag_name__icontains=search) | releases.filter(name__icontains=search)
+        releases = releases.distinct()
+
+    paginator = Paginator(releases, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
     return render(
         request,
         "fossil/release_list.html",
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "releases": releases,
+            "releases": page_obj,
+            "page_obj": page_obj,
             "has_write": has_write,
+            "search": search,
             "active_tab": "releases",
         },
     )
@@ -3199,13 +3323,22 @@ def api_token_list(request, slug):
 
     tokens = APIToken.objects.filter(repository=fossil_repo)
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        tokens = tokens.filter(name__icontains=search)
+
+    paginator = Paginator(tokens, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
     return render(
         request,
         "fossil/api_token_list.html",
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "tokens": tokens,
+            "tokens": page_obj,
+            "page_obj": page_obj,
+            "search": search,
             "active_tab": "settings",
         },
     )
@@ -3286,13 +3419,22 @@ def branch_protection_list(request, slug):
 
     rules = BranchProtection.objects.filter(repository=fossil_repo)
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        rules = rules.filter(branch_pattern__icontains=search)
+
+    paginator = Paginator(rules, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
     return render(
         request,
         "fossil/branch_protection_list.html",
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "rules": rules,
+            "rules": page_obj,
+            "page_obj": page_obj,
+            "search": search,
             "active_tab": "settings",
         },
     )
@@ -3423,13 +3565,23 @@ def ticket_fields_list(request, slug):
 
     fields = TicketFieldDefinition.objects.filter(repository=fossil_repo)
 
+    search = request.GET.get("search", "").strip()
+    if search:
+        fields = fields.filter(label__icontains=search) | fields.filter(name__icontains=search)
+        fields = fields.distinct()
+
+    paginator = Paginator(fields, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
     return render(
         request,
         "fossil/ticket_fields_list.html",
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "fields": fields,
+            "fields": page_obj,
+            "page_obj": page_obj,
+            "search": search,
             "active_tab": "settings",
         },
     )
@@ -3565,8 +3717,17 @@ def ticket_reports_list(request, slug):
     from fossil.ticket_reports import TicketReport
 
     reports = TicketReport.objects.filter(repository=fossil_repo)
-    if not can_admin_project(request.user, project):
+    is_admin = can_admin_project(request.user, project)
+    if not is_admin:
         reports = reports.filter(is_public=True)
+
+    search = request.GET.get("search", "").strip()
+    if search:
+        reports = reports.filter(title__icontains=search) | reports.filter(description__icontains=search)
+        reports = reports.distinct()
+
+    paginator = Paginator(reports, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
 
     return render(
         request,
@@ -3574,8 +3735,10 @@ def ticket_reports_list(request, slug):
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "reports": reports,
-            "can_admin": can_admin_project(request.user, project),
+            "reports": page_obj,
+            "page_obj": page_obj,
+            "can_admin": is_admin,
+            "search": search,
             "active_tab": "tickets",
         },
     )

@@ -12,5 +12,19 @@
   {% endif %}
 </div>
 
+<div class="mb-4">
+  <input type="search"
+         name="search"
+         value="{{ search }}"
+         placeholder="Search groups..."
+         class="w-full max-w-md rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
+         hx-get="{% url 'projects:group_list' %}"
+         hx-trigger="input changed delay:300ms, search"
+         hx-target="#group-table"
+         hx-swap="outerHTML"
+         hx-push-url="true" />
+</div>
+
 {% include "projects/partials/group_table.html" %}
+{% include "includes/_pagination.html" %}
 {% endblock %}

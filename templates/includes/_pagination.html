@@ -1,0 +1,18 @@
+{% if page_obj.has_other_pages %}
+<nav class="flex items-center justify-between border-t border-gray-700 px-2 py-3 mt-4">
+  <div class="text-xs text-gray-500">
+    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    ({{ page_obj.paginator.count }} total)
+  </div>
+  <div class="flex gap-1">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
+       class="px-3 py-1 text-xs rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700">Previous</a>
+    {% endif %}
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
+       class="px-3 py-1 text-xs rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700">Next</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

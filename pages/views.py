@@ -1,6 +1,7 @@
 import markdown
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
@@ -25,10 +26,13 @@ def page_list(request):
     if search:
         pages = pages.filter(name__icontains=search)
 
-    if request.headers.get("HX-Request"):
-        return render(request, "pages/partials/page_table.html", {"pages": pages})
+    paginator = Paginator(pages, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    return render(request, "pages/page_list.html", {"pages": pages, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(request, "pages/partials/page_table.html", {"pages": page_obj, "page_obj": page_obj, "search": search})
+
+    return render(request, "pages/page_list.html", {"pages": page_obj, "page_obj": page_obj, "search": search})
 
 
 @login_required

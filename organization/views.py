@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator
 from django.db import models
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -65,10 +66,15 @@ def member_list(request):
     if search:
         members = members.filter(member__username__icontains=search)
 
-    if request.headers.get("HX-Request"):
-        return render(request, "organization/partials/member_table.html", {"members": members, "org": org})
+    paginator = Paginator(members, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    return render(request, "organization/member_list.html", {"members": members, "org": org, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(
+            request, "organization/partials/member_table.html", {"members": page_obj, "page_obj": page_obj, "org": org, "search": search}
+        )
+
+    return render(request, "organization/member_list.html", {"members": page_obj, "page_obj": page_obj, "org": org, "search": search})
 
 
 @login_required
@@ -120,10 +126,13 @@ def team_list(request):
     if search:
         teams = teams.filter(name__icontains=search)
 
-    if request.headers.get("HX-Request"):
-        return render(request, "organization/partials/team_table.html", {"teams": teams})
+    paginator = Paginator(teams, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    return render(request, "organization/team_list.html", {"teams": teams, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(request, "organization/partials/team_table.html", {"teams": page_obj, "page_obj": page_obj, "search": search})
+
+    return render(request, "organization/team_list.html", {"teams": page_obj, "page_obj": page_obj, "search": search})
 
 
 @login_required
@@ -391,6 +400,8 @@ def role_detail(request, slug):
 @login_required
 def audit_log(request):
     """Unified audit log across all tracked models. Requires superuser or org admin."""
+    import math
+
     if not request.user.is_superuser:
         P.ORGANIZATION_CHANGE.check(request.user)
 
@@ -411,7 +422,7 @@ def audit_log(request):
         if model_filter and label.lower() != model_filter.lower():
             continue
         history_model = model.history.model
-        qs = history_model.objects.all().select_related("history_user").order_by("-history_date")[:100]
+        qs = history_model.objects.all().select_related("history_user").order_by("-history_date")[:500]
         for h in qs:
             entries.append(
                 {
@@ -425,7 +436,27 @@ def audit_log(request):
             )
 
     entries.sort(key=lambda x: x["date"], reverse=True)
-    entries = entries[:200]
+
+    # Manual pagination over the merged, sorted list
+    per_page = 25
+    total = len(entries)
+    num_pages = max(1, math.ceil(total / per_page))
+    try:
+        page = int(request.GET.get("page", 1))
+    except (ValueError, TypeError):
+        page = 1
+    page = max(1, min(page, num_pages))
+    offset = (page - 1) * per_page
+    entries = entries[offset : offset + per_page]
+    pagination = {
+        "has_previous": page > 1,
+        "has_next": offset + per_page < total,
+        "previous_page_number": page - 1,
+        "next_page_number": page + 1,
+        "number": page,
+        "num_pages": num_pages,
+        "count": total,
+    }
 
     available_models = [label for label, _ in trackable_models]
 
@@ -436,6 +467,7 @@ def audit_log(request):
             "entries": entries,
             "model_filter": model_filter,
             "available_models": available_models,
+            "pagination": pagination,
         },
     )
 

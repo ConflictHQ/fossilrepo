@@ -7,8 +7,21 @@
 
 <div class="flex items-center justify-between mb-6">
   <h2 class="text-lg font-semibold text-gray-200">Unversioned Files</h2>
+  <div>
+    <input type="search"
+           name="search"
+           value="{{ search }}"
+           placeholder="Search files..."
+           class="rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand text-sm px-3 py-1.5"
+           hx-get="{% url 'fossil:unversioned' slug=project.slug %}"
+           hx-trigger="input changed delay:300ms, search"
+           hx-target="#unversioned-content"
+           hx-swap="innerHTML"
+           hx-push-url="true" />
+  </div>
 </div>
 
+<div id="unversioned-content">
 {% if files %}
 <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
   <table class="min-w-full divide-y divide-gray-700">
@@ -39,9 +52,11 @@
 </div>
 {% else %}
 <div class="rounded-lg bg-gray-800 border border-gray-700 p-8 text-center">
-  <p class="text-sm text-gray-500">No unversioned files.</p>
+  <p class="text-sm text-gray-500">{% if search %}No files matching "{{ search }}".{% else %}No unversioned files.{% endif %}</p>
 </div>
 {% endif %}
+{% include "includes/_pagination_manual.html" %}
+</div>
 
 {% if has_admin %}
 <div class="mt-6">

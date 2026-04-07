@@ -6,16 +6,28 @@
 {% include "fossil/_project_nav.html" %}
 
 <div class="flex items-center justify-between mb-4">
-  <div></div>
+  <div>
+    <input type="search"
+           name="search"
+           value="{{ search }}"
+           placeholder="Search wiki pages..."
+           class="rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand text-sm px-3 py-1.5"
+           hx-get="{% url 'fossil:wiki' slug=project.slug %}"
+           hx-trigger="input changed delay:300ms, search"
+           hx-target="#wiki-content"
+           hx-swap="innerHTML"
+           hx-push-url="true" />
+  </div>
   {% if perms.projects.change_project %}
   <a href="{% url 'fossil:wiki_create' slug=project.slug %}" class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">New Page</a>
   {% endif %}
 </div>
 
+<div id="wiki-content">
 <div class="flex gap-6">
   <!-- Main content: home page or page index -->
   <div class="flex-1 min-w-0">
-    {% if home_page %}
+    {% if home_page and not search %}
     <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
       <div class="px-6 py-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold text-gray-100">{{ home_page.name }}</h2>
@@ -26,9 +38,9 @@
         </div>
       </div>
     </div>
-    {% else %}
+    {% elif not pages %}
     <div class="rounded-lg bg-gray-800 border border-gray-700 p-8 text-center">
-      <p class="text-sm text-gray-500">No wiki pages yet. Create a "Home" page to get started.</p>
+      <p class="text-sm text-gray-500">{% if search %}No wiki pages matching "{{ search }}".{% else %}No wiki pages yet. Create a "Home" page to get started.{% endif %}</p>
     </div>
     {% endif %}
   </div>
@@ -50,5 +62,7 @@
       {% endif %}
     </div>
   </aside>
+</div>
+{% include "includes/_pagination_manual.html" %}
 </div>
 {% endblock %}

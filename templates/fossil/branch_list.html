@@ -5,6 +5,22 @@
 <h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
 {% include "fossil/_project_nav.html" %}
 
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <input type="search"
+           name="search"
+           value="{{ search }}"
+           placeholder="Search branches..."
+           class="rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand text-sm px-3 py-1.5"
+           hx-get="{% url 'fossil:branches' slug=project.slug %}"
+           hx-trigger="input changed delay:300ms, search"
+           hx-target="#branch-content"
+           hx-swap="innerHTML"
+           hx-push-url="true" />
+  </div>
+</div>
+
+<div id="branch-content">
 <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
   <table class="min-w-full divide-y divide-gray-700">
     <thead class="bg-gray-900">
@@ -37,10 +53,12 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">No branches.</td>
+        <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">{% if search %}No branches matching "{{ search }}".{% else %}No branches.{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+</div>
+{% include "includes/_pagination_manual.html" %}
 </div>
 {% endblock %}
