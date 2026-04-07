@@ -129,6 +129,8 @@
   <div class="min-h-full flex flex-col" x-data="{ mobileSidebar: false }">
     {% if user.is_authenticated %}
     {% include "includes/nav.html" %}
+    {% else %}
+    {% include "includes/nav_public.html" %}
     {% endif %}
 
     <div class="flex flex-1 overflow-hidden">
@@ -145,7 +147,7 @@
       {% include "includes/sidebar.html" %}
       {% endif %}
 
-      <main class="flex-1 overflow-y-auto {% if user.is_authenticated %}py-6{% endif %}">
+      <main class="flex-1 overflow-y-auto py-6">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {% if messages %}
           <div id="messages" class="mb-4 space-y-2">

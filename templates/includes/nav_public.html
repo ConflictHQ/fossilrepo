@@ -1,0 +1,26 @@
+<nav class="bg-gray-900 border-b border-gray-700">
+  <div class="px-4 sm:px-6 lg:px-8">
+    <div class="flex h-14 items-center justify-between">
+      <div class="flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2">
+          <svg class="h-6 w-6 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.6"/>
+            <circle cx="12" cy="12" r="4" fill="currentColor" fill-opacity="0.3"/>
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke-opacity="0.4"/>
+          </svg>
+          <span class="text-sm font-bold tracking-tight">
+            <span class="text-gray-100">fossil</span><span class="text-brand">repo</span>
+          </span>
+        </a>
+        <div class="hidden sm:flex items-center gap-4">
+          <a href="{% url 'explore' %}" class="text-sm text-gray-400 hover:text-white transition-colors {% if request.path == '/explore/' %}text-white{% endif %}">Explore</a>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="{% url 'accounts:login' %}" class="rounded-md bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white ring-1 ring-gray-700 transition-colors">
+          Sign in
+        </a>
+      </div>
+    </div>
+  </div>
+</nav>
