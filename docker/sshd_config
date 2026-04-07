@@ -1,0 +1,32 @@
+# fossilrepo sshd — restricted config for Fossil SSH access.
+#
+# Only the "fossil" system user can log in, and all connections are forced
+# through fossil-shell via authorized_keys command= directives.
+
+Port 22
+ListenAddress 0.0.0.0
+
+# Host keys (generated on first boot)
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+
+# Auth
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile /data/ssh/authorized_keys
+
+# Only allow the fossil user
+AllowUsers fossil
+
+# Disable everything except the sync protocol
+PermitTunnel no
+AllowTcpForwarding no
+X11Forwarding no
+AllowAgentForwarding no
+GatewayPorts no
+PrintMotd no
+
+# Logging
+SyslogFacility AUTH
+LogLevel INFO

@@ -2,6 +2,7 @@
 
 from django.db import models
 
+from core.fields import EncryptedTextField
 from core.models import ActiveManager, Tracking
 
 
@@ -28,7 +29,7 @@ class GitMirror(Tracking):
     repository = models.ForeignKey("fossil.FossilRepository", on_delete=models.CASCADE, related_name="git_mirrors")
     git_remote_url = models.CharField(max_length=500, help_text="Git remote URL (SSH or HTTPS)")
     auth_method = models.CharField(max_length=20, choices=AuthMethod.choices, default=AuthMethod.TOKEN)
-    auth_credential = models.TextField(blank=True, default="", help_text="Encrypted token or key reference")
+    auth_credential = EncryptedTextField(blank=True, default="", help_text="Token or key reference (encrypted at rest)")
 
     sync_direction = models.CharField(max_length=10, choices=SyncDirection.choices, default=SyncDirection.PUSH)
     sync_mode = models.CharField(max_length=20, choices=SyncMode.choices, default=SyncMode.SCHEDULED)

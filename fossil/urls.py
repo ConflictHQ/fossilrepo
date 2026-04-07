@@ -43,4 +43,5 @@ urlpatterns = [
     path("tickets/export/", views.tickets_csv, name="tickets_csv"),
     path("docs/", views.fossil_docs, name="docs"),
     path("docs/<path:doc_path>", views.fossil_doc_page, name="doc_page"),
+    path("xfer", views.fossil_xfer, name="xfer"),
 ]

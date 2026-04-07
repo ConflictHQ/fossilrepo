@@ -27,6 +27,7 @@ dependencies = [
     "rich>=13.0",
     "markdown>=3.6",
     "requests>=2.31",
+    "cryptography>=43.0",
 ]
 
 [project.scripts]

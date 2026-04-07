@@ -1,7 +1,10 @@
 """Thin wrapper around the fossil binary for write operations."""
 
+import logging
 import subprocess
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class FossilCLI:
@@ -246,3 +249,75 @@ class FossilCLI:
         except Exception as e:
             return {"success": False, "public_key": "", "fingerprint": "", "error": str(e)}
         return {"success": False, "public_key": "", "fingerprint": ""}
+
+    def http_proxy(self, repo_path: Path, request_body: bytes, content_type: str = "") -> tuple[bytes, str]:
+        """Proxy a single Fossil HTTP sync request via CGI mode.
+
+        Runs ``fossil http <repo_path> --localauth`` with the request piped to
+        stdin.  Fossil writes a full HTTP response (headers + body) to stdout;
+        we split the two apart and return (response_body, response_content_type).
+
+        ``--localauth`` grants full permissions because Django handles auth
+        before this method is ever called.
+        """
+        import os
+
+        env = {
+            **os.environ,
+            **{k: v for k, v in self._env.items() if k not in os.environ or k == "USER"},
+            "REQUEST_METHOD": "POST",
+            "CONTENT_TYPE": content_type,
+            "CONTENT_LENGTH": str(len(request_body)),
+            "PATH_INFO": "/xfer",
+            "SCRIPT_NAME": "",
+            "HTTP_HOST": "localhost",
+            "GATEWAY_INTERFACE": "CGI/1.1",
+            "SERVER_PROTOCOL": "HTTP/1.1",
+        }
+
+        cmd = [self.binary, "http", str(repo_path), "--localauth"]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                input=request_body,
+                capture_output=True,
+                timeout=120,
+                env=env,
+            )
+        except subprocess.TimeoutExpired:
+            logger.error("fossil http timed out for %s", repo_path)
+            raise
+        except FileNotFoundError:
+            logger.error("fossil binary not found at %s", self.binary)
+            raise
+
+        if result.returncode != 0:
+            stderr_text = result.stderr.decode("utf-8", errors="replace")
+            logger.warning("fossil http exited %d for %s: %s", result.returncode, repo_path, stderr_text)
+
+        raw = result.stdout
+
+        # Fossil CGI output: HTTP headers separated from body by a blank line.
+        # Try \r\n\r\n first (standard HTTP), fall back to \n\n.
+        separator = b"\r\n\r\n"
+        sep_idx = raw.find(separator)
+        if sep_idx == -1:
+            separator = b"\n\n"
+            sep_idx = raw.find(separator)
+
+        if sep_idx == -1:
+            # No header/body separator found — treat the entire output as body.
+            return raw, "application/x-fossil"
+
+        header_block = raw[:sep_idx]
+        body = raw[sep_idx + len(separator) :]
+
+        # Parse Content-Type from the CGI headers.
+        response_content_type = "application/x-fossil"
+        for line in header_block.split(b"\r\n" if b"\r\n" in header_block else b"\n"):
+            if line.lower().startswith(b"content-type:"):
+                response_content_type = line.split(b":", 1)[1].strip().decode("utf-8", errors="replace")
+                break
+
+        return body, response_content_type
