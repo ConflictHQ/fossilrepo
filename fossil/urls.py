@@ -38,6 +38,7 @@ urlpatterns = [
     path("code/raw/<path:filepath>", views.code_raw, name="code_raw"),
     path("code/blame/<path:filepath>", views.code_blame, name="code_blame"),
     path("code/history/<path:filepath>", views.file_history, name="file_history"),
+    path("watch/", views.toggle_watch, name="toggle_watch"),
     path("timeline/rss/", views.timeline_rss, name="timeline_rss"),
     path("tickets/export/", views.tickets_csv, name="tickets_csv"),
     path("docs/", views.fossil_docs, name="docs"),
