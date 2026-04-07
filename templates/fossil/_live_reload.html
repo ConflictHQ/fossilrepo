@@ -1,0 +1,39 @@
+{% comment %}
+HTMX-based live reload detection for Fossil repository changes.
+Include on pages that should auto-detect when the .fossil file changes.
+Polls every 30 seconds and shows a banner if the repo has been updated.
+{% endcomment %}
+{% if fossil_repo %}
+<div id="live-reload-banner" class="hidden fixed top-16 left-0 right-0 z-40 bg-brand/90 text-white text-sm text-center py-2 px-4"
+     x-data="{ show: false }"
+     x-show="show"
+     x-transition>
+  <div class="flex items-center justify-center gap-3">
+    <svg class="h-4 w-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+    </svg>
+    <span>Repository updated</span>
+    <button onclick="location.reload()" class="underline font-semibold">Refresh</button>
+    <button @click="show = false" class="ml-2 opacity-70 hover:opacity-100">&times;</button>
+  </div>
+</div>
+<script>
+  (function() {
+    let lastCount = {{ fossil_repo.checkin_count }};
+    setInterval(function() {
+      fetch('{% url "fossil:timeline" slug=project.slug %}?page=1&type=ci', { headers: { 'HX-Request': 'true' } })
+        .then(r => r.text())
+        .then(html => {
+          // Count entries in the response as a quick proxy for "has changed"
+          const matches = html.match(/tl-row/g);
+          const count = matches ? matches.length : 0;
+          if (count > 0 && count !== lastCount) {
+            document.querySelector('#live-reload-banner')?.__x?.$data && (document.querySelector('#live-reload-banner').__x.$data.show = true);
+            lastCount = count;
+          }
+        })
+        .catch(() => {});
+    }, 30000);
+  })();
+</script>
+{% endif %}
