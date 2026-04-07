@@ -163,9 +163,16 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
         m = re.match(r"/([^/]+\.(?:wiki|md|html))", url)
         if m:
             return f'href="{base}/docs/www/{m.group(1)}"'
-        # /setup_*, /admin_* -> these are Fossil server routes, link to admin
+        # /dir -> our code browser
+        if url == "/dir" or url.startswith("/dir?"):
+            return f'href="{base}/code/"'
+        # /builtin/path -> code file (these are embedded skin files)
+        m = re.match(r"/builtin/(.+)", url)
+        if m:
+            return f'href="{base}/code/file/skins/{m.group(1)}"'
+        # /setup_*, /admin_* -> Fossil server routes, no mapping
         if re.match(r"/(setup_|admin_)", url):
-            return match.group(0)  # Keep as-is, no good mapping
+            return match.group(0)
         # Keep external and unrecognized links as-is
         return match.group(0)
 
@@ -620,13 +627,19 @@ def forum_thread(request, slug, thread_uuid):
     if not posts:
         raise Http404("Forum thread not found")
 
+    # Render each post's body through the content renderer
+    rendered_posts = []
+    for post in posts:
+        body_html = mark_safe(_render_fossil_content(post.body, project_slug=slug)) if post.body else ""
+        rendered_posts.append({"post": post, "body_html": body_html})
+
     return render(
         request,
         "fossil/forum_thread.html",
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "posts": posts,
+            "posts": rendered_posts,
             "thread_uuid": thread_uuid,
             "active_tab": "forum",
         },
