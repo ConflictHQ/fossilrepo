@@ -1,0 +1,37 @@
+<!-- Keyboard shortcuts help modal -->
+<div x-data="{ show: false }" @keydown.shift.?.window="if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') show = !show" @keydown.escape.window="show = false">
+  <div x-show="show" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click="show = false">
+    <div class="rounded-lg bg-gray-800 border border-gray-700 shadow-xl p-6 max-w-md w-full" @click.stop>
+      <h3 class="text-lg font-semibold text-gray-100 mb-4">Keyboard Shortcuts</h3>
+      <div class="space-y-2 text-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-gray-400">Open search</span>
+          <kbd class="px-2 py-0.5 rounded bg-gray-700 text-gray-300 text-xs font-mono">/</kbd>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-400">Next entry (timeline)</span>
+          <kbd class="px-2 py-0.5 rounded bg-gray-700 text-gray-300 text-xs font-mono">j</kbd>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-400">Previous entry (timeline)</span>
+          <kbd class="px-2 py-0.5 rounded bg-gray-700 text-gray-300 text-xs font-mono">k</kbd>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-400">Open focused entry</span>
+          <kbd class="px-2 py-0.5 rounded bg-gray-700 text-gray-300 text-xs font-mono">Enter</kbd>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-400">Show this help</span>
+          <kbd class="px-2 py-0.5 rounded bg-gray-700 text-gray-300 text-xs font-mono">?</kbd>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-gray-400">Toggle theme</span>
+          <span class="text-gray-500 text-xs">Top nav button</span>
+        </div>
+      </div>
+      <div class="mt-4 text-right">
+        <button @click="show = false" class="text-sm text-gray-500 hover:text-white">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
