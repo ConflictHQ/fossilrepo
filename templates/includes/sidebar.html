@@ -4,10 +4,21 @@
 
   <nav class="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
 
-    <!-- Dashboard + collapse toggle -->
-    <div class="flex items-center gap-1">
+    <!-- Expand button (collapsed state only) — prominent, centered -->
+    <button x-show="collapsed" style="display:none"
+            @click="collapsed = false; localStorage.setItem('sidebarCollapsed', 'false')"
+            class="flex items-center justify-center w-full rounded-md px-2 py-2 mb-1 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            title="Expand sidebar">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+      </svg>
+    </button>
+
+    <!-- Dashboard + collapse toggle (expanded state) -->
+    <div class="flex items-center gap-1" :class="collapsed && 'justify-center'">
       <a href="{% url 'dashboard' %}"
-         class="flex-1 flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium {% if request.path == '/dashboard/' %}bg-gray-800 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}"
+         class="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium {% if request.path == '/dashboard/' %}bg-gray-800 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}"
+         :class="collapsed ? '' : 'flex-1'"
          :title="collapsed ? 'Dashboard' : ''">
         <svg class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -15,17 +26,10 @@
         <span x-show="!collapsed" class="truncate">Dashboard</span>
       </a>
       <button x-show="!collapsed" @click="collapsed = true; localStorage.setItem('sidebarCollapsed', 'true')"
-              class="flex-shrink-0 rounded-md p-1.5 text-gray-600 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+              class="flex-shrink-0 rounded-md p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
               title="Collapse sidebar">
         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
-        </svg>
-      </button>
-      <button x-show="collapsed" style="display:none" @click="collapsed = false; localStorage.setItem('sidebarCollapsed', 'false')"
-              class="flex-shrink-0 rounded-md p-1.5 text-gray-600 hover:text-gray-300 hover:bg-gray-800 transition-colors"
-              title="Expand sidebar">
-        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
         </svg>
       </button>
     </div>
