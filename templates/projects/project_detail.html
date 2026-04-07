@@ -12,6 +12,22 @@
     <p class="mt-1 text-sm text-gray-400">{{ project.description|default:"No description." }}</p>
   </div>
   <div class="flex gap-3">
+    {% if user.is_authenticated %}
+    <form method="post" action="{% url 'fossil:toggle_watch' slug=project.slug %}">
+      {% csrf_token %}
+      {% if is_watching %}
+      <button type="submit" class="inline-flex items-center gap-1.5 rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        <svg class="h-4 w-4 text-brand" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        Watching
+      </button>
+      {% else %}
+      <button type="submit" class="inline-flex items-center gap-1.5 rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        Watch
+      </button>
+      {% endif %}
+    </form>
+    {% endif %}
     {% if perms.projects.change_project %}
     <a href="{% url 'projects:update' slug=project.slug %}"
        class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">

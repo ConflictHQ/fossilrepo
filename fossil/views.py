@@ -1125,6 +1125,33 @@ def git_mirror_run(request, slug, mirror_id):
     return redirect("fossil:git_mirror", slug=slug)
 
 
+# --- Watch / Notifications ---
+
+
+@login_required
+def toggle_watch(request, slug):
+    """Toggle project watch on/off."""
+    from fossil.notifications import ProjectWatch
+
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        watch = ProjectWatch.objects.filter(user=request.user, project=project, deleted_at__isnull=True).first()
+        if watch:
+            watch.soft_delete(user=request.user)
+            from django.contrib import messages
+
+            messages.info(request, f"Unwatched {project.name}.")
+        else:
+            event_filter = request.POST.get("event_filter", "all")
+            ProjectWatch.objects.create(user=request.user, project=project, event_filter=event_filter, created_by=request.user)
+            from django.contrib import messages
+
+            messages.success(request, f"Watching {project.name}. You'll get email notifications.")
+
+    return redirect("projects:detail", slug=slug)
+
+
 # --- OAuth ---
 
 

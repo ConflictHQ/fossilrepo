@@ -190,3 +190,44 @@ def run_git_sync(mirror_id: int | None = None):
             log.message = "Unexpected error"
             log.completed_at = timezone.now()
             log.save()
+
+
+@shared_task(name="fossil.dispatch_notifications")
+def dispatch_notifications():
+    """Check for new Fossil events and send notifications to watchers."""
+    import datetime
+
+    from django.utils import timezone
+
+    from fossil.models import FossilRepository
+    from fossil.notifications import ProjectWatch, notify_project_event
+    from fossil.reader import FossilReader
+
+    watched_project_ids = set(ProjectWatch.objects.filter(deleted_at__isnull=True).values_list("project_id", flat=True))
+    if not watched_project_ids:
+        return
+
+    cutoff = timezone.now() - datetime.timedelta(minutes=5)
+
+    for repo in FossilRepository.objects.filter(project_id__in=watched_project_ids, deleted_at__isnull=True):
+        if not repo.exists_on_disk:
+            continue
+        try:
+            with FossilReader(repo.full_path) as reader:
+                entries = reader.get_timeline(limit=10)
+                for entry in entries:
+                    if entry.timestamp < cutoff:
+                        break
+                    event_type = {"ci": "checkin", "w": "wiki", "t": "ticket", "f": "forum"}.get(entry.event_type, "other")
+                    url = f"/projects/{repo.project.slug}/fossil/"
+                    if entry.event_type == "ci":
+                        url += f"checkin/{entry.uuid}/"
+                    notify_project_event(
+                        project=repo.project,
+                        event_type=event_type,
+                        title=f"{entry.user}: {entry.comment[:100]}" if entry.comment else f"New {event_type}",
+                        body=entry.comment or "",
+                        url=url,
+                    )
+        except Exception:
+            logger.exception("Notification dispatch error for %s", repo.filename)
