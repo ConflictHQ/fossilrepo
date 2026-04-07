@@ -8,6 +8,10 @@ on:
       - 'mkdocs.yml'
       - '*.md'
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     uses: ./.github/workflows/ci.yaml
