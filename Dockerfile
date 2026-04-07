@@ -48,7 +48,7 @@ RUN DJANGO_SECRET_KEY=build-placeholder DJANGO_DEBUG=true python manage.py colle
 RUN mkdir -p /data/repos /data/trash /data/ssh
 
 # SSH setup — restricted fossil user + sshd for clone/push
-RUN useradd -r -m -d /home/fossil -s /bin/bash fossil \
+RUN useradd -r -m -d /home/fossil -s /usr/sbin/nologin fossil \
     && mkdir -p /run/sshd /home/fossil/.ssh \
     && chown fossil:fossil /home/fossil/.ssh \
     && chmod 700 /home/fossil/.ssh
