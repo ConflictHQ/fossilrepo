@@ -207,8 +207,10 @@ class TestGitExportTokenHandling:
         # URL should not have token embedded
         assert "ghp_s3cretTOKEN123@" not in cmd_str
 
-    def test_token_passed_via_env(self):
-        """When auth_token is provided, git credential helper is configured via env."""
+    def test_token_passed_via_askpass(self):
+        """When auth_token is provided, GIT_ASKPASS is configured and token is in a separate file."""
+        import os
+
         from fossil.cli import FossilCLI
 
         cli = FossilCLI(binary="/usr/bin/false")
@@ -227,9 +229,13 @@ class TestGitExportTokenHandling:
             )
 
         assert captured_env.get("GIT_TERMINAL_PROMPT") == "0"
-        assert captured_env.get("GIT_CONFIG_COUNT") == "1"
-        assert captured_env.get("GIT_CONFIG_KEY_0") == "credential.helper"
-        assert "ghp_s3cretTOKEN123" in captured_env.get("GIT_CONFIG_VALUE_0", "")
+        # Uses GIT_ASKPASS instead of shell credential helper
+        askpass_path = captured_env.get("GIT_ASKPASS")
+        assert askpass_path is not None
+        # Temp files are cleaned up after git_export returns
+        assert not os.path.exists(askpass_path)
+        # No shell credential helper should be set
+        assert "GIT_CONFIG_COUNT" not in captured_env
 
     def test_token_redacted_from_output(self):
         """If the token somehow leaks into Fossil/Git stdout, it is scrubbed."""

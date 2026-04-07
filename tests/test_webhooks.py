@@ -171,7 +171,8 @@ class TestWebhookCreateView:
         assert response.status_code == 200
         assert "Create Webhook" in response.content.decode()
 
-    def test_create_webhook(self, admin_client, sample_project, fossil_repo_obj):
+    @patch("core.url_validation.is_safe_outbound_url", return_value=(True, ""))
+    def test_create_webhook(self, mock_url_check, admin_client, sample_project, fossil_repo_obj):
         response = admin_client.post(
             f"/projects/{sample_project.slug}/fossil/webhooks/create/",
             {"url": "https://hooks.example.com/test", "secret": "s3cret", "events": ["checkin", "ticket"], "is_active": "on"},
@@ -182,7 +183,8 @@ class TestWebhookCreateView:
         assert hook.events == "checkin,ticket"
         assert hook.is_active is True
 
-    def test_create_webhook_all_events(self, admin_client, sample_project, fossil_repo_obj):
+    @patch("core.url_validation.is_safe_outbound_url", return_value=(True, ""))
+    def test_create_webhook_all_events(self, mock_url_check, admin_client, sample_project, fossil_repo_obj):
         response = admin_client.post(
             f"/projects/{sample_project.slug}/fossil/webhooks/create/",
             {"url": "https://hooks.example.com/all", "is_active": "on"},
@@ -211,7 +213,8 @@ class TestWebhookEditView:
         assert "example.com/webhook" in content
         assert "Update Webhook" in content
 
-    def test_edit_webhook(self, admin_client, sample_project, webhook):
+    @patch("core.url_validation.is_safe_outbound_url", return_value=(True, ""))
+    def test_edit_webhook(self, mock_url_check, admin_client, sample_project, webhook):
         response = admin_client.post(
             f"/projects/{sample_project.slug}/fossil/webhooks/{webhook.pk}/edit/",
             {"url": "https://new-url.example.com/hook", "events": ["wiki"], "is_active": "on"},

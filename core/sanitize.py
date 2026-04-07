@@ -147,11 +147,20 @@ class _SanitizingParser(HTMLParser):
         self.out = StringIO()
         self._skip_depth = 0  # Track depth inside dangerous tags to skip content
 
+    # Void elements that are dangerous but never have content/closing tags
+    _DANGEROUS_VOID = frozenset({"base", "meta", "link"})
+    # Dangerous container tags — skip both the tag and all content inside
+    _DANGEROUS_CONTAINER = frozenset({"script", "style", "iframe", "object", "embed", "form"})
+
     def handle_starttag(self, tag, attrs):
         tag_lower = tag.lower()
 
+        # Dangerous void tags — just drop the tag (no content to skip)
+        if tag_lower in self._DANGEROUS_VOID:
+            return
+
         # Dangerous content tags — skip tag AND all content inside
-        if tag_lower in ("script", "style", "iframe", "object", "embed", "form", "base", "meta", "link"):
+        if tag_lower in self._DANGEROUS_CONTAINER:
             self._skip_depth += 1
             return
 
@@ -189,7 +198,9 @@ class _SanitizingParser(HTMLParser):
 
     def handle_endtag(self, tag):
         tag_lower = tag.lower()
-        if tag_lower in ("script", "style", "iframe", "object", "embed", "form", "base", "meta", "link"):
+        if tag_lower in self._DANGEROUS_VOID:
+            return
+        if tag_lower in self._DANGEROUS_CONTAINER:
             self._skip_depth = max(0, self._skip_depth - 1)
             return
         if self._skip_depth > 0:

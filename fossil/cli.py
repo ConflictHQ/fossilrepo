@@ -391,11 +391,11 @@ class FossilCLI:
         return {"success": False, "public_key": "", "fingerprint": ""}
 
     def http_proxy(self, repo_path: Path, request_body: bytes, content_type: str = "", localauth: bool = True) -> tuple[bytes, str]:
-        """Proxy a single Fossil HTTP sync request via CGI mode.
+        """Proxy a single Fossil HTTP sync request.
 
-        Runs ``fossil http <repo_path>`` with the request piped to stdin.
-        Fossil writes a full HTTP response (headers + body) to stdout;
-        we split the two apart and return (response_body, response_content_type).
+        Runs ``fossil http <repo_path>`` with a full HTTP request on stdin.
+        Fossil reads the HTTP method line + headers + body from stdin and
+        writes a full HTTP response (headers + body) to stdout.
 
         When *localauth* is True, ``--localauth`` grants full push permissions.
         When False, only anonymous pull/clone is allowed (for public repos).
@@ -405,17 +405,19 @@ class FossilCLI:
         env = {
             **os.environ,
             **{k: v for k, v in self._env.items() if k not in os.environ or k == "USER"},
-            "REQUEST_METHOD": "POST",
-            "CONTENT_TYPE": content_type,
-            "CONTENT_LENGTH": str(len(request_body)),
-            "PATH_INFO": "/xfer",
-            "SCRIPT_NAME": "",
-            "HTTP_HOST": "localhost",
-            "SERVER_PROTOCOL": "HTTP/1.1",
         }
-        # Do NOT set GATEWAY_INTERFACE — it causes fossil to auto-enter CGI
-        # mode, treating the "http" subcommand as a repository path.
+        # Ensure GATEWAY_INTERFACE is NOT set — it triggers CGI auto-detect
+        # which conflicts with the explicit "http" subcommand.
         env.pop("GATEWAY_INTERFACE", None)
+
+        # Build a raw HTTP request for fossil http's stdin
+        http_request = (
+            f"POST /xfer HTTP/1.1\r\n"
+            f"Host: localhost\r\n"
+            f"Content-Type: {content_type or 'application/x-fossil'}\r\n"
+            f"Content-Length: {len(request_body)}\r\n"
+            f"\r\n"
+        ).encode() + request_body
 
         cmd = [self.binary, "http", str(repo_path)]
         if localauth:
@@ -424,7 +426,7 @@ class FossilCLI:
         try:
             result = subprocess.run(
                 cmd,
-                input=request_body,
+                input=http_request,
                 capture_output=True,
                 timeout=120,
                 env=env,
