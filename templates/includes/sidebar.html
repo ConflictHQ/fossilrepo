@@ -87,17 +87,17 @@
     </div>
     {% endif %}
 
-    <!-- FossilRepo KB section -->
+    <!-- FossilRepo Docs section -->
     {% if perms.pages.view_page %}
     <div>
       <button @click="collapsed ? (collapsed = false, docsOpen = true) : (docsOpen = !docsOpen)"
               class="flex items-center justify-between w-full rounded-md px-2 py-2 text-sm font-medium {% if '/kb/' in request.path %}text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %}"
-              :title="collapsed ? 'FossilRepo KB' : ''">
+              :title="collapsed ? 'FossilRepo Docs' : ''">
         <span class="flex items-center gap-2">
           <svg class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
           </svg>
-          <span x-show="!collapsed" class="truncate">FossilRepo KB</span>
+          <span x-show="!collapsed" class="truncate">FossilRepo Docs</span>
         </span>
         <svg x-show="!collapsed" class="h-4 w-4 transition-transform" :class="docsOpen && 'rotate-90'" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
