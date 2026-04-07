@@ -66,3 +66,52 @@ def create_snapshot(repository_id: int, note: str = ""):
     )
     snapshot.file.save(f"{repo.filename}_{sha[:8]}.fossil", ContentFile(data), save=True)
     logger.info("Created snapshot for %s (hash: %s)", repo.filename, sha[:8])
+
+
+@shared_task(name="fossil.check_upstream")
+def check_upstream_updates():
+    """Check all repos with remote URLs for available updates."""
+    from fossil.cli import FossilCLI
+    from fossil.models import FossilRepository
+
+    cli = FossilCLI()
+    if not cli.is_available():
+        return
+
+    from django.utils import timezone
+
+    for repo in FossilRepository.objects.exclude(remote_url=""):
+        if not repo.exists_on_disk:
+            continue
+        try:
+            result = cli.pull(repo.full_path)
+            if result["success"] and result["artifacts_received"] > 0:
+                repo.upstream_artifacts_available = result["artifacts_received"]
+                repo.last_sync_at = timezone.now()
+                # Update metadata after pull
+                from fossil.reader import FossilReader
+
+                with FossilReader(repo.full_path) as reader:
+                    repo.checkin_count = reader.get_checkin_count()
+                    timeline = reader.get_timeline(limit=1, event_type="ci")
+                    if timeline:
+                        repo.last_checkin_at = timeline[0].timestamp
+                    repo.file_size_bytes = repo.full_path.stat().st_size
+                repo.save(
+                    update_fields=[
+                        "upstream_artifacts_available",
+                        "last_sync_at",
+                        "checkin_count",
+                        "last_checkin_at",
+                        "file_size_bytes",
+                        "updated_at",
+                        "version",
+                    ]
+                )
+                logger.info("Pulled %d artifacts for %s (new count: %d)", result["artifacts_received"], repo.filename, repo.checkin_count)
+            else:
+                repo.upstream_artifacts_available = 0
+                repo.last_sync_at = timezone.now()
+                repo.save(update_fields=["upstream_artifacts_available", "last_sync_at", "updated_at", "version"])
+        except Exception:
+            logger.exception("Failed to check upstream for %s", repo.filename)

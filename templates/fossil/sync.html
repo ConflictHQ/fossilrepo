@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Sync — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="max-w-2xl">
+  <h2 class="text-lg font-semibold text-gray-200 mb-4">Repository Sync</h2>
+
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-5 mb-6">
+    <dl class="space-y-3">
+      <div class="flex items-center justify-between">
+        <dt class="text-sm text-gray-400">Remote</dt>
+        <dd class="text-sm text-gray-200 font-mono">{{ remote_url|default:"No remote configured" }}</dd>
+      </div>
+      <div class="flex items-center justify-between">
+        <dt class="text-sm text-gray-400">Last synced</dt>
+        <dd class="text-sm text-gray-200">{% if fossil_repo.last_sync_at %}{{ fossil_repo.last_sync_at|timesince }} ago{% else %}Never{% endif %}</dd>
+      </div>
+      <div class="flex items-center justify-between">
+        <dt class="text-sm text-gray-400">Local checkins</dt>
+        <dd class="text-sm text-gray-200">{{ fossil_repo.checkin_count }}</dd>
+      </div>
+      <div class="flex items-center justify-between">
+        <dt class="text-sm text-gray-400">Repository size</dt>
+        <dd class="text-sm text-gray-200">{{ fossil_repo.file_size_bytes|filesizeformat }}</dd>
+      </div>
+    </dl>
+  </div>
+
+  {% if remote_url %}
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+      </svg>
+      Pull from Upstream
+    </button>
+  </form>
+  {% else %}
+  <p class="text-sm text-gray-500">No remote URL configured. This repository was created locally.</p>
+  {% endif %}
+
+  {% if result %}
+  <div class="mt-4 rounded-lg {% if result.success %}bg-green-900/30 border border-green-800{% else %}bg-red-900/30 border border-red-800{% endif %} p-4">
+    <div class="text-sm {% if result.success %}text-green-300{% else %}text-red-300{% endif %}">
+      {% if result.success %}
+        {% if result.artifacts_received > 0 %}
+        Pulled {{ result.artifacts_received }} new artifacts.
+        {% else %}
+        Already up to date.
+        {% endif %}
+      {% else %}
+      Sync failed: {{ result.message }}
+      {% endif %}
+    </div>
+    {% if result.message %}
+    <pre class="mt-2 text-xs text-gray-500 font-mono">{{ result.message }}</pre>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

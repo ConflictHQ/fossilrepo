@@ -15,6 +15,11 @@ class FossilRepository(Tracking):
     last_checkin_at = models.DateTimeField(null=True, blank=True)
     checkin_count = models.PositiveIntegerField(default=0)
 
+    # Remote sync
+    remote_url = models.URLField(blank=True, default="", help_text="Upstream remote URL for sync")
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    upstream_artifacts_available = models.PositiveIntegerField(default=0, help_text="New artifacts available from upstream")
+
     # S3 tracking
     s3_key = models.CharField(max_length=500, blank=True, default="")
     s3_last_replicated_at = models.DateTimeField(null=True, blank=True)
