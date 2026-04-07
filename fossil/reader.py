@@ -1044,10 +1044,12 @@ class FossilReader:
         try:
             rows = self.conn.execute(
                 """
-                SELECT substr(tag.tagname, 6) as name, event.mtime, event.user
+                SELECT substr(tag.tagname, 6) as name, event.mtime, event.user,
+                       blob.size as content_size
                 FROM tag
                 JOIN tagxref ON tag.tagid = tagxref.tagid
                 JOIN event ON tagxref.rid = event.objid
+                JOIN blob ON event.objid = blob.rid
                 WHERE tag.tagname LIKE 'wiki-%' AND event.type = 'w'
                 GROUP BY tag.tagname
                 HAVING event.mtime = MAX(event.mtime)
@@ -1055,6 +1057,11 @@ class FossilReader:
                 """
             ).fetchall()
             for row in rows:
+                # Skip pages with empty content. Fossil wiki artifacts include
+                # a manifest header (~140 bytes) even for empty pages. Real
+                # wiki pages with actual content are always > 200 bytes.
+                if row["content_size"] is not None and row["content_size"] < 200:
+                    continue
                 pages.append(
                     WikiPage(
                         name=row["name"],
