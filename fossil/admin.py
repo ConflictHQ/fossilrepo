@@ -3,6 +3,7 @@ from django.contrib import admin
 from core.admin import BaseCoreAdmin
 
 from .models import FossilRepository, FossilSnapshot
+from .notifications import Notification, ProjectWatch
 from .sync_models import GitMirror, SSHKey, SyncLog
 from .user_keys import UserSSHKey
 
@@ -53,3 +54,27 @@ class UserSSHKeyAdmin(BaseCoreAdmin):
     list_filter = ("key_type",)
     search_fields = ("title", "user__username", "fingerprint")
     readonly_fields = ("fingerprint", "key_type")
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("title", "user", "project", "event_type", "read", "emailed", "created_at")
+    list_filter = ("event_type", "read", "emailed")
+    search_fields = ("title", "user__username", "project__name")
+    raw_id_fields = ("user", "project")
+
+
+@admin.register(ProjectWatch)
+class ProjectWatchAdmin(BaseCoreAdmin):
+    list_display = ("user", "project", "event_filter", "email_enabled", "created_at")
+    list_filter = ("event_filter", "email_enabled")
+    search_fields = ("user__username", "project__name")
+    raw_id_fields = ("user", "project")
+
+
+@admin.register(SyncLog)
+class SyncLogAdmin(admin.ModelAdmin):
+    list_display = ("mirror", "status", "started_at", "completed_at", "artifacts_synced", "triggered_by")
+    list_filter = ("status", "triggered_by")
+    search_fields = ("mirror__repository__filename", "message")
+    raw_id_fields = ("mirror",)

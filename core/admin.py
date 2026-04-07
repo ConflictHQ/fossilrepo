@@ -5,6 +5,11 @@ from import_export.admin import ImportExportMixin
 class BaseCoreAdmin(ImportExportMixin, admin.ModelAdmin):
     """Base admin class for all Fossilrepo models. Provides audit field handling and import/export."""
 
+    def get_queryset(self, request):
+        if hasattr(self.model, "all_objects"):
+            return self.model.all_objects.all()
+        return super().get_queryset(request)
+
     def get_readonly_fields(self, request, obj=None):
         base = tuple(self.readonly_fields or ())
         return base + ("version", "created_at", "created_by", "updated_at", "updated_by", "deleted_at", "deleted_by")

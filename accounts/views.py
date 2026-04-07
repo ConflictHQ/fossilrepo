@@ -23,13 +23,13 @@ def login_view(request):
     else:
         form = LoginForm()
 
-    return render(request, "auth1/login.html", {"form": form})
+    return render(request, "accounts/login.html", {"form": form})
 
 
 @require_POST
 def logout_view(request):
     logout(request)
-    return redirect("auth1:login")
+    return redirect("accounts:login")
 
 
 # ---------------------------------------------------------------------------
@@ -123,9 +123,9 @@ def ssh_keys(request):
             _regenerate_authorized_keys()
 
             messages.success(request, f'SSH key "{title}" added.')
-            return redirect("auth1:ssh_keys")
+            return redirect("accounts:ssh_keys")
 
-    return render(request, "auth1/ssh_keys.html", {"keys": keys})
+    return render(request, "accounts/ssh_keys.html", {"keys": keys})
 
 
 @login_required
@@ -143,4 +143,4 @@ def ssh_key_delete(request, pk):
     if request.headers.get("HX-Request"):
         return HttpResponse(status=200, headers={"HX-Redirect": "/auth/ssh-keys/"})
 
-    return redirect("auth1:ssh_keys")
+    return redirect("accounts:ssh_keys")

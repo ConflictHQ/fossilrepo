@@ -59,9 +59,8 @@ INSTALLED_APPS = [
     "constance.backends.database",
     # Project apps
     "core",
-    "auth1",
+    "accounts",
     "organization",
-    "items",
     "projects",
     "pages",
     "fossil",

@@ -3,7 +3,6 @@ import logging
 from django.contrib.auth.models import Group, Permission, User
 from django.core.management.base import BaseCommand
 
-from items.models import Item
 from organization.models import Organization, OrganizationMember, Team
 from pages.models import Page
 from projects.models import Project, ProjectTeam
@@ -23,7 +22,6 @@ class Command(BaseCommand):
             Page.all_objects.all().delete()
             ProjectTeam.all_objects.all().delete()
             Project.all_objects.all().delete()
-            Item.all_objects.all().delete()
             Team.all_objects.all().delete()
             OrganizationMember.all_objects.all().delete()
             Organization.all_objects.all().delete()
@@ -32,14 +30,14 @@ class Command(BaseCommand):
         admin_group, _ = Group.objects.get_or_create(name="Administrators")
         viewer_group, _ = Group.objects.get_or_create(name="Viewers")
 
-        # Admin group gets all permissions for items, org, and projects
-        for app_label in ["items", "organization", "projects", "pages"]:
+        # Admin group gets all permissions for org, projects, and pages
+        for app_label in ["organization", "projects", "pages"]:
             perms = Permission.objects.filter(content_type__app_label=app_label)
             admin_group.permissions.add(*perms)
 
-        # Viewer group gets view permissions for items, org, and projects
+        # Viewer group gets view permissions for org, projects, and pages
         view_perms = Permission.objects.filter(
-            content_type__app_label__in=["items", "organization", "projects", "pages"],
+            content_type__app_label__in=["organization", "projects", "pages"],
             codename__startswith="view_",
         )
         viewer_group.permissions.set(view_perms)
@@ -109,20 +107,6 @@ class Command(BaseCommand):
         if docs:
             ProjectTeam.objects.get_or_create(project=docs, team=contributors, defaults={"role": "write"})
             ProjectTeam.objects.get_or_create(project=docs, team=reviewers, defaults={"role": "write"})
-
-        # Sample items
-        items_data = [
-            {"name": "Widget Alpha", "price": "29.99", "sku": "WGT-001", "description": "A versatile alpha widget."},
-            {"name": "Widget Beta", "price": "49.99", "sku": "WGT-002", "description": "Enhanced beta widget with extra features."},
-            {"name": "Gadget Pro", "price": "199.99", "sku": "GDG-001", "description": "Professional-grade gadget."},
-            {"name": "Starter Kit", "price": "9.99", "sku": "KIT-001", "description": "Everything you need to get started."},
-            {"name": "Premium Bundle", "price": "399.99", "sku": "BDL-001", "description": "Our best items in one bundle."},
-        ]
-        for data in items_data:
-            Item.objects.get_or_create(
-                sku=data["sku"],
-                defaults={**data, "created_by": admin_user},
-            )
 
         # Sample docs pages
         pages_data = [

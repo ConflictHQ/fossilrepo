@@ -22,6 +22,7 @@ class OrganizationAdmin(BaseCoreAdmin):
 class TeamAdmin(BaseCoreAdmin):
     list_display = ("name", "slug", "organization", "created_at")
     search_fields = ("name", "slug")
+    list_filter = ("created_at",)
     filter_horizontal = ("members",)
 
 

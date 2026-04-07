@@ -10,58 +10,62 @@ class TrackingModelTest(TestCase):
     """Test the Tracking abstract model via a concrete model that uses it."""
 
     def setUp(self):
-        from items.models import Item
+        from organization.models import Organization
+        from projects.models import Project
 
         self.user = User.objects.create_superuser(username="test", password="x")
-        self.item = Item.objects.create(name="Test Widget", price="9.99", created_by=self.user)
+        self.org = Organization.objects.create(name="Test Org", created_by=self.user)
+        self.project = Project.objects.create(name="Test Project", organization=self.org, created_by=self.user)
 
     def test_version_increments_on_save(self):
-        initial_version = self.item.version
-        self.item.name = "Updated Widget"
-        self.item.save()
-        self.item.refresh_from_db()
-        self.assertEqual(self.item.version, initial_version + 1)
+        initial_version = self.project.version
+        self.project.name = "Updated Project"
+        self.project.save()
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.version, initial_version + 1)
 
     def test_soft_delete_sets_deleted_at(self):
-        self.item.soft_delete(user=self.user)
-        self.item.refresh_from_db()
-        self.assertIsNotNone(self.item.deleted_at)
-        self.assertEqual(self.item.deleted_by, self.user)
-        self.assertTrue(self.item.is_deleted)
+        self.project.soft_delete(user=self.user)
+        self.project.refresh_from_db()
+        self.assertIsNotNone(self.project.deleted_at)
+        self.assertEqual(self.project.deleted_by, self.user)
+        self.assertTrue(self.project.is_deleted)
 
     def test_created_at_auto_set(self):
-        self.assertIsNotNone(self.item.created_at)
+        self.assertIsNotNone(self.project.created_at)
 
     def test_updated_at_auto_set(self):
-        self.assertIsNotNone(self.item.updated_at)
+        self.assertIsNotNone(self.project.updated_at)
 
 
 class BaseCoreModelTest(TestCase):
     """Test BaseCoreModel slug generation and UUID."""
 
     def setUp(self):
-        from items.models import Item
+        from organization.models import Organization
+        from projects.models import Project
 
         self.user = User.objects.create_superuser(username="test", password="x")
-        self.item = Item.objects.create(name="My Item", price="19.99", created_by=self.user)
+        self.org = Organization.objects.create(name="Test Org", created_by=self.user)
+        self.project = Project.objects.create(name="My Project", organization=self.org, created_by=self.user)
 
     def test_slug_auto_generated(self):
-        self.assertEqual(self.item.slug, "my-item")
+        self.assertEqual(self.project.slug, "my-project")
 
     def test_guid_is_uuid(self):
         import uuid
 
-        self.assertIsInstance(self.item.guid, uuid.UUID)
+        self.assertIsInstance(self.project.guid, uuid.UUID)
 
     def test_slug_uniqueness(self):
-        from items.models import Item
+        from projects.models import Project
 
-        p2 = Item.objects.create(name="My Item", price="29.99", created_by=self.user)
-        self.assertNotEqual(self.item.slug, p2.slug)
-        self.assertTrue(p2.slug.startswith("my-item"))
+        p2 = Project.objects.create(name="My Project", organization=self.org, created_by=self.user)
+        self.assertNotEqual(self.project.slug, p2.slug)
+        self.assertTrue(p2.slug.startswith("my-project"))
 
     def test_str_returns_name(self):
-        self.assertEqual(str(self.item), "My Item")
+        self.assertEqual(str(self.project), "My Project")
 
 
 class PermissionsTest(TestCase):
@@ -72,24 +76,24 @@ class PermissionsTest(TestCase):
         self.regular = User.objects.create_user(username="regular", password="x")
 
     def test_superuser_passes_all_checks(self):
-        self.assertTrue(P.ITEM_VIEW.check(self.superuser))
-        self.assertTrue(P.ITEM_ADD.check(self.superuser))
+        self.assertTrue(P.PROJECT_VIEW.check(self.superuser))
+        self.assertTrue(P.PROJECT_ADD.check(self.superuser))
 
     def test_regular_user_without_perm_denied(self):
         from django.core.exceptions import PermissionDenied
 
         with self.assertRaises(PermissionDenied):
-            P.ITEM_ADD.check(self.regular)
+            P.PROJECT_ADD.check(self.regular)
 
     def test_regular_user_without_perm_returns_false(self):
-        self.assertFalse(P.ITEM_ADD.check(self.regular, raise_error=False))
+        self.assertFalse(P.PROJECT_ADD.check(self.regular, raise_error=False))
 
     def test_unauthenticated_user_denied(self):
         from django.contrib.auth.models import AnonymousUser
         from django.core.exceptions import PermissionDenied
 
         with self.assertRaises(PermissionDenied):
-            P.ITEM_VIEW.check(AnonymousUser())
+            P.PROJECT_VIEW.check(AnonymousUser())
 
 
 @pytest.mark.django_db
