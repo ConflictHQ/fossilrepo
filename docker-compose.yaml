@@ -14,7 +14,7 @@ services:
       EMAIL_HOST: mailpit
     volumes:
       - .:/app
-      - fossil-repos:/data/repos
+      - ./repos:/data/repos
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,4 +100,3 @@ services:
 
 volumes:
   pgdata:
-  fossil-repos:
