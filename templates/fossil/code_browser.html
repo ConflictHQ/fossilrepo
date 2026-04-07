@@ -46,4 +46,15 @@
   <!-- File table -->
   {% include "fossil/partials/file_tree.html" %}
 </div>
+
+{% if readme_html %}
+<div class="mt-4 rounded-lg bg-gray-800 border border-gray-700">
+  <div class="px-4 py-3 border-b border-gray-700 text-sm font-medium text-gray-300">README</div>
+  <div class="px-6 py-5">
+    <div class="prose prose-invert prose-gray max-w-none">
+      {{ readme_html }}
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
