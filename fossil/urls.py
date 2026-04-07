@@ -26,6 +26,7 @@ urlpatterns = [
     path("search/", views.search, name="search"),
     path("stats/", views.repo_stats, name="stats"),
     path("compare/", views.compare_checkins, name="compare"),
+    path("sync/", views.sync_pull, name="sync"),
     path("code/raw/<path:filepath>", views.code_raw, name="code_raw"),
     path("code/blame/<path:filepath>", views.code_blame, name="code_blame"),
     path("code/history/<path:filepath>", views.file_history, name="file_history"),

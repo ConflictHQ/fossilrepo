@@ -102,6 +102,38 @@ class FossilCLI:
             shutil.rmtree(tmpdir, ignore_errors=True)
         return lines
 
+    def pull(self, repo_path: Path) -> dict:
+        """Pull updates from the remote. Returns {success, artifacts_received, message}."""
+        try:
+            result = subprocess.run(
+                [self.binary, "pull", "-R", str(repo_path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            import re
+
+            artifacts = 0
+            m = re.search(r"received:\s*(\d+)", result.stdout)
+            if m:
+                artifacts = int(m.group(1))
+            return {"success": result.returncode == 0, "artifacts_received": artifacts, "message": result.stdout.strip()}
+        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+            return {"success": False, "artifacts_received": 0, "message": str(e)}
+
+    def get_remote_url(self, repo_path: Path) -> str:
+        """Get the configured remote URL for a repo."""
+        try:
+            result = subprocess.run(
+                [self.binary, "remote", "-R", str(repo_path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            return result.stdout.strip() if result.returncode == 0 else ""
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return ""
+
     def wiki_commit(self, repo_path: Path, page_name: str, content: str, user: str = "") -> bool:
         """Create or update a wiki page. Pipes content to fossil wiki commit."""
         cmd = [self.binary, "wiki", "commit", page_name, "-R", str(repo_path)]

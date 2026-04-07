@@ -900,6 +900,78 @@ def user_activity(request, slug, username):
     )
 
 
+# --- Sync ---
+
+
+@login_required
+def sync_pull(request, slug):
+    """Pull updates from upstream remote."""
+    P.PROJECT_CHANGE.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    result = None
+    if request.method == "POST":
+        from fossil.cli import FossilCLI
+
+        cli = FossilCLI()
+        if cli.is_available():
+            # Detect remote URL if not set
+            if not fossil_repo.remote_url:
+                remote = cli.get_remote_url(fossil_repo.full_path)
+                if remote:
+                    fossil_repo.remote_url = remote
+                    fossil_repo.save(update_fields=["remote_url", "updated_at", "version"])
+
+            result = cli.pull(fossil_repo.full_path)
+            if result["success"]:
+                from django.utils import timezone
+
+                fossil_repo.last_sync_at = timezone.now()
+                if result["artifacts_received"] > 0:
+                    # Update metadata
+                    with reader:
+                        fossil_repo.checkin_count = reader.get_checkin_count()
+                        fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
+                    fossil_repo.upstream_artifacts_available = 0
+                fossil_repo.save(
+                    update_fields=[
+                        "last_sync_at",
+                        "checkin_count",
+                        "file_size_bytes",
+                        "upstream_artifacts_available",
+                        "updated_at",
+                        "version",
+                    ]
+                )
+                from django.contrib import messages
+
+                if result["artifacts_received"] > 0:
+                    messages.success(request, f"Pulled {result['artifacts_received']} new artifacts from upstream.")
+                else:
+                    messages.info(request, "Already up to date.")
+
+    # Get remote URL for display
+    remote_url = fossil_repo.remote_url
+    if not remote_url:
+        from fossil.cli import FossilCLI
+
+        cli = FossilCLI()
+        if cli.is_available():
+            remote_url = cli.get_remote_url(fossil_repo.full_path)
+
+    return render(
+        request,
+        "fossil/sync.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "remote_url": remote_url,
+            "result": result,
+            "active_tab": "code",
+        },
+    )
+
+
 # --- Technotes ---
 
 
