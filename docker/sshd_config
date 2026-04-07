@@ -19,6 +19,10 @@ AuthorizedKeysFile /data/ssh/authorized_keys
 # Only allow the fossil user
 AllowUsers fossil
 
+# Force all fossil-user connections through the restricted shell,
+# even if an authorized_keys entry is missing the command= directive.
+ForceCommand /usr/local/bin/fossil-shell
+
 # Disable everything except the sync protocol
 PermitTunnel no
 AllowTcpForwarding no

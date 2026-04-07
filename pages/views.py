@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 
 from core.permissions import P
+from core.sanitize import sanitize_html
 from organization.views import get_org
 
 from .forms import PageForm
@@ -54,7 +55,7 @@ def page_create(request):
 def page_detail(request, slug):
     P.PAGE_VIEW.check(request.user)
     page = get_object_or_404(Page, slug=slug, deleted_at__isnull=True)
-    content_html = mark_safe(markdown.markdown(page.content, extensions=["fenced_code", "tables", "toc"]))
+    content_html = mark_safe(sanitize_html(markdown.markdown(page.content, extensions=["fenced_code", "tables", "toc"])))
     return render(request, "pages/page_detail.html", {"page": page, "content_html": content_html})
 
 

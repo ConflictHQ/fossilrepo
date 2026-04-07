@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 from django.views.decorators.csrf import csrf_exempt
 
+from core.sanitize import sanitize_html
 from projects.models import Project
 
 from .models import FossilRepository
@@ -339,7 +340,7 @@ def code_browser(request, slug, dirpath=""):
                 try:
                     readme_content = content_bytes.decode("utf-8")
                     doc_base = prefix if prefix else ""
-                    readme_html = mark_safe(_render_fossil_content(readme_content, project_slug=slug, base_path=doc_base))
+                    readme_html = mark_safe(sanitize_html(_render_fossil_content(readme_content, project_slug=slug, base_path=doc_base)))
                 except (UnicodeDecodeError, Exception):
                     pass
                 break
@@ -422,7 +423,7 @@ def code_file(request, slug, filepath):
         doc_base = "/".join(filepath.split("/")[:-1])
         if doc_base:
             doc_base += "/"
-        rendered_html = mark_safe(_render_fossil_content(content, project_slug=slug, base_path=doc_base))
+        rendered_html = mark_safe(sanitize_html(_render_fossil_content(content, project_slug=slug, base_path=doc_base)))
 
     return render(
         request,
@@ -719,14 +720,14 @@ def ticket_detail(request, slug, ticket_uuid):
     if not ticket:
         raise Http404("Ticket not found")
 
-    body_html = mark_safe(_render_fossil_content(ticket.body, project_slug=slug)) if ticket.body else ""
+    body_html = mark_safe(sanitize_html(_render_fossil_content(ticket.body, project_slug=slug))) if ticket.body else ""
     rendered_comments = []
     for c in comments:
         rendered_comments.append(
             {
                 "user": c["user"],
                 "timestamp": c["timestamp"],
-                "html": mark_safe(_render_fossil_content(c["comment"], project_slug=slug)),
+                "html": mark_safe(sanitize_html(_render_fossil_content(c["comment"], project_slug=slug))),
             }
         )
 
@@ -756,7 +757,7 @@ def wiki_list(request, slug):
 
     home_content_html = ""
     if home_page:
-        home_content_html = mark_safe(_render_fossil_content(home_page.content, project_slug=slug))
+        home_content_html = mark_safe(sanitize_html(_render_fossil_content(home_page.content, project_slug=slug)))
 
     return render(
         request,
@@ -782,7 +783,7 @@ def wiki_page(request, slug, page_name):
     if not page:
         raise Http404(f"Wiki page not found: {page_name}")
 
-    content_html = mark_safe(_render_fossil_content(page.content, project_slug=slug))
+    content_html = mark_safe(sanitize_html(_render_fossil_content(page.content, project_slug=slug)))
 
     return render(
         request,
@@ -864,7 +865,7 @@ def forum_thread(request, slug, thread_uuid):
     from fossil.forum import ForumPost as DjangoForumPost
 
     try:
-        django_root = DjangoForumPost.objects.get(pk=int(thread_uuid))
+        django_root = DjangoForumPost.objects.get(pk=int(thread_uuid), repository=fossil_repo)
         is_django_thread = True
     except (ValueError, DjangoForumPost.DoesNotExist):
         django_root = None
@@ -874,7 +875,7 @@ def forum_thread(request, slug, thread_uuid):
     if is_django_thread:
         # Django-backed thread: root + replies
         root = django_root
-        body_html = mark_safe(md.markdown(root.body, extensions=["fenced_code", "tables"])) if root.body else ""
+        body_html = mark_safe(sanitize_html(md.markdown(root.body, extensions=["fenced_code", "tables"]))) if root.body else ""
         rendered_posts.append(
             {
                 "post": {
@@ -887,7 +888,7 @@ def forum_thread(request, slug, thread_uuid):
             }
         )
         for reply in DjangoForumPost.objects.filter(thread_root=root).exclude(pk=root.pk).select_related("created_by"):
-            reply_html = mark_safe(md.markdown(reply.body, extensions=["fenced_code", "tables"])) if reply.body else ""
+            reply_html = mark_safe(sanitize_html(md.markdown(reply.body, extensions=["fenced_code", "tables"]))) if reply.body else ""
             rendered_posts.append(
                 {
                     "post": {
@@ -911,7 +912,7 @@ def forum_thread(request, slug, thread_uuid):
             raise Http404("Forum thread not found")
 
         for post in posts:
-            body_html = mark_safe(_render_fossil_content(post.body, project_slug=slug)) if post.body else ""
+            body_html = mark_safe(sanitize_html(_render_fossil_content(post.body, project_slug=slug))) if post.body else ""
             rendered_posts.append({"post": post, "body_html": body_html})
 
     has_write = can_write_project(request.user, project)
@@ -977,7 +978,7 @@ def forum_reply(request, slug, post_id):
 
     from fossil.forum import ForumPost as DjangoForumPost
 
-    parent = get_object_or_404(DjangoForumPost, pk=post_id, deleted_at__isnull=True)
+    parent = get_object_or_404(DjangoForumPost, pk=post_id, repository=fossil_repo, deleted_at__isnull=True)
 
     # Determine the thread root
     thread_root = parent.thread_root if parent.thread_root else parent
@@ -2235,7 +2236,7 @@ def fossil_doc_page(request, slug, doc_path):
     doc_base = "/".join(doc_path.split("/")[:-1])
     if doc_base:
         doc_base += "/"
-    content_html = mark_safe(_render_fossil_content(content, project_slug=slug, base_path=doc_base))
+    content_html = mark_safe(sanitize_html(_render_fossil_content(content, project_slug=slug, base_path=doc_base)))
 
     return render(
         request,
@@ -2535,7 +2536,7 @@ def release_detail(request, slug, tag_name):
 
     body_html = ""
     if release.body:
-        body_html = mark_safe(md.markdown(release.body, extensions=["footnotes", "tables", "fenced_code"]))
+        body_html = mark_safe(sanitize_html(md.markdown(release.body, extensions=["footnotes", "tables", "fenced_code"])))
 
     assets = release.assets.filter(deleted_at__isnull=True)
     has_write = can_write_project(request.user, project)
