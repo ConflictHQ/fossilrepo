@@ -31,6 +31,10 @@
      class="px-4 py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'releases' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
     Releases
   </a>
+  <a href="{% url 'fossil:unversioned' slug=project.slug %}"
+     class="px-4 py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'files' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+    Files
+  </a>
   {% if perms.projects.change_project %}
   <a href="{% url 'fossil:sync' slug=project.slug %}"
      class="px-4 py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'sync' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">

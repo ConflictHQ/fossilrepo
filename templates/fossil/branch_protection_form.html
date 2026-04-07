@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ form_title }} — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-4">
+  <a href="{% url 'fossil:branch_protections' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Branch Protection</a>
+</div>
+
+<div class="mx-auto max-w-3xl">
+  <h2 class="text-xl font-bold text-gray-100 mb-4">{{ form_title }}</h2>
+
+  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+    {% csrf_token %}
+
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Branch Pattern <span class="text-red-400">*</span></label>
+      <input type="text" name="branch_pattern" required
+             placeholder="e.g., trunk, release-*"
+             value="{% if rule %}{{ rule.branch_pattern }}{% endif %}"
+             class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono">
+      <p class="mt-1 text-xs text-gray-500">Branch name or glob pattern. Use <code class="text-gray-400">*</code> for wildcards.</p>
+    </div>
+
+    <div class="space-y-3">
+      <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+        <input type="checkbox" name="restrict_push"
+               {% if rule %}{% if rule.restrict_push %}checked{% endif %}{% else %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+        Restrict push (admin only)
+      </label>
+      <p class="text-xs text-gray-500 ml-6">Only project admins can push to matching branches.</p>
+
+      <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+        <input type="checkbox" name="require_status_checks"
+               {% if rule and rule.require_status_checks %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+        Require status checks to pass
+      </label>
+      <p class="text-xs text-gray-500 ml-6">All required CI contexts must report success before merging.</p>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Required CI Contexts</label>
+      <textarea name="required_contexts" rows="3"
+                placeholder="ci/tests&#10;ci/lint&#10;ci/build"
+                class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono">{% if rule %}{{ rule.required_contexts }}{% endif %}</textarea>
+      <p class="mt-1 text-xs text-gray-500">One CI context per line. These must report success before merging is allowed.</p>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-2">
+      <a href="{% url 'fossil:branch_protections' slug=project.slug %}"
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Cancel
+      </a>
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+        {{ submit_label }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

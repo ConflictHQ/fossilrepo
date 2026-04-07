@@ -137,6 +137,43 @@
     </div>
   </div>
 
+  <!-- API Tokens & Branch Protection -->
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
+    <h2 class="text-lg font-semibold text-gray-200 mb-4">Management</h2>
+    <div class="space-y-3">
+      <a href="{% url 'fossil:api_tokens' slug=project.slug %}"
+         class="flex items-center justify-between rounded-md bg-gray-700/50 px-4 py-3 hover:bg-gray-700 transition-colors">
+        <div>
+          <p class="text-sm font-medium text-gray-200">API Tokens</p>
+          <p class="text-xs text-gray-500">Manage tokens for CI/CD systems and automation.</p>
+        </div>
+        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+        </svg>
+      </a>
+      <a href="{% url 'fossil:branch_protections' slug=project.slug %}"
+         class="flex items-center justify-between rounded-md bg-gray-700/50 px-4 py-3 hover:bg-gray-700 transition-colors">
+        <div>
+          <p class="text-sm font-medium text-gray-200">Branch Protection</p>
+          <p class="text-xs text-gray-500">Protect branches from unreviewed changes.</p>
+        </div>
+        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+        </svg>
+      </a>
+      <a href="{% url 'fossil:webhooks' slug=project.slug %}"
+         class="flex items-center justify-between rounded-md bg-gray-700/50 px-4 py-3 hover:bg-gray-700 transition-colors">
+        <div>
+          <p class="text-sm font-medium text-gray-200">Webhooks</p>
+          <p class="text-xs text-gray-500">Configure outbound event notifications.</p>
+        </div>
+        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+
   <!-- Danger Zone -->
   <div class="rounded-lg border-2 border-red-900/50 p-5">
     <h2 class="text-lg font-semibold text-red-400 mb-2">Danger Zone</h2>

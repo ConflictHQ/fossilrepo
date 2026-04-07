@@ -389,6 +389,58 @@ def role_detail(request, slug):
 
 
 @login_required
+def audit_log(request):
+    """Unified audit log across all tracked models. Requires superuser or org admin."""
+    if not request.user.is_superuser:
+        P.ORGANIZATION_CHANGE.check(request.user)
+
+    from fossil.models import FossilRepository
+    from projects.models import Project
+
+    trackable_models = [
+        ("Project", Project),
+        ("Organization", Organization),
+        ("Team", Team),
+        ("FossilRepository", FossilRepository),
+    ]
+
+    entries = []
+    model_filter = request.GET.get("model", "").strip()
+
+    for label, model in trackable_models:
+        if model_filter and label.lower() != model_filter.lower():
+            continue
+        history_model = model.history.model
+        qs = history_model.objects.all().select_related("history_user").order_by("-history_date")[:100]
+        for h in qs:
+            entries.append(
+                {
+                    "date": h.history_date,
+                    "user": h.history_user,
+                    "action": h.get_history_type_display(),
+                    "model": label,
+                    "object_repr": str(h),
+                    "object_id": h.pk,
+                }
+            )
+
+    entries.sort(key=lambda x: x["date"], reverse=True)
+    entries = entries[:200]
+
+    available_models = [label for label, _ in trackable_models]
+
+    return render(
+        request,
+        "organization/audit_log.html",
+        {
+            "entries": entries,
+            "model_filter": model_filter,
+            "available_models": available_models,
+        },
+    )
+
+
+@login_required
 def role_initialize(request):
     P.ORGANIZATION_CHANGE.check(request.user)
 

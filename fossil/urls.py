@@ -33,6 +33,13 @@ urlpatterns = [
     path("branches/", views.branch_list, name="branches"),
     path("tags/", views.tag_list, name="tags"),
     path("technotes/", views.technote_list, name="technotes"),
+    path("technotes/create/", views.technote_create, name="technote_create"),
+    path("technotes/<str:technote_id>/", views.technote_detail, name="technote_detail"),
+    path("technotes/<str:technote_id>/edit/", views.technote_edit, name="technote_edit"),
+    # Unversioned content
+    path("files/", views.unversioned_list, name="unversioned"),
+    path("files/upload/", views.unversioned_upload, name="unversioned_upload"),
+    path("files/download/<path:filename>", views.unversioned_download, name="unversioned_download"),
     path("search/", views.search, name="search"),
     path("stats/", views.repo_stats, name="stats"),
     path("compare/", views.compare_checkins, name="compare"),
@@ -61,4 +68,16 @@ urlpatterns = [
     path("releases/<str:tag_name>/delete/", views.release_delete, name="release_delete"),
     path("releases/<str:tag_name>/upload/", views.release_asset_upload, name="release_asset_upload"),
     path("releases/<str:tag_name>/assets/<int:asset_id>/", views.release_asset_download, name="release_asset_download"),
+    # CI Status API
+    path("api/status", views.status_check_api, name="status_check_api"),
+    path("api/status/<str:checkin_uuid>/badge.svg", views.status_badge, name="status_badge"),
+    # API Tokens
+    path("tokens/", views.api_token_list, name="api_tokens"),
+    path("tokens/create/", views.api_token_create, name="api_token_create"),
+    path("tokens/<int:token_id>/delete/", views.api_token_delete, name="api_token_delete"),
+    # Branch Protection
+    path("branches/protect/", views.branch_protection_list, name="branch_protections"),
+    path("branches/protect/create/", views.branch_protection_create, name="branch_protection_create"),
+    path("branches/protect/<int:pk>/edit/", views.branch_protection_edit, name="branch_protection_edit"),
+    path("branches/protect/<int:pk>/delete/", views.branch_protection_delete, name="branch_protection_delete"),
 ]

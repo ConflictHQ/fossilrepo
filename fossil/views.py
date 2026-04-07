@@ -4,7 +4,7 @@ from datetime import datetime
 
 import markdown as md
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 from django.views.decorators.csrf import csrf_exempt
@@ -612,6 +612,11 @@ def checkin_detail(request, slug, checkin_uuid):
                 }
             )
 
+    # Fetch CI status checks for this checkin
+    from fossil.ci import StatusCheck
+
+    status_checks = StatusCheck.objects.filter(repository=fossil_repo, checkin_uuid=checkin_uuid)
+
     return render(
         request,
         "fossil/checkin_detail.html",
@@ -620,6 +625,7 @@ def checkin_detail(request, slug, checkin_uuid):
             "fossil_repo": fossil_repo,
             "checkin": checkin,
             "file_diffs": file_diffs,
+            "status_checks": status_checks,
             "active_tab": "timeline",
         },
     )
@@ -1790,16 +1796,212 @@ def oauth_gitlab_callback(request, slug):
 
 
 def technote_list(request, slug):
+    from projects.access import can_write_project
+
     project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         notes = reader.get_technotes()
 
+    has_write = can_write_project(request.user, project)
+
     return render(
         request,
         "fossil/technote_list.html",
-        {"project": project, "notes": notes, "active_tab": "wiki"},
+        {"project": project, "notes": notes, "has_write": has_write, "active_tab": "wiki"},
     )
+
+
+@login_required
+def technote_create(request, slug):
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        body = request.POST.get("body", "")
+        timestamp = request.POST.get("timestamp", "").strip()
+        if title:
+            from fossil.cli import FossilCLI
+
+            cli = FossilCLI()
+            ts = timestamp if timestamp else None
+            success = cli.technote_create(
+                fossil_repo.full_path,
+                title,
+                body,
+                timestamp=ts,
+                user=request.user.username,
+            )
+            if success:
+                from django.contrib import messages
+
+                messages.success(request, f'Technote "{title}" created.')
+                return redirect("fossil:technotes", slug=slug)
+
+    return render(
+        request,
+        "fossil/technote_form.html",
+        {"project": project, "active_tab": "wiki", "form_title": "New Technote"},
+    )
+
+
+def technote_detail(request, slug, technote_id):
+    from projects.access import can_write_project
+
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
+
+    with reader:
+        note = reader.get_technote_detail(technote_id)
+
+    if not note:
+        raise Http404("Technote not found")
+
+    body_html = ""
+    if note["body"]:
+        body_html = mark_safe(sanitize_html(md.markdown(note["body"], extensions=["footnotes", "tables", "fenced_code"])))
+
+    has_write = can_write_project(request.user, project)
+
+    return render(
+        request,
+        "fossil/technote_detail.html",
+        {
+            "project": project,
+            "note": note,
+            "body_html": body_html,
+            "has_write": has_write,
+            "active_tab": "wiki",
+        },
+    )
+
+
+@login_required
+def technote_edit(request, slug, technote_id):
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
+
+    with reader:
+        note = reader.get_technote_detail(technote_id)
+
+    if not note:
+        raise Http404("Technote not found")
+
+    if request.method == "POST":
+        body = request.POST.get("body", "")
+        from fossil.cli import FossilCLI
+
+        cli = FossilCLI()
+        success = cli.technote_edit(
+            fossil_repo.full_path,
+            technote_id,
+            body,
+            user=request.user.username,
+        )
+        if success:
+            from django.contrib import messages
+
+            messages.success(request, "Technote updated.")
+            return redirect("fossil:technote_detail", slug=slug, technote_id=technote_id)
+
+    return render(
+        request,
+        "fossil/technote_form.html",
+        {
+            "project": project,
+            "note": note,
+            "form_title": f"Edit Technote: {note['comment'][:60]}",
+            "active_tab": "wiki",
+        },
+    )
+
+
+# --- Unversioned Content ---
+
+
+def unversioned_list(request, slug):
+    from projects.access import can_admin_project
+
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
+
+    with reader:
+        files = reader.get_unversioned_files()
+
+    has_admin = can_admin_project(request.user, project)
+
+    return render(
+        request,
+        "fossil/unversioned_list.html",
+        {
+            "project": project,
+            "files": files,
+            "has_admin": has_admin,
+            "active_tab": "files",
+        },
+    )
+
+
+def unversioned_download(request, slug, filename):
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
+
+    import mimetypes
+
+    from fossil.cli import FossilCLI
+
+    cli = FossilCLI()
+    try:
+        content = cli.uv_cat(fossil_repo.full_path, filename)
+    except FileNotFoundError as exc:
+        raise Http404(f"Unversioned file not found: {filename}") from exc
+
+    content_type, _ = mimetypes.guess_type(filename)
+    if not content_type:
+        content_type = "application/octet-stream"
+
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename.split("/")[-1]}"'
+    response["Content-Length"] = len(content)
+    return response
+
+
+@login_required
+def unversioned_upload(request, slug):
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "admin")
+
+    if request.method != "POST":
+        return redirect("fossil:unversioned", slug=slug)
+
+    uploaded_file = request.FILES.get("file")
+    if not uploaded_file:
+        from django.contrib import messages
+
+        messages.error(request, "No file selected.")
+        return redirect("fossil:unversioned", slug=slug)
+
+    import tempfile
+
+    from fossil.cli import FossilCLI
+
+    cli = FossilCLI()
+
+    # Write uploaded file to a temp location, then add via CLI
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        for chunk in uploaded_file.chunks():
+            tmp.write(chunk)
+        tmp_path = tmp.name
+
+    from pathlib import Path
+
+    try:
+        success = cli.uv_add(fossil_repo.full_path, uploaded_file.name, Path(tmp_path))
+        from django.contrib import messages
+
+        if success:
+            messages.success(request, f'File "{uploaded_file.name}" uploaded.')
+        else:
+            messages.error(request, f'Failed to upload "{uploaded_file.name}".')
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+    return redirect("fossil:unversioned", slug=slug)
 
 
 # --- Compare Checkins ---
@@ -2727,3 +2929,394 @@ def release_asset_download(request, slug, tag_name, asset_id):
     ReleaseAsset.objects.filter(pk=asset.pk).update(download_count=db_models.F("download_count") + 1)
 
     return FileResponse(asset.file.open("rb"), as_attachment=True, filename=asset.name)
+
+
+# --- CI Status Check API ---
+
+
+@csrf_exempt
+def status_check_api(request, slug):
+    """API endpoint for CI to report status checks.
+
+    POST /projects/<slug>/fossil/api/status
+    Authorization: Bearer <api_token>
+    {
+        "checkin": "abc123...",
+        "context": "ci/tests",
+        "state": "success",
+        "description": "All 200 tests passed",
+        "target_url": "https://ci.example.com/build/123"
+    }
+
+    GET /projects/<slug>/fossil/api/status?checkin=<uuid>
+    Returns status checks for a specific checkin (public if project is public).
+    """
+    import json
+
+    from fossil.api_tokens import authenticate_api_token
+    from fossil.ci import StatusCheck
+
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+    fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
+
+    if request.method == "GET":
+        # Read access -- use normal project visibility rules
+        from projects.access import can_read_project
+
+        if not can_read_project(request.user, project):
+            return JsonResponse({"error": "Access denied"}, status=403)
+
+        checkin_uuid = request.GET.get("checkin", "")
+        if not checkin_uuid:
+            return JsonResponse({"error": "checkin parameter required"}, status=400)
+
+        checks = StatusCheck.objects.filter(repository=fossil_repo, checkin_uuid=checkin_uuid)
+        data = [
+            {
+                "context": c.context,
+                "state": c.state,
+                "description": c.description,
+                "target_url": c.target_url,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in checks
+        ]
+        return JsonResponse({"checkin": checkin_uuid, "checks": data})
+
+    if request.method == "POST":
+        token = authenticate_api_token(request, fossil_repo)
+        if not token:
+            return JsonResponse({"error": "Invalid or expired token"}, status=401)
+
+        if not token.has_permission("status:write"):
+            return JsonResponse({"error": "Token lacks status:write permission"}, status=403)
+
+        try:
+            body = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        checkin_uuid = body.get("checkin", "").strip()
+        context = body.get("context", "").strip()
+        state = body.get("state", "").strip()
+        description = body.get("description", "").strip()
+        target_url = body.get("target_url", "").strip()
+
+        if not checkin_uuid:
+            return JsonResponse({"error": "checkin is required"}, status=400)
+        if not context:
+            return JsonResponse({"error": "context is required"}, status=400)
+        if state not in StatusCheck.State.values:
+            return JsonResponse({"error": f"state must be one of: {', '.join(StatusCheck.State.values)}"}, status=400)
+        if len(context) > 200:
+            return JsonResponse({"error": "context must be 200 characters or fewer"}, status=400)
+        if len(description) > 500:
+            return JsonResponse({"error": "description must be 500 characters or fewer"}, status=400)
+
+        check, created = StatusCheck.objects.update_or_create(
+            repository=fossil_repo,
+            checkin_uuid=checkin_uuid,
+            context=context,
+            defaults={
+                "state": state,
+                "description": description,
+                "target_url": target_url,
+                "created_by": None,
+            },
+        )
+
+        return JsonResponse(
+            {
+                "id": check.pk,
+                "context": check.context,
+                "state": check.state,
+                "description": check.description,
+                "target_url": check.target_url,
+                "created": created,
+            },
+            status=201 if created else 200,
+        )
+
+    return JsonResponse({"error": "Method not allowed"}, status=405)
+
+
+def status_badge(request, slug, checkin_uuid):
+    """SVG badge for CI status (like shields.io).
+
+    Returns an SVG image showing the aggregate status for all checks on a checkin.
+    """
+    from fossil.ci import StatusCheck
+
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+
+    # Badge endpoint is public for embeddability (like shields.io)
+    fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
+
+    checks = StatusCheck.objects.filter(repository=fossil_repo, checkin_uuid=checkin_uuid)
+
+    if not checks.exists():
+        label = "build"
+        message = "unknown"
+        color = "#9ca3af"  # gray
+    else:
+        states = set(checks.values_list("state", flat=True))
+        if "error" in states or "failure" in states:
+            label = "build"
+            message = "failing"
+            color = "#ef4444"  # red
+        elif "pending" in states:
+            label = "build"
+            message = "pending"
+            color = "#eab308"  # yellow
+        else:
+            label = "build"
+            message = "passing"
+            color = "#22c55e"  # green
+
+    label_width = len(label) * 7 + 10
+    message_width = len(message) * 7 + 10
+    total_width = label_width + message_width
+
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{total_width}" height="20" role="img" aria-label="{label}: {message}">
+  <title>{label}: {message}</title>
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="r"><rect width="{total_width}" height="20" rx="3" fill="#fff"/></clipPath>
+  <g clip-path="url(#r)">
+    <rect width="{label_width}" height="20" fill="#555"/>
+    <rect x="{label_width}" width="{message_width}" height="20" fill="{color}"/>
+    <rect width="{total_width}" height="20" fill="url(#s)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="11">
+    <text x="{label_width / 2}" y="14">{label}</text>
+    <text x="{label_width + message_width / 2}" y="14">{message}</text>
+  </g>
+</svg>"""
+
+    response = HttpResponse(svg, content_type="image/svg+xml")
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
+# --- API Token Management ---
+
+
+@login_required
+def api_token_list(request, slug):
+    """List API tokens for a project."""
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.api_tokens import APIToken
+
+    tokens = APIToken.objects.filter(repository=fossil_repo)
+
+    return render(
+        request,
+        "fossil/api_token_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "tokens": tokens,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def api_token_create(request, slug):
+    """Generate a new API token. Shows the raw token once."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.api_tokens import APIToken
+
+    raw_token = None
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        permissions = request.POST.get("permissions", "status:write").strip()
+        expires_at = request.POST.get("expires_at", "").strip() or None
+
+        if not name:
+            messages.error(request, "Token name is required.")
+        else:
+            raw, token_hash, prefix = APIToken.generate()
+            APIToken.objects.create(
+                repository=fossil_repo,
+                name=name,
+                token_hash=token_hash,
+                token_prefix=prefix,
+                permissions=permissions,
+                expires_at=expires_at,
+                created_by=request.user,
+            )
+            raw_token = raw
+            messages.success(request, f'Token "{name}" created. Copy it now -- it won\'t be shown again.')
+
+    return render(
+        request,
+        "fossil/api_token_create.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "raw_token": raw_token,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def api_token_delete(request, slug, token_id):
+    """Revoke (soft-delete) an API token."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.api_tokens import APIToken
+
+    token = get_object_or_404(APIToken, pk=token_id, repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        token.soft_delete(user=request.user)
+        messages.success(request, f'Token "{token.name}" revoked.')
+        return redirect("fossil:api_tokens", slug=slug)
+
+    return redirect("fossil:api_tokens", slug=slug)
+
+
+# --- Branch Protection ---
+
+
+@login_required
+def branch_protection_list(request, slug):
+    """List branch protection rules."""
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.branch_protection import BranchProtection
+
+    rules = BranchProtection.objects.filter(repository=fossil_repo)
+
+    return render(
+        request,
+        "fossil/branch_protection_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "rules": rules,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def branch_protection_create(request, slug):
+    """Create a new branch protection rule."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.branch_protection import BranchProtection
+
+    if request.method == "POST":
+        branch_pattern = request.POST.get("branch_pattern", "").strip()
+        require_status_checks = request.POST.get("require_status_checks") == "on"
+        required_contexts = request.POST.get("required_contexts", "").strip()
+        restrict_push = request.POST.get("restrict_push") == "on"
+
+        if not branch_pattern:
+            messages.error(request, "Branch pattern is required.")
+        elif BranchProtection.objects.filter(repository=fossil_repo, branch_pattern=branch_pattern).exists():
+            messages.error(request, f'A rule for "{branch_pattern}" already exists.')
+        else:
+            BranchProtection.objects.create(
+                repository=fossil_repo,
+                branch_pattern=branch_pattern,
+                require_status_checks=require_status_checks,
+                required_contexts=required_contexts,
+                restrict_push=restrict_push,
+                created_by=request.user,
+            )
+            messages.success(request, f'Branch protection rule for "{branch_pattern}" created.')
+            return redirect("fossil:branch_protections", slug=slug)
+
+    return render(
+        request,
+        "fossil/branch_protection_form.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "form_title": "Create Branch Protection Rule",
+            "submit_label": "Create Rule",
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def branch_protection_edit(request, slug, pk):
+    """Edit a branch protection rule."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.branch_protection import BranchProtection
+
+    rule = get_object_or_404(BranchProtection, pk=pk, repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        branch_pattern = request.POST.get("branch_pattern", "").strip()
+        require_status_checks = request.POST.get("require_status_checks") == "on"
+        required_contexts = request.POST.get("required_contexts", "").strip()
+        restrict_push = request.POST.get("restrict_push") == "on"
+
+        if not branch_pattern:
+            messages.error(request, "Branch pattern is required.")
+        else:
+            # Check uniqueness if pattern changed
+            conflict = BranchProtection.objects.filter(repository=fossil_repo, branch_pattern=branch_pattern).exclude(pk=rule.pk).exists()
+            if conflict:
+                messages.error(request, f'A rule for "{branch_pattern}" already exists.')
+            else:
+                rule.branch_pattern = branch_pattern
+                rule.require_status_checks = require_status_checks
+                rule.required_contexts = required_contexts
+                rule.restrict_push = restrict_push
+                rule.updated_by = request.user
+                rule.save()
+                messages.success(request, f'Branch protection rule for "{rule.branch_pattern}" updated.')
+                return redirect("fossil:branch_protections", slug=slug)
+
+    return render(
+        request,
+        "fossil/branch_protection_form.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "rule": rule,
+            "form_title": f"Edit Rule: {rule.branch_pattern}",
+            "submit_label": "Update Rule",
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def branch_protection_delete(request, slug, pk):
+    """Soft-delete a branch protection rule."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.branch_protection import BranchProtection
+
+    rule = get_object_or_404(BranchProtection, pk=pk, repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        rule.soft_delete(user=request.user)
+        messages.success(request, f'Branch protection rule for "{rule.branch_pattern}" deleted.')
+        return redirect("fossil:branch_protections", slug=slug)
+
+    return redirect("fossil:branch_protections", slug=slug)

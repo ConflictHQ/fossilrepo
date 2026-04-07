@@ -381,6 +381,74 @@ class FossilReader:
             pass
         return notes
 
+    def get_technote_detail(self, technote_uuid: str) -> dict | None:
+        """Get a single technote by UUID, including its body content."""
+        try:
+            row = self.conn.execute(
+                """
+                SELECT blob.rid, blob.uuid, event.mtime, event.user, event.comment
+                FROM event
+                JOIN blob ON event.objid = blob.rid
+                WHERE event.type = 'e' AND blob.uuid LIKE ? || '%'
+                ORDER BY event.mtime DESC
+                LIMIT 1
+                """,
+                (technote_uuid,),
+            ).fetchone()
+            if not row:
+                return None
+
+            # Read the technote body from the blob
+            blob_row = self.conn.execute("SELECT content FROM blob WHERE rid=?", (row["rid"],)).fetchone()
+            body = ""
+            if blob_row and blob_row[0]:
+                raw = _decompress_blob(blob_row[0])
+                text = raw.decode("utf-8", errors="replace")
+                body = _extract_wiki_content(text)
+
+            return {
+                "uuid": row["uuid"],
+                "timestamp": _julian_to_datetime(row["mtime"]),
+                "user": row["user"] or "",
+                "comment": row["comment"] or "",
+                "body": body,
+            }
+        except sqlite3.OperationalError:
+            return None
+
+    def get_unversioned_files(self) -> list[dict]:
+        """List unversioned files. Returns [{name, size, mtime, hash}].
+
+        The unversioned table is created on demand by Fossil when the first
+        unversioned file is added, so it may not exist in every repo.
+        """
+        files = []
+        try:
+            rows = self.conn.execute(
+                """
+                SELECT name, sz, mtime, hash
+                FROM unversioned
+                WHERE hash IS NOT NULL AND hash != ''
+                ORDER BY name
+                """
+            ).fetchall()
+            for r in rows:
+                mtime_val = r["mtime"]
+                # mtime in the unversioned table is a Unix timestamp (integer seconds)
+                ts = datetime.fromtimestamp(int(mtime_val), tz=UTC) if mtime_val else None
+                files.append(
+                    {
+                        "name": r["name"],
+                        "size": r["sz"] or 0,
+                        "mtime": ts,
+                        "hash": r["hash"] or "",
+                    }
+                )
+        except sqlite3.OperationalError:
+            # Table doesn't exist yet -- no unversioned files added
+            pass
+        return files
+
     def get_commit_activity(self, weeks: int = 52) -> list[dict]:
         """Get weekly commit counts for the last N weeks. Returns [{week, count}]."""
         activity = []

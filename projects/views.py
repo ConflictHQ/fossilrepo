@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -8,7 +9,7 @@ from organization.models import Team
 from organization.views import get_org
 
 from .forms import ProjectForm, ProjectGroupForm, ProjectTeamAddForm, ProjectTeamEditForm
-from .models import Project, ProjectGroup, ProjectTeam
+from .models import Project, ProjectGroup, ProjectStar, ProjectTeam
 
 
 @login_required
@@ -122,10 +123,12 @@ def project_detail(request, slug):
 
     # Check if user is watching this project
     is_watching = False
+    is_starred = False
     if request.user.is_authenticated:
         from fossil.notifications import ProjectWatch
 
         is_watching = ProjectWatch.objects.filter(user=request.user, project=project, deleted_at__isnull=True).exists()
+        is_starred = ProjectStar.objects.filter(user=request.user, project=project).exists()
 
     return render(
         request,
@@ -138,6 +141,7 @@ def project_detail(request, slug):
             "commit_activity_json": json.dumps([c["count"] for c in commit_activity]),
             "top_contributors": top_contributors,
             "is_watching": is_watching,
+            "is_starred": is_starred,
         },
     )
 
@@ -317,3 +321,67 @@ def group_delete(request, slug):
         return redirect("projects:group_list")
 
     return render(request, "projects/group_confirm_delete.html", {"group": group})
+
+
+# --- Project Starring ---
+
+
+@login_required
+def toggle_star(request, slug):
+    """Toggle star on/off for a project. POST only."""
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+    star, created = ProjectStar.objects.get_or_create(user=request.user, project=project)
+    if not created:
+        star.delete()
+    is_starred = created
+
+    if request.headers.get("HX-Request"):
+        return render(request, "projects/partials/star_button.html", {"project": project, "is_starred": is_starred})
+
+    return redirect("projects:detail", slug=slug)
+
+
+# --- Explore / Discover ---
+
+
+def explore(request):
+    """Public project discovery page. Works for anonymous users (public only) and authenticated users (public + internal)."""
+    if request.user.is_authenticated:
+        allowed_visibility = [Project.Visibility.PUBLIC, Project.Visibility.INTERNAL]
+    else:
+        allowed_visibility = [Project.Visibility.PUBLIC]
+
+    projects = (
+        Project.objects.filter(deleted_at__isnull=True, visibility__in=allowed_visibility)
+        .annotate(star_count_annotated=Count("stars"))
+        .select_related("organization")
+    )
+
+    sort = request.GET.get("sort", "stars")
+    if sort == "recent":
+        projects = projects.order_by("-created_at")
+    elif sort == "name":
+        projects = projects.order_by("name")
+    else:
+        sort = "stars"
+        projects = projects.order_by("-star_count_annotated", "-created_at")
+
+    search = request.GET.get("search", "").strip()
+    if search:
+        projects = projects.filter(name__icontains=search)
+
+    # Check which projects the current user has starred
+    starred_ids = set()
+    if request.user.is_authenticated:
+        starred_ids = set(ProjectStar.objects.filter(user=request.user).values_list("project_id", flat=True))
+
+    return render(
+        request,
+        "projects/explore.html",
+        {
+            "projects": projects,
+            "sort": sort,
+            "search": search,
+            "starred_ids": starred_ids,
+        },
+    )

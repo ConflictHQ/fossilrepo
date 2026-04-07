@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from core.admin import BaseCoreAdmin
 
-from .models import Project, ProjectGroup, ProjectTeam
+from .models import Project, ProjectGroup, ProjectStar, ProjectTeam
 
 
 @admin.register(ProjectGroup)
@@ -31,3 +31,11 @@ class ProjectTeamAdmin(BaseCoreAdmin):
     list_filter = ("role", "team")
     search_fields = ("project__name", "team__name")
     raw_id_fields = ("project", "team")
+
+
+@admin.register(ProjectStar)
+class ProjectStarAdmin(admin.ModelAdmin):
+    list_display = ("user", "project", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("user__username", "project__name")
+    raw_id_fields = ("user", "project")
