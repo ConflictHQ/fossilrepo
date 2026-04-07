@@ -25,7 +25,7 @@ from django.views.decorators.http import require_GET
 from fossil.api_auth import authenticate_request
 from fossil.models import FossilRepository
 from fossil.reader import FossilReader
-from projects.access import can_read_project, can_write_project
+from projects.access import can_admin_project, can_read_project, can_write_project
 from projects.models import Project
 
 logger = logging.getLogger(__name__)
@@ -868,7 +868,6 @@ def api_workspace_create(request, slug):
             "status": workspace.status,
             "agent_id": workspace.agent_id,
             "description": workspace.description,
-            "checkout_path": workspace.checkout_path,
             "created_at": _isoformat(workspace.created_at),
         },
         status=201,
@@ -900,7 +899,6 @@ def api_workspace_detail(request, slug, workspace_name):
             "status": workspace.status,
             "agent_id": workspace.agent_id,
             "description": workspace.description,
-            "checkout_path": workspace.checkout_path,
             "files_changed": workspace.files_changed,
             "commits_made": workspace.commits_made,
             "created_at": _isoformat(workspace.created_at),
@@ -1040,6 +1038,46 @@ def api_workspace_merge(request, slug, workspace_name):
 
     target_branch = (data.get("target_branch") or "trunk").strip()
 
+    # --- Branch protection enforcement ---
+    is_admin = user is not None and can_admin_project(user, project)
+    if not is_admin:
+        from fossil.branch_protection import BranchProtection
+
+        for protection in BranchProtection.objects.filter(repository=repo, deleted_at__isnull=True):
+            if protection.matches_branch(target_branch):
+                if protection.restrict_push:
+                    return JsonResponse(
+                        {"error": f"Branch '{target_branch}' is protected: only admins can merge to it"},
+                        status=403,
+                    )
+                if protection.require_status_checks:
+                    from fossil.ci import StatusCheck
+
+                    for context in protection.get_required_contexts_list():
+                        latest = StatusCheck.objects.filter(repository=repo, context=context).order_by("-created_at").first()
+                        if not latest or latest.state != "success":
+                            return JsonResponse(
+                                {"error": f"Required status check '{context}' has not passed"},
+                                status=403,
+                            )
+
+    # --- Review gate enforcement ---
+    from fossil.code_reviews import CodeReview
+
+    linked_review = CodeReview.objects.filter(repository=repo, workspace=workspace).order_by("-created_at").first()
+    if linked_review is not None:
+        if linked_review.status != "approved":
+            return JsonResponse(
+                {"error": f"Linked code review is '{linked_review.status}', must be approved before merging"},
+                status=403,
+            )
+    elif not is_admin:
+        # No review exists for this workspace — require one for non-admins
+        return JsonResponse(
+            {"error": "No approved code review found for this workspace; submit one before merging"},
+            status=403,
+        )
+
     from fossil.cli import FossilCLI
 
     cli = FossilCLI()
@@ -1094,6 +1132,11 @@ def api_workspace_merge(request, slug, workspace_name):
     workspace.status = "merged"
     workspace.checkout_path = ""
     workspace.save(update_fields=["status", "checkout_path", "updated_at", "version"])
+
+    # Mark the linked review as merged
+    if linked_review is not None and linked_review.status == "approved":
+        linked_review.status = "merged"
+        linked_review.save(update_fields=["status", "updated_at", "version"])
 
     return JsonResponse(
         {
@@ -1271,11 +1314,23 @@ def api_ticket_release(request, slug, ticket_uuid):
     if token is None and (user is None or not can_write_project(user, project)):
         return JsonResponse({"error": "Write access required"}, status=403)
 
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+
+    agent_id = (data.get("agent_id") or "").strip()
+    if not agent_id:
+        return JsonResponse({"error": "agent_id is required"}, status=400)
+
     from fossil.agent_claims import TicketClaim
 
     claim = TicketClaim.objects.filter(repository=repo, ticket_uuid=ticket_uuid).first()
     if claim is None:
         return JsonResponse({"error": "No active claim for this ticket"}, status=404)
+
+    if claim.agent_id != agent_id:
+        return JsonResponse({"error": "Only the claiming agent can release this ticket"}, status=403)
 
     claim.status = "released"
     claim.released_at = timezone.now()
@@ -1324,11 +1379,18 @@ def api_ticket_submit(request, slug, ticket_uuid):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({"error": "Invalid JSON body"}, status=400)
 
+    agent_id = (data.get("agent_id") or "").strip()
+    if not agent_id:
+        return JsonResponse({"error": "agent_id is required"}, status=400)
+
     from fossil.agent_claims import TicketClaim
 
     claim = TicketClaim.objects.filter(repository=repo, ticket_uuid=ticket_uuid).first()
     if claim is None:
         return JsonResponse({"error": "No active claim for this ticket"}, status=404)
+
+    if claim.agent_id != agent_id:
+        return JsonResponse({"error": "Only the claiming agent can submit work for this ticket"}, status=403)
 
     if claim.status != "claimed":
         return JsonResponse({"error": f"Claim is already {claim.status}"}, status=409)
@@ -1602,6 +1664,16 @@ def api_review_create(request, slug):
 
         workspace_obj = AgentWorkspace.objects.filter(repository=repo, name=workspace_name).first()
 
+    # If linking to a ticket, verify the caller owns the claim
+    ticket_uuid = (data.get("ticket_uuid") or "").strip()
+    review_agent_id = (data.get("agent_id") or "").strip()
+    if ticket_uuid:
+        from fossil.agent_claims import TicketClaim
+
+        claim = TicketClaim.objects.filter(repository=repo, ticket_uuid=ticket_uuid).first()
+        if claim is not None and review_agent_id and claim.agent_id != review_agent_id:
+            return JsonResponse({"error": "Cannot create a review for a ticket claimed by another agent"}, status=403)
+
     from fossil.code_reviews import CodeReview
 
     review = CodeReview.objects.create(
@@ -1611,8 +1683,8 @@ def api_review_create(request, slug):
         description=data.get("description", ""),
         diff=diff,
         files_changed=data.get("files_changed", []),
-        agent_id=data.get("agent_id", ""),
-        ticket_uuid=data.get("ticket_uuid", ""),
+        agent_id=review_agent_id,
+        ticket_uuid=ticket_uuid,
         created_by=user,
     )
 
@@ -1825,6 +1897,17 @@ def api_review_approve(request, slug, review_id):
 
     if review.status == "merged":
         return JsonResponse({"error": "Review is already merged"}, status=409)
+
+    # Prevent self-approval: token-based callers (agents) cannot approve their own review.
+    # Session-auth users (human reviewers) are allowed since they represent human oversight.
+    if token is not None and review.agent_id:
+        try:
+            data = json.loads(request.body) if request.body else {}
+        except (json.JSONDecodeError, ValueError):
+            data = {}
+        approver_agent_id = (data.get("agent_id") or "").strip()
+        if approver_agent_id and approver_agent_id == review.agent_id:
+            return JsonResponse({"error": "Cannot approve your own review"}, status=403)
 
     review.status = "approved"
     review.save(update_fields=["status", "updated_at", "version"])

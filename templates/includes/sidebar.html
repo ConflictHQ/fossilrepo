@@ -1,4 +1,4 @@
-<aside x-data="{ collapsed: localStorage.getItem('sidebarCollapsed') === 'true', projectsOpen: true, docsOpen: false }"
+<aside aria-label="Sidebar navigation" x-data="{ collapsed: localStorage.getItem('sidebarCollapsed') === 'true', projectsOpen: true, docsOpen: false }"
        :class="collapsed ? 'w-14' : 'w-60'"
        class="hidden lg:flex lg:flex-col flex-shrink-0 bg-gray-900 border-r border-gray-700 overflow-y-auto overflow-x-hidden transition-all duration-200">
 

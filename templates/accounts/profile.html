@@ -3,22 +3,24 @@
 
 {% block content %}
 <!-- Profile Header -->
-<div class="flex items-center gap-5 mb-8">
-  <div class="flex-shrink-0 h-16 w-16 rounded-full bg-brand flex items-center justify-center text-white text-2xl font-bold">
-    {{ user.username|make_list|first|upper }}
-  </div>
-  <div class="flex-1 min-w-0">
-    <h1 class="text-2xl font-bold text-gray-100 truncate">
-      {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
-    </h1>
-    <div class="flex items-center gap-3 mt-1 text-sm text-gray-400">
-      {% if user_profile.handle %}
-      <span>@{{ user_profile.handle }}</span>
-      {% endif %}
-      <span>{{ user.email }}</span>
+<div class="sm:flex sm:items-center gap-5 mb-8">
+  <div class="flex items-center gap-4 sm:gap-5 flex-1 min-w-0">
+    <div class="flex-shrink-0 h-16 w-16 rounded-full bg-brand flex items-center justify-center text-white text-2xl font-bold">
+      {{ user.username|make_list|first|upper }}
+    </div>
+    <div class="min-w-0">
+      <h1 class="text-2xl font-bold text-gray-100 truncate">
+        {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+      </h1>
+      <div class="flex items-center gap-3 mt-1 text-sm text-gray-400">
+        {% if user_profile.handle %}
+        <span>@{{ user_profile.handle }}</span>
+        {% endif %}
+        <span>{{ user.email }}</span>
+      </div>
     </div>
   </div>
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-2 mt-4 sm:mt-0">
     <a href="{% url 'accounts:profile_edit' %}"
        class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-600">
       Edit Profile

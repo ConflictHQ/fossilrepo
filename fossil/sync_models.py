@@ -94,3 +94,35 @@ class SyncLog(models.Model):
 
     def __str__(self):
         return f"{self.mirror} @ {self.started_at:%Y-%m-%d %H:%M}"
+
+
+class TicketSyncMapping(models.Model):
+    """Maps a Fossil ticket UUID to a GitHub issue number for a given mirror."""
+
+    mirror = models.ForeignKey(GitMirror, on_delete=models.CASCADE, related_name="ticket_mappings")
+    fossil_ticket_uuid = models.CharField(max_length=64)
+    github_issue_number = models.PositiveIntegerField()
+    fossil_status = models.CharField(max_length=50, blank=True, default="")
+    last_synced_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("mirror", "fossil_ticket_uuid")]
+
+    def __str__(self):
+        return f"{self.fossil_ticket_uuid[:10]} → #{self.github_issue_number}"
+
+
+class WikiSyncMapping(models.Model):
+    """Maps a Fossil wiki page to its synced state for a given mirror."""
+
+    mirror = models.ForeignKey(GitMirror, on_delete=models.CASCADE, related_name="wiki_mappings")
+    fossil_page_name = models.CharField(max_length=500)
+    content_hash = models.CharField(max_length=64, blank=True, default="")
+    github_path = models.CharField(max_length=500, blank=True, default="")
+    last_synced_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("mirror", "fossil_page_name")]
+
+    def __str__(self):
+        return self.fossil_page_name

@@ -47,6 +47,12 @@
     }
   </style>
   <style>
+    /* Focus visible outlines for keyboard navigation */
+    a:focus-visible, button:focus-visible, [role="button"]:focus-visible {
+      outline: 2px solid #DC394C;
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
     /* HTMX loading indicator: hidden by default, shown when htmx is in flight */
     .htmx-indicator { display: none; }
     .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-flex; }
@@ -167,10 +173,10 @@
           <div id="messages" class="mb-4 space-y-2">
             {% for message in messages %}
             <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
-                 x-transition class="rounded-md p-4 {% if message.tags == 'success' %}bg-green-900/50 text-green-300 border border-green-700{% elif message.tags == 'error' %}bg-red-900/50 text-red-300 border border-red-700{% else %}bg-gray-800 text-gray-300 border border-gray-700{% endif %}">
+                 x-transition role="status" class="rounded-md p-4 {% if message.tags == 'success' %}bg-green-900/50 text-green-300 border border-green-700{% elif message.tags == 'error' %}bg-red-900/50 text-red-300 border border-red-700{% else %}bg-gray-800 text-gray-300 border border-gray-700{% endif %}">
               <div class="flex justify-between">
                 <p class="text-sm font-medium">{{ message }}</p>
-                <button @click="show = false" class="ml-3 text-sm font-medium underline">&times;</button>
+                <button @click="show = false" aria-label="Dismiss" class="ml-3 text-sm font-medium underline">&times;</button>
               </div>
             </div>
             {% endfor %}

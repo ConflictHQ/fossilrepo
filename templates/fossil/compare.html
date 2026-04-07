@@ -41,11 +41,13 @@
     <div class="flex-1">
       <label class="block text-xs text-gray-500 mb-1">From (older)</label>
       <input type="text" name="from" value="{{ from_uuid }}" placeholder="Checkin hash..."
+             aria-label="From checkin hash"
              class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 text-sm px-3 py-2 font-mono focus:border-brand focus:ring-brand">
     </div>
     <div class="flex-1">
       <label class="block text-xs text-gray-500 mb-1">To (newer)</label>
       <input type="text" name="to" value="{{ to_uuid }}" placeholder="Checkin hash..."
+             aria-label="To checkin hash"
              class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 text-sm px-3 py-2 font-mono focus:border-brand focus:ring-brand">
     </div>
     <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">Compare</button>

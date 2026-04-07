@@ -187,6 +187,12 @@ def run_git_sync(mirror_id: int | None = None):
 
             if result["success"]:
                 logger.info("Git sync success for %s → %s", repo.filename, mirror.git_remote_url)
+
+                # Chain ticket and wiki sync if enabled
+                if mirror.sync_tickets:
+                    sync_tickets_to_github.delay(mirror.id)
+                if mirror.sync_wiki:
+                    sync_wiki_to_github.delay(mirror.id)
             else:
                 logger.warning("Git sync failed for %s: %s", repo.filename, result["message"][:200])
 
@@ -373,3 +379,213 @@ def dispatch_notifications():
                     )
         except Exception:
             logger.exception("Notification dispatch error for %s", repo.filename)
+
+
+@shared_task(name="fossil.sync_tickets_to_github")
+def sync_tickets_to_github(mirror_id: int):
+    """Sync Fossil tickets to GitHub Issues for a given mirror.
+
+    Processes up to 20 tickets per run. Resumes from where it left off
+    by checking TicketSyncMapping for already-synced tickets.
+    """
+    from django.utils import timezone
+
+    from fossil.github_api import GitHubClient, content_hash, format_ticket_body, fossil_status_to_github, parse_github_repo
+    from fossil.reader import FossilReader
+    from fossil.sync_models import GitMirror, SyncLog, TicketSyncMapping
+
+    try:
+        mirror = GitMirror.objects.get(pk=mirror_id, deleted_at__isnull=True)
+    except GitMirror.DoesNotExist:
+        return
+
+    repo = mirror.repository
+    if not repo.exists_on_disk:
+        return
+
+    parsed = parse_github_repo(mirror.git_remote_url)
+    if not parsed:
+        logger.warning("Cannot parse GitHub owner/repo from %s", mirror.git_remote_url)
+        return
+
+    owner, repo_name = parsed
+    token = mirror.auth_credential
+    if not token:
+        logger.warning("No auth token for mirror %s, skipping ticket sync", mirror_id)
+        return
+
+    log = SyncLog.objects.create(mirror=mirror, triggered_by="ticket_sync")
+    client = GitHubClient(token)
+    synced_count = 0
+    errors = []
+
+    try:
+        with FossilReader(repo.full_path) as reader:
+            tickets = reader.get_tickets(limit=500)
+
+        # Get existing mappings for this mirror
+        existing = {m.fossil_ticket_uuid: m for m in TicketSyncMapping.objects.filter(mirror=mirror)}
+
+        processed = 0
+        for ticket in tickets:
+            if processed >= 20:
+                break
+
+            mapping = existing.get(ticket.uuid)
+
+            # Skip if already synced and status hasn't changed
+            if mapping and mapping.fossil_status == ticket.status:
+                continue
+
+            processed += 1
+
+            # Get full ticket detail + comments
+            with FossilReader(repo.full_path) as reader:
+                detail = reader.get_ticket_detail(ticket.uuid)
+                comments = reader.get_ticket_comments(ticket.uuid)
+
+            if not detail:
+                continue
+
+            gh_state = fossil_status_to_github(detail.status)
+            body = format_ticket_body(detail, comments)
+
+            if mapping:
+                # Update existing issue
+                result = client.update_issue(owner, repo_name, mapping.github_issue_number, title=detail.title, body=body, state=gh_state)
+                if result["success"]:
+                    mapping.fossil_status = detail.status
+                    mapping.save()
+                    synced_count += 1
+                    logger.info("Updated GitHub issue #%d for ticket %s", mapping.github_issue_number, ticket.uuid[:10])
+                else:
+                    errors.append(f"Update #{mapping.github_issue_number}: {result['error']}")
+            else:
+                # Create new issue
+                result = client.create_issue(owner, repo_name, detail.title, body, state=gh_state)
+                if result["number"]:
+                    TicketSyncMapping.objects.create(
+                        mirror=mirror,
+                        fossil_ticket_uuid=ticket.uuid,
+                        github_issue_number=result["number"],
+                        fossil_status=detail.status,
+                    )
+                    synced_count += 1
+                    logger.info("Created GitHub issue #%d for ticket %s", result["number"], ticket.uuid[:10])
+                else:
+                    errors.append(f"Create '{detail.title[:30]}': {result['error']}")
+
+        log.status = "success" if not errors else "failed"
+        log.artifacts_synced = synced_count
+        log.message = f"Synced {synced_count} tickets." + (f" Errors: {'; '.join(errors[:5])}" if errors else "")
+        log.completed_at = timezone.now()
+        log.save()
+
+    except Exception:
+        logger.exception("Ticket sync error for mirror %s", mirror_id)
+        log.status = "failed"
+        log.message = "Unexpected error during ticket sync"
+        log.completed_at = timezone.now()
+        log.save()
+
+
+@shared_task(name="fossil.sync_wiki_to_github")
+def sync_wiki_to_github(mirror_id: int):
+    """Sync Fossil wiki pages to a wiki/ directory in the GitHub repo.
+
+    Uses the GitHub Contents API to create/update markdown files.
+    Only syncs pages whose content has changed (hash comparison).
+    """
+    from django.utils import timezone
+
+    from fossil.github_api import GitHubClient, content_hash, parse_github_repo
+    from fossil.reader import FossilReader
+    from fossil.sync_models import GitMirror, SyncLog, WikiSyncMapping
+
+    try:
+        mirror = GitMirror.objects.get(pk=mirror_id, deleted_at__isnull=True)
+    except GitMirror.DoesNotExist:
+        return
+
+    repo = mirror.repository
+    if not repo.exists_on_disk:
+        return
+
+    parsed = parse_github_repo(mirror.git_remote_url)
+    if not parsed:
+        logger.warning("Cannot parse GitHub owner/repo from %s", mirror.git_remote_url)
+        return
+
+    owner, repo_name = parsed
+    token = mirror.auth_credential
+    if not token:
+        logger.warning("No auth token for mirror %s, skipping wiki sync", mirror_id)
+        return
+
+    log = SyncLog.objects.create(mirror=mirror, triggered_by="wiki_sync")
+    client = GitHubClient(token)
+    synced_count = 0
+    errors = []
+
+    try:
+        with FossilReader(repo.full_path) as reader:
+            pages = reader.get_wiki_pages()
+
+        existing = {m.fossil_page_name: m for m in WikiSyncMapping.objects.filter(mirror=mirror)}
+
+        for page in pages:
+            # Read full page content
+            with FossilReader(repo.full_path) as reader:
+                full_page = reader.get_wiki_page(page.name)
+
+            if not full_page or not full_page.content.strip():
+                continue
+
+            current_hash = content_hash(full_page.content)
+            mapping = existing.get(page.name)
+
+            # Skip if content hasn't changed
+            if mapping and mapping.content_hash == current_hash:
+                continue
+
+            # Sanitize page name for file path
+            safe_name = page.name.replace(" ", "-").replace("/", "-")
+            file_path = f"wiki/{safe_name}.md"
+
+            result = client.create_or_update_file(
+                owner,
+                repo_name,
+                file_path,
+                full_page.content,
+                f"Sync wiki page: {page.name}",
+            )
+
+            if result["success"]:
+                if mapping:
+                    mapping.content_hash = current_hash
+                    mapping.github_path = file_path
+                    mapping.save()
+                else:
+                    WikiSyncMapping.objects.create(
+                        mirror=mirror,
+                        fossil_page_name=page.name,
+                        content_hash=current_hash,
+                        github_path=file_path,
+                    )
+                synced_count += 1
+                logger.info("Synced wiki page '%s' to %s", page.name, file_path)
+            else:
+                errors.append(f"'{page.name}': {result['error']}")
+
+        log.status = "success" if not errors else "failed"
+        log.artifacts_synced = synced_count
+        log.message = f"Synced {synced_count} wiki pages." + (f" Errors: {'; '.join(errors[:5])}" if errors else "")
+        log.completed_at = timezone.now()
+        log.save()
+
+    except Exception:
+        logger.exception("Wiki sync error for mirror %s", mirror_id)
+        log.status = "failed"
+        log.message = "Unexpected error during wiki sync"
+        log.completed_at = timezone.now()
+        log.save()

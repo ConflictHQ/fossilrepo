@@ -20,7 +20,7 @@
 {% include "fossil/_project_nav.html" %}
 
 <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
-  <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+  <div class="px-4 py-3 border-b border-gray-700 flex flex-wrap items-center justify-between gap-2">
     <div class="flex items-center gap-1 text-sm font-mono">
       <a href="{% url 'fossil:code' slug=project.slug %}" class="text-brand-light hover:text-brand">{{ project.slug }}</a>
       {% for crumb in file_breadcrumbs %}

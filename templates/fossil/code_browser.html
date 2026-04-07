@@ -11,7 +11,7 @@
   <!-- Breadcrumb + commit bar -->
   <div class="px-4 py-3 border-b border-gray-700">
     <!-- Breadcrumbs -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center gap-1 text-sm min-w-0">
         <a href="{% url 'fossil:code' slug=project.slug %}" class="text-brand-light hover:text-brand font-medium">{{ project.name }}</a>
         {% for crumb in breadcrumbs %}

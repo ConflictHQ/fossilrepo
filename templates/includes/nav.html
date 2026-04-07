@@ -1,10 +1,10 @@
 {% load static %}
-<nav class="bg-gray-900 border-b border-gray-700">
+<nav aria-label="Main navigation" class="bg-gray-900 border-b border-gray-700">
   <div class="px-4 sm:px-6 lg:px-8">
     <div class="flex h-14 items-center justify-between">
       <div class="flex items-center gap-3">
         <!-- Mobile sidebar toggle -->
-        <button @click="mobileSidebar = !mobileSidebar" class="lg:hidden rounded-md p-2 text-gray-400 hover:text-white hover:bg-gray-800">
+        <button @click="mobileSidebar = !mobileSidebar" aria-label="Toggle sidebar" class="lg:hidden rounded-md p-2 text-gray-400 hover:text-white hover:bg-gray-800">
           <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
@@ -25,6 +25,7 @@
                class="absolute right-0 z-20 mt-2 w-80 rounded-lg bg-gray-800 shadow-lg ring-1 ring-gray-700 p-3">
             <form method="get" action="{% if request.resolver_match.kwargs.slug %}/projects/{{ request.resolver_match.kwargs.slug }}/fossil/search/{% else %}/projects/fossil-scm/fossil/search/{% endif %}">
               <input type="text" name="q" x-ref="searchInput" placeholder="Search checkins, tickets, wiki..."
+                     aria-label="Search checkins, tickets, wiki"
                      class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
             </form>
           </div>
@@ -43,7 +44,7 @@
         </button>
         <!-- User menu -->
         <div class="relative" x-data="{ open: false }">
-          <button @click="open = !open" class="flex items-center text-sm text-gray-400 hover:text-white">
+          <button @click="open = !open" aria-label="User menu" class="flex items-center text-sm text-gray-400 hover:text-white">
             {{ user.get_full_name|default:user.username }}
             <svg class="ml-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
           </button>

@@ -267,6 +267,7 @@ class TestTicketRelease:
 
         response = admin_client.post(
             _api_url(sample_project.slug, "api/tickets/abc123def456/release"),
+            data=json.dumps({"agent_id": "claude-abc"}),
             content_type="application/json",
         )
 
@@ -280,6 +281,38 @@ class TestTicketRelease:
         # But still in all_objects
         assert TicketClaim.all_objects.filter(repository=fossil_repo_obj, ticket_uuid="abc123def456").count() == 1
 
+    def test_release_wrong_agent_denied(self, admin_client, sample_project, fossil_repo_obj, admin_user):
+        """Only the claiming agent can release the claim."""
+        TicketClaim.objects.create(
+            repository=fossil_repo_obj,
+            ticket_uuid="abc123def456",
+            agent_id="claude-abc",
+            created_by=admin_user,
+        )
+
+        response = admin_client.post(
+            _api_url(sample_project.slug, "api/tickets/abc123def456/release"),
+            data=json.dumps({"agent_id": "different-agent"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 403
+        assert "claiming agent" in response.json()["error"].lower()
+
+    def test_release_requires_agent_id(self, admin_client, sample_project, fossil_repo_obj, admin_user):
+        """Release without agent_id returns 400."""
+        TicketClaim.objects.create(
+            repository=fossil_repo_obj,
+            ticket_uuid="abc123def456",
+            agent_id="claude-abc",
+            created_by=admin_user,
+        )
+
+        response = admin_client.post(
+            _api_url(sample_project.slug, "api/tickets/abc123def456/release"),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
     def test_release_allows_reclaim(self, admin_client, sample_project, fossil_repo_obj, admin_user):
         """After releasing, another agent can claim the ticket."""
         TicketClaim.objects.create(
@@ -292,6 +325,7 @@ class TestTicketRelease:
         # Release the claim
         admin_client.post(
             _api_url(sample_project.slug, "api/tickets/abc123def456/release"),
+            data=json.dumps({"agent_id": "claude-abc"}),
             content_type="application/json",
         )
 
@@ -313,6 +347,7 @@ class TestTicketRelease:
         """Releasing when no claim exists returns 404."""
         response = admin_client.post(
             _api_url(sample_project.slug, "api/tickets/nonexistent/release"),
+            data=json.dumps({"agent_id": "claude-abc"}),
             content_type="application/json",
         )
         assert response.status_code == 404
@@ -321,6 +356,7 @@ class TestTicketRelease:
         """Read-only users cannot release claims."""
         response = reader_client.post(
             _api_url(sample_project.slug, "api/tickets/abc123def456/release"),
+            data=json.dumps({"agent_id": "claude-abc"}),
             content_type="application/json",
         )
         assert response.status_code == 403
@@ -344,6 +380,7 @@ class TestTicketSubmit:
                 _api_url(sample_project.slug, "api/tickets/abc123def456/submit"),
                 data=json.dumps(
                     {
+                        "agent_id": "claude-abc",
                         "summary": "Fixed the null pointer bug",
                         "files_changed": ["src/auth.py", "tests/test_auth.py"],
                     }
@@ -373,16 +410,49 @@ class TestTicketSubmit:
 
         response = admin_client.post(
             _api_url(sample_project.slug, "api/tickets/abc123def456/submit"),
-            data=json.dumps({"summary": "more work"}),
+            data=json.dumps({"agent_id": "claude-abc", "summary": "more work"}),
             content_type="application/json",
         )
         assert response.status_code == 409
+
+    def test_submit_wrong_agent_denied(self, admin_client, sample_project, fossil_repo_obj, admin_user):
+        """Only the claiming agent can submit work."""
+        TicketClaim.objects.create(
+            repository=fossil_repo_obj,
+            ticket_uuid="abc123def456",
+            agent_id="claude-abc",
+            created_by=admin_user,
+        )
+
+        response = admin_client.post(
+            _api_url(sample_project.slug, "api/tickets/abc123def456/submit"),
+            data=json.dumps({"agent_id": "different-agent", "summary": "hijack"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 403
+        assert "claiming agent" in response.json()["error"].lower()
+
+    def test_submit_requires_agent_id(self, admin_client, sample_project, fossil_repo_obj, admin_user):
+        """Submit without agent_id returns 400."""
+        TicketClaim.objects.create(
+            repository=fossil_repo_obj,
+            ticket_uuid="abc123def456",
+            agent_id="claude-abc",
+            created_by=admin_user,
+        )
+
+        response = admin_client.post(
+            _api_url(sample_project.slug, "api/tickets/abc123def456/submit"),
+            data=json.dumps({"summary": "some work"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
 
     def test_submit_no_claim(self, admin_client, sample_project, fossil_repo_obj):
         """Submitting without an active claim returns 404."""
         response = admin_client.post(
             _api_url(sample_project.slug, "api/tickets/nonexistent/submit"),
-            data=json.dumps({"summary": "some work"}),
+            data=json.dumps({"agent_id": "claude-abc", "summary": "some work"}),
             content_type="application/json",
         )
         assert response.status_code == 404
@@ -391,7 +461,7 @@ class TestTicketSubmit:
         """Read-only users cannot submit work."""
         response = reader_client.post(
             _api_url(sample_project.slug, "api/tickets/abc123def456/submit"),
-            data=json.dumps({"summary": "some work"}),
+            data=json.dumps({"agent_id": "claude-abc", "summary": "some work"}),
             content_type="application/json",
         )
         assert response.status_code == 403

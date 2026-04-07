@@ -80,9 +80,9 @@ def _token_has_scope(token_scopes: str, required: str) -> bool:
     if "*" in scopes or "admin" in scopes:
         return True
     if required == "read":
-        return bool(scopes & {"read", "write", "admin", "status:write"})
+        return bool(scopes & {"read", "write", "admin"})
     if required == "write":
         return "write" in scopes
     if required == "status:write":
-        return bool(scopes & {"status:write", "write", "admin", "*"})
+        return bool(scopes & {"status:write", "write"})
     return False

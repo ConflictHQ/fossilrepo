@@ -88,6 +88,15 @@
         {% endfor %}
       </div>
     </div>
+    {% elif not system_activity_json or system_activity_json == "[]" %}
+    <!-- Empty state when no activity exists -->
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-8 text-center">
+      <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <h3 class="mt-2 text-sm font-semibold text-gray-300">No recent activity</h3>
+      <p class="mt-1 text-sm text-gray-500">Activity from your projects will appear here once repositories have checkins.</p>
+    </div>
     {% endif %}
   </div>
 
