@@ -59,27 +59,45 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
 
     # Match [path | text] with flexible whitespace around the pipe
     content = re.sub(r"\[([^\]\|]+?)\s*\|\s*([^\]]+?)\]", _fossil_link_replace, content)
+    # Interwiki links: [wikipedia:Article] -> external link
+    content = re.sub(r"\[wikipedia:([^\]]+)\]", r'<a href="https://en.wikipedia.org/wiki/\1">\1</a>', content)
+    # Anchor links: [#anchor-name] -> local anchor
+    content = re.sub(r"\[#([^\]]+)\]", r'<a href="#\1">\1</a>', content)
+    # Bare wiki links: [PageName] (no pipe, not a URL)
+    content = re.sub(r"\[([A-Z][a-zA-Z0-9_]+)\]", r'<a href="\1">\1</a>', content)
+    # Verbatim blocks
     content = re.sub(r"<verbatim>(.*?)</verbatim>", r"<pre><code>\1</code></pre>", content, flags=re.DOTALL)
+    # <nowiki> blocks — strip the tags, content passes through as-is
+    content = re.sub(r"<nowiki>(.*?)</nowiki>", r"\1", content, flags=re.DOTALL)
 
-    # Convert Fossil wiki list syntax: lines starting with "  *  " to <ul><li>
+    # Convert Fossil wiki list syntax: * bullets and # enumeration
     lines = content.split("\n")
     result = []
     in_list = False
+    list_type = "ul"
     for line in lines:
         stripped_line = line.strip()
-        if re.match(r"^\*\s", stripped_line) or re.match(r"^\d+\.\s", stripped_line):
+        is_bullet = re.match(r"^\*\s", stripped_line)
+        is_enum = re.match(r"^#\s", stripped_line) or re.match(r"^\d+[\.\)]\s", stripped_line)
+        if is_bullet or is_enum:
+            new_type = "ol" if is_enum else "ul"
             if not in_list:
-                result.append("<ul>")
+                list_type = new_type
+                result.append(f"<{list_type}>")
                 in_list = True
-            item_text = re.sub(r"^[\*\d+\.]\s*", "", stripped_line)
+            elif new_type != list_type:
+                result.append(f"</{list_type}>")
+                list_type = new_type
+                result.append(f"<{list_type}>")
+            item_text = re.sub(r"^[\*#\d+\.\)]\s*", "", stripped_line)
             result.append(f"<li>{item_text}</li>")
         else:
             if in_list:
-                result.append("</ul>")
+                result.append(f"</{list_type}>")
                 in_list = False
             result.append(line)
     if in_list:
-        result.append("</ul>")
+        result.append(f"</{list_type}>")
 
     content = "\n".join(result)
 
