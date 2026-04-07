@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'accounts:profile' %}" class="text-gray-400 hover:text-white">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+      </svg>
+    </a>
+    <h1 class="text-2xl font-bold text-gray-100">Edit Profile</h1>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-6 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="first_name" class="block text-sm font-medium text-gray-300 mb-1">First Name</label>
+          <input type="text" name="first_name" id="first_name" value="{{ user.first_name }}" maxlength="30"
+                 class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+        </div>
+        <div>
+          <label for="last_name" class="block text-sm font-medium text-gray-300 mb-1">Last Name</label>
+          <input type="text" name="last_name" id="last_name" value="{{ user.last_name }}" maxlength="150"
+                 class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+        </div>
+      </div>
+
+      <div>
+        <label for="email" class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+        <input type="email" name="email" id="email" value="{{ user.email }}" maxlength="254"
+               class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+      </div>
+
+      <div>
+        <label for="handle" class="block text-sm font-medium text-gray-300 mb-1">Handle</label>
+        <div class="flex items-center">
+          <span class="text-gray-500 text-sm mr-1">@</span>
+          <input type="text" name="handle" id="handle" value="{{ user_profile.handle }}" maxlength="50"
+                 pattern="[a-z0-9\-]+" title="Lowercase letters, numbers, and hyphens only"
+                 placeholder="your-handle"
+                 class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+        </div>
+        <p class="mt-1 text-xs text-gray-500">Alphanumeric and hyphens only. Used for @mentions.</p>
+      </div>
+
+      <div>
+        <label for="bio" class="block text-sm font-medium text-gray-300 mb-1">Bio</label>
+        <textarea name="bio" id="bio" rows="3" maxlength="500"
+                  class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">{{ user_profile.bio }}</textarea>
+        <p class="mt-1 text-xs text-gray-500">Max 500 characters.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="location" class="block text-sm font-medium text-gray-300 mb-1">Location</label>
+          <input type="text" name="location" id="location" value="{{ user_profile.location }}" maxlength="100"
+                 class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+        </div>
+        <div>
+          <label for="website" class="block text-sm font-medium text-gray-300 mb-1">Website</label>
+          <input type="url" name="website" id="website" value="{{ user_profile.website }}" maxlength="200"
+                 placeholder="https://"
+                 class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">
+        Save Changes
+      </button>
+      <a href="{% url 'accounts:profile' %}" class="text-sm text-gray-400 hover:text-white">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

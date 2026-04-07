@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from .forms import LoginForm
+from .models import PersonalAccessToken, UserProfile
 
 # Allowed SSH key type prefixes
 _SSH_KEY_PREFIXES = ("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-", "ssh-dss")
@@ -221,3 +222,118 @@ def notification_preferences(request):
         return redirect("accounts:notification_prefs")
 
     return render(request, "accounts/notification_prefs.html", {"prefs": prefs})
+
+
+# ---------------------------------------------------------------------------
+# Unified profile
+# ---------------------------------------------------------------------------
+
+VALID_SCOPES = {"read", "write", "admin"}
+
+
+@login_required
+def profile(request):
+    """Unified user profile page consolidating all personal settings."""
+    from fossil.notifications import NotificationPreference
+    from fossil.user_keys import UserSSHKey
+
+    user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    notif_prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
+    ssh_keys = UserSSHKey.objects.filter(user=request.user)
+    tokens = PersonalAccessToken.objects.filter(user=request.user, revoked_at__isnull=True)
+
+    return render(
+        request,
+        "accounts/profile.html",
+        {
+            "user_profile": user_profile,
+            "notif_prefs": notif_prefs,
+            "ssh_keys": ssh_keys,
+            "tokens": tokens,
+        },
+    )
+
+
+@login_required
+def profile_edit(request):
+    """Edit profile info: name, email, handle, bio, location, website."""
+    user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+
+    if request.method == "POST":
+        user = request.user
+        user.first_name = request.POST.get("first_name", "").strip()[:30]
+        user.last_name = request.POST.get("last_name", "").strip()[:150]
+        user.email = request.POST.get("email", "").strip()[:254]
+        user.save(update_fields=["first_name", "last_name", "email"])
+
+        raw_handle = request.POST.get("handle", "").strip()
+        handle = UserProfile.sanitize_handle(raw_handle)
+        if handle:
+            # Check uniqueness (excluding self)
+            conflict = UserProfile.objects.filter(handle=handle).exclude(pk=user_profile.pk).exists()
+            if conflict:
+                messages.error(request, f"Handle @{handle} is already taken.")
+                return render(request, "accounts/profile_edit.html", {"user_profile": user_profile})
+            user_profile.handle = handle
+        else:
+            user_profile.handle = None
+
+        user_profile.bio = request.POST.get("bio", "").strip()[:500]
+        user_profile.location = request.POST.get("location", "").strip()[:100]
+        user_profile.website = request.POST.get("website", "").strip()[:200]
+        user_profile.save()
+
+        messages.success(request, "Profile updated.")
+        return redirect("accounts:profile")
+
+    return render(request, "accounts/profile_edit.html", {"user_profile": user_profile})
+
+
+@login_required
+def profile_token_create(request):
+    """Generate a personal access token. Shows the raw token once."""
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        if not name:
+            messages.error(request, "Token name is required.")
+            return render(request, "accounts/profile_token_create.html", {})
+
+        raw_scopes = request.POST.get("scopes", "read").strip()
+        scopes = ",".join(s.strip() for s in raw_scopes.split(",") if s.strip() in VALID_SCOPES)
+        if not scopes:
+            scopes = "read"
+
+        raw_token, token_hash, prefix = PersonalAccessToken.generate()
+        PersonalAccessToken.objects.create(
+            user=request.user,
+            name=name,
+            token_hash=token_hash,
+            token_prefix=prefix,
+            scopes=scopes,
+        )
+
+        return render(
+            request,
+            "accounts/profile_token_created.html",
+            {"raw_token": raw_token, "token_name": name},
+        )
+
+    return render(request, "accounts/profile_token_create.html", {})
+
+
+@login_required
+@require_POST
+def profile_token_revoke(request, guid):
+    """Revoke a personal access token by GUID (token_prefix used as public id)."""
+    from django.utils import timezone
+
+    token = get_object_or_404(PersonalAccessToken, token_prefix=guid, user=request.user, revoked_at__isnull=True)
+    token.revoked_at = timezone.now()
+    token.save(update_fields=["revoked_at"])
+
+    messages.success(request, f'Token "{token.name}" revoked.')
+
+    if request.headers.get("HX-Request"):
+        return HttpResponse(status=200, headers={"HX-Redirect": "/auth/profile/"})
+
+    return redirect("accounts:profile")

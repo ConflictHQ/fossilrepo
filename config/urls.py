@@ -246,6 +246,7 @@ def _explore_view(request):
 
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
+    path("profile/", RedirectView.as_view(pattern_name="accounts:profile", permanent=False)),
     path("status/", status_page, name="status"),
     path("explore/", _explore_view, name="explore"),
     path("dashboard/", include("core.urls")),

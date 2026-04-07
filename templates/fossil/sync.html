@@ -5,9 +5,10 @@
 <h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
 {% include "fossil/_project_nav.html" %}
 
-<div class="max-w-2xl">
+<div class="max-w-3xl">
+
+  {# ── Upstream Fossil Sync ────────────────────────────────────────── #}
   {% if sync_configured %}
-  <!-- Sync is configured — show status and pull button -->
   <div class="rounded-lg bg-gray-800 border border-gray-700 p-5 mb-6">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold text-gray-200">Upstream Sync</h2>
@@ -50,14 +51,11 @@
           Disable Sync
         </button>
       </form>
-      <a href="{% url 'fossil:git_mirror' slug=project.slug %}" class="rounded-md bg-gray-700 px-3 py-2 text-sm text-gray-400 hover:text-white ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
-        Git Mirrors
-      </a>
     </div>
   </div>
 
   {% if result %}
-  <div class="rounded-lg {% if result.success %}bg-green-900/20 border border-green-800{% else %}bg-red-900/20 border border-red-800{% endif %} p-4">
+  <div class="rounded-lg {% if result.success %}bg-green-900/20 border border-green-800{% else %}bg-red-900/20 border border-red-800{% endif %} p-4 mb-6">
     <div class="text-sm {% if result.success %}text-green-300{% else %}text-red-300{% endif %}">
       {% if result.success %}
         {% if result.artifacts_received > 0 %}Pulled {{ result.artifacts_received }} new artifacts.{% else %}Already up to date.{% endif %}
@@ -70,8 +68,8 @@
   {% endif %}
 
   {% else %}
-  <!-- Sync not configured — show setup wizard -->
-  <div class="rounded-lg bg-gray-800 border border-gray-700 p-6">
+  {# ── Upstream not configured ─────────────────────────────────────── #}
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-6 mb-6">
     <div class="text-center mb-6">
       <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
@@ -107,13 +105,105 @@
         </ul>
       </div>
 
-      <div class="flex items-center justify-between">
-        <a href="{% url 'fossil:git_mirror' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">Or configure Git Mirror (GitHub/GitLab) &rarr;</a>
+      <div class="flex items-center justify-end">
         <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
           Enable Sync
         </button>
       </div>
     </form>
+  </div>
+  {% endif %}
+
+  {# ── Git Mirrors ─────────────────────────────────────────────────── #}
+  <div class="mb-4 flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-gray-200">Git Mirrors</h2>
+    <a href="{% url 'fossil:git_mirror' slug=project.slug %}"
+       class="inline-flex items-center gap-1 rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      Add Mirror
+    </a>
+  </div>
+
+  {% if mirrors %}
+  <div class="space-y-4">
+    {% for mirror in mirrors %}
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          {# URL and direction badge #}
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-mono text-sm text-gray-200 truncate">{{ mirror.git_remote_url }}</span>
+            <span class="inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium
+              {% if mirror.sync_direction == 'push' %}bg-blue-900/50 text-blue-300
+              {% elif mirror.sync_direction == 'pull' %}bg-purple-900/50 text-purple-300
+              {% else %}bg-teal-900/50 text-teal-300{% endif %}">
+              {{ mirror.get_sync_direction_display }}
+            </span>
+          </div>
+
+          {# Detail line #}
+          <div class="mt-2 flex items-center gap-3 flex-wrap text-xs text-gray-500">
+            <span class="inline-flex items-center gap-1">
+              <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {% if mirror.sync_mode == 'disabled' %}Disabled{% else %}{{ mirror.get_sync_mode_display }}{% endif %}
+            </span>
+            {% if mirror.sync_mode != 'disabled' and mirror.sync_mode != 'on_change' %}
+            <span class="font-mono">{{ mirror.sync_schedule }}</span>
+            {% endif %}
+            <span class="inline-flex rounded-full bg-gray-700 px-2 py-0.5">{{ mirror.get_auth_method_display }}</span>
+            <span>{{ mirror.fossil_branch }} &rarr; {{ mirror.git_branch }}</span>
+          </div>
+
+          {# Sync status #}
+          <div class="mt-2 text-xs text-gray-500">
+            {% if mirror.last_sync_at %}
+            Last sync: {{ mirror.last_sync_at|timesince }} ago
+            {% if mirror.last_sync_status == 'success' %}
+              <span class="text-green-400">&#10003;</span>
+            {% elif mirror.last_sync_status == 'failed' %}
+              <span class="text-red-400">&#10007;</span>
+            {% elif mirror.last_sync_status %}
+              <span class="text-yellow-400">({{ mirror.last_sync_status }})</span>
+            {% endif %}
+            &mdash; {{ mirror.total_syncs }} total sync{{ mirror.total_syncs|pluralize:"es" }}
+            {% else %}
+            Never synced
+            {% endif %}
+          </div>
+          {% if mirror.last_sync_message and mirror.last_sync_status == 'failed' %}
+          <pre class="mt-1 text-xs text-red-400/70 max-h-16 overflow-hidden">{{ mirror.last_sync_message|truncatechars:200 }}</pre>
+          {% endif %}
+        </div>
+
+        {# Action buttons #}
+        <div class="flex items-center gap-2 shrink-0">
+          <form method="post" action="{% url 'fossil:git_mirror_run' slug=project.slug mirror_id=mirror.id %}">
+            {% csrf_token %}
+            <button type="submit" class="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover"
+                    title="Run sync now">Run Now</button>
+          </form>
+          <a href="{% url 'fossil:git_mirror_edit' slug=project.slug mirror_id=mirror.id %}"
+             class="rounded-md bg-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:text-white ring-1 ring-inset ring-gray-600 hover:bg-gray-600"
+             title="Edit mirror">Edit</a>
+          <a href="{% url 'fossil:git_mirror_delete' slug=project.slug mirror_id=mirror.id %}"
+             class="rounded-md bg-gray-700 px-3 py-1.5 text-xs text-gray-400 hover:text-red-400 ring-1 ring-inset ring-gray-600 hover:bg-gray-600"
+             title="Delete mirror">Delete</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-lg bg-gray-800 border border-gray-700 border-dashed p-8 text-center">
+    <svg class="mx-auto h-10 w-10 text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+    </svg>
+    <p class="mt-3 text-sm text-gray-400">No Git mirrors configured.</p>
+    <p class="mt-1 text-xs text-gray-500">Mirror this Fossil repository to GitHub, GitLab, or any Git remote.</p>
   </div>
   {% endif %}
 </div>

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Profile — Fossilrepo{% endblock %}
+
+{% block content %}
+<!-- Profile Header -->
+<div class="flex items-center gap-5 mb-8">
+  <div class="flex-shrink-0 h-16 w-16 rounded-full bg-brand flex items-center justify-center text-white text-2xl font-bold">
+    {{ user.username|make_list|first|upper }}
+  </div>
+  <div class="flex-1 min-w-0">
+    <h1 class="text-2xl font-bold text-gray-100 truncate">
+      {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+    </h1>
+    <div class="flex items-center gap-3 mt-1 text-sm text-gray-400">
+      {% if user_profile.handle %}
+      <span>@{{ user_profile.handle }}</span>
+      {% endif %}
+      <span>{{ user.email }}</span>
+    </div>
+  </div>
+  <a href="{% url 'accounts:profile_edit' %}"
+     class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-600">
+    Edit Profile
+  </a>
+</div>
+
+<!-- Profile Info Card -->
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-6 mb-6">
+  <h2 class="text-lg font-semibold text-gray-200 mb-4">Profile Info</h2>
+  <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+    <div>
+      <dt class="text-gray-500">Full Name</dt>
+      <dd class="text-gray-200 mt-0.5">{{ user.get_full_name|default:"Not set" }}</dd>
+    </div>
+    <div>
+      <dt class="text-gray-500">Handle</dt>
+      <dd class="text-gray-200 mt-0.5">{% if user_profile.handle %}@{{ user_profile.handle }}{% else %}Not set{% endif %}</dd>
+    </div>
+    <div>
+      <dt class="text-gray-500">Email</dt>
+      <dd class="text-gray-200 mt-0.5">{{ user.email|default:"Not set" }}</dd>
+    </div>
+    <div>
+      <dt class="text-gray-500">Location</dt>
+      <dd class="text-gray-200 mt-0.5">{{ user_profile.location|default:"Not set" }}</dd>
+    </div>
+    <div>
+      <dt class="text-gray-500">Website</dt>
+      <dd class="text-gray-200 mt-0.5">
+        {% if user_profile.website %}
+        <a href="{{ user_profile.website }}" class="text-brand-light hover:text-brand" target="_blank" rel="noopener">{{ user_profile.website }}</a>
+        {% else %}Not set{% endif %}
+      </dd>
+    </div>
+    <div class="sm:col-span-2">
+      <dt class="text-gray-500">Bio</dt>
+      <dd class="text-gray-200 mt-0.5">{{ user_profile.bio|default:"Not set"|linebreaksbr }}</dd>
+    </div>
+  </dl>
+</div>
+
+<!-- SSH Keys Card -->
+<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6">
+  <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-gray-200">SSH Keys</h2>
+    <a href="{% url 'accounts:ssh_keys' %}" class="text-sm text-brand-light hover:text-brand">Manage Keys</a>
+  </div>
+  {% if ssh_keys %}
+  <div class="divide-y divide-gray-700">
+    {% for key in ssh_keys %}
+    <div class="p-4 flex items-center justify-between">
+      <div>
+        <div class="text-sm font-medium text-gray-200">{{ key.title }}</div>
+        <div class="text-xs text-gray-500 font-mono mt-1">{{ key.fingerprint }}</div>
+        <div class="text-xs text-gray-500 mt-1">
+          {{ key.key_type|upper }} &middot; Added {{ key.created_at|timesince }} ago
+          {% if key.last_used_at %}&middot; Last used {{ key.last_used_at|timesince }} ago{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="p-6 text-center text-sm text-gray-500">
+    No SSH keys added yet. <a href="{% url 'accounts:ssh_keys' %}" class="text-brand-light hover:text-brand">Add one</a> to clone and push over SSH.
+  </div>
+  {% endif %}
+</div>
+
+<!-- Notification Preferences Card -->
+<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6">
+  <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-gray-200">Notification Preferences</h2>
+    <a href="{% url 'accounts:notification_prefs' %}" class="text-sm text-brand-light hover:text-brand">Edit Preferences</a>
+  </div>
+  <div class="p-4">
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+      <div>
+        <dt class="text-gray-500">Delivery Mode</dt>
+        <dd class="text-gray-200 mt-0.5 capitalize">{{ notif_prefs.delivery_mode }}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-500">Events</dt>
+        <dd class="text-gray-200 mt-0.5">
+          {% if notif_prefs.notify_checkins %}Checkins{% endif %}
+          {% if notif_prefs.notify_tickets %}{% if notif_prefs.notify_checkins %}, {% endif %}Tickets{% endif %}
+          {% if notif_prefs.notify_wiki %}{% if notif_prefs.notify_checkins or notif_prefs.notify_tickets %}, {% endif %}Wiki{% endif %}
+          {% if notif_prefs.notify_releases %}{% if notif_prefs.notify_checkins or notif_prefs.notify_tickets or notif_prefs.notify_wiki %}, {% endif %}Releases{% endif %}
+          {% if notif_prefs.notify_forum %}{% if notif_prefs.notify_checkins or notif_prefs.notify_tickets or notif_prefs.notify_wiki or notif_prefs.notify_releases %}, {% endif %}Forum{% endif %}
+          {% if not notif_prefs.notify_checkins and not notif_prefs.notify_tickets and not notif_prefs.notify_wiki and not notif_prefs.notify_releases and not notif_prefs.notify_forum %}None{% endif %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+<!-- Personal Access Tokens Card -->
+<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6">
+  <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-gray-200">Personal Access Tokens</h2>
+    <a href="{% url 'accounts:profile_token_create' %}"
+       class="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-hover">
+      Generate Token
+    </a>
+  </div>
+  {% if tokens %}
+  <div class="divide-y divide-gray-700">
+    {% for token in tokens %}
+    <div class="p-4 flex items-center justify-between">
+      <div>
+        <div class="text-sm font-medium text-gray-200">{{ token.name }}</div>
+        <div class="text-xs text-gray-500 font-mono mt-1">{{ token.token_prefix }}...</div>
+        <div class="text-xs text-gray-500 mt-1">
+          Scopes: {{ token.scopes }} &middot; Created {{ token.created_at|timesince }} ago
+          {% if token.last_used_at %}&middot; Last used {{ token.last_used_at|timesince }} ago{% endif %}
+          {% if token.expires_at %}&middot; Expires {{ token.expires_at|date:"M j, Y" }}{% endif %}
+        </div>
+      </div>
+      <form hx-post="{% url 'accounts:profile_token_revoke' guid=token.token_prefix %}"
+            hx-confirm="Revoke token '{{ token.name }}'? This cannot be undone.">
+        {% csrf_token %}
+        <button type="submit" class="text-sm text-red-400 hover:text-red-300">Revoke</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="p-6 text-center text-sm text-gray-500">
+    No personal access tokens. Generate one to authenticate with the API or CLI.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Delete Mirror — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mx-auto max-w-lg">
+  <div class="rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+    <h2 class="text-lg font-semibold text-gray-100">Delete Git Mirror</h2>
+    <p class="mt-2 text-sm text-gray-400">
+      Are you sure you want to remove the mirror to
+      <strong class="text-gray-100 font-mono">{{ mirror.git_remote_url }}</strong>?
+      This action uses soft delete &mdash; the record will be marked as deleted but can be recovered.
+    </p>
+    <dl class="mt-4 space-y-2 text-sm">
+      <div class="flex items-center justify-between">
+        <dt class="text-gray-500">Direction</dt>
+        <dd class="text-gray-300">{{ mirror.get_sync_direction_display }}</dd>
+      </div>
+      <div class="flex items-center justify-between">
+        <dt class="text-gray-500">Branch mapping</dt>
+        <dd class="text-gray-300">{{ mirror.fossil_branch }} &rarr; {{ mirror.git_branch }}</dd>
+      </div>
+      <div class="flex items-center justify-between">
+        <dt class="text-gray-500">Total syncs</dt>
+        <dd class="text-gray-300">{{ mirror.total_syncs }}</dd>
+      </div>
+    </dl>
+    <form method="post" class="mt-6 flex justify-end gap-3">
+      {% csrf_token %}
+      <a href="{% url 'fossil:sync' slug=project.slug %}"
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Cancel
+      </a>
+      <button type="submit"
+              class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">
+        Delete Mirror
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

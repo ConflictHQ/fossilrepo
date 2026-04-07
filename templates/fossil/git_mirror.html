@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Git Mirror — {{ project.name }} — Fossilrepo{% endblock %}
+{% block title %}{% if editing_mirror %}Edit Mirror{% else %}Add Git Mirror{% endif %} — {{ project.name }} — Fossilrepo{% endblock %}
 
 {% block content %}
 <h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
@@ -7,58 +7,12 @@
 
 <div class="max-w-3xl">
   <div class="flex items-center justify-between mb-6">
-    <h2 class="text-lg font-semibold text-gray-200">Git Mirrors</h2>
-    <a href="{% url 'fossil:sync' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Fossil Sync</a>
+    <h2 class="text-lg font-semibold text-gray-200">{% if editing_mirror %}Edit Git Mirror{% else %}Add Git Mirror{% endif %}</h2>
+    <a href="{% url 'fossil:sync' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Sync</a>
   </div>
 
-  <!-- Existing mirrors -->
-  {% if mirrors %}
-  <div class="space-y-4 mb-8">
-    {% for mirror in mirrors %}
-    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="font-mono text-sm text-gray-200">{{ mirror.git_remote_url }}</div>
-          <div class="mt-1 flex items-center gap-3 text-xs text-gray-500">
-            <span class="inline-flex rounded-full bg-gray-700 px-2 py-0.5">{{ mirror.get_auth_method_display }}</span>
-            <span class="inline-flex rounded-full bg-gray-700 px-2 py-0.5">{{ mirror.get_sync_mode_display }}</span>
-            <span class="inline-flex rounded-full bg-gray-700 px-2 py-0.5">{{ mirror.get_sync_direction_display }}</span>
-            <span>→ {{ mirror.git_branch }}</span>
-          </div>
-          <div class="mt-2 text-xs text-gray-500">
-            {% if mirror.last_sync_at %}
-            Last sync: {{ mirror.last_sync_at|timesince }} ago
-            <span class="{% if mirror.last_sync_status == 'success' %}text-green-400{% else %}text-red-400{% endif %}">
-              ({{ mirror.last_sync_status }})
-            </span>
-            — {{ mirror.total_syncs }} total syncs
-            {% else %}
-            Never synced
-            {% endif %}
-          </div>
-          {% if mirror.last_sync_message %}
-          <pre class="mt-1 text-xs text-gray-600 max-h-20 overflow-hidden">{{ mirror.last_sync_message|truncatechars:200 }}</pre>
-          {% endif %}
-        </div>
-        <div class="flex items-center gap-2">
-          <form method="post" action="{% url 'fossil:git_mirror_run' slug=project.slug mirror_id=mirror.id %}">
-            {% csrf_token %}
-            <button type="submit" class="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover">Sync Now</button>
-          </form>
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="delete">
-            <input type="hidden" name="mirror_id" value="{{ mirror.id }}">
-            <button type="submit" class="rounded-md bg-gray-700 px-3 py-1.5 text-xs text-gray-400 hover:text-red-400 ring-1 ring-inset ring-gray-600">Remove</button>
-          </form>
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  <!-- OAuth connect buttons -->
+  {# ── OAuth quick-connect (only shown when adding) ──────────────── #}
+  {% if not editing_mirror %}
   <div class="rounded-lg bg-gray-800 border border-gray-700 p-5 mb-6">
     <h3 class="text-sm font-semibold text-gray-200 mb-3 text-center">Quick Connect</h3>
     <div class="flex items-center justify-center gap-3">
@@ -74,71 +28,114 @@
       </a>
     </div>
     {% if request.session.github_oauth_token %}
-    <p class="mt-2 text-xs text-green-400">GitHub connected as {{ request.session.github_oauth_user }}. Token will be used for new mirrors.</p>
+    <p class="mt-2 text-xs text-green-400 text-center">GitHub connected as {{ request.session.github_oauth_user }}. Token will be used for new mirrors.</p>
     {% endif %}
     {% if request.session.gitlab_oauth_token %}
-    <p class="mt-2 text-xs text-green-400">GitLab connected. Token will be used for new mirrors.</p>
+    <p class="mt-2 text-xs text-green-400 text-center">GitLab connected. Token will be used for new mirrors.</p>
     {% endif %}
   </div>
+  {% endif %}
 
-  <!-- Add new mirror -->
+  {# ── Mirror form (add or edit) ─────────────────────────────────── #}
   <div class="rounded-lg bg-gray-800 border border-gray-700 p-6">
-    <h3 class="text-base font-semibold text-gray-200 mb-4">Add Git Mirror</h3>
-
     <form method="post" class="space-y-4">
       {% csrf_token %}
-      <input type="hidden" name="action" value="create">
+      <input type="hidden" name="action" value="{% if editing_mirror %}update{% else %}create{% endif %}">
 
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Git Remote URL <span class="text-red-400">*</span></label>
-        <input type="text" name="git_remote_url" required placeholder="https://github.com/org/repo.git"
+        <input type="text" name="git_remote_url" required
+               value="{{ editing_mirror.git_remote_url|default:'' }}"
+               placeholder="https://github.com/org/repo.git"
                class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm px-3 py-2 font-mono">
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Auth Method</label>
-          <select name="auth_method" class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-            <option value="token">Personal Access Token</option>
-            <option value="ssh">SSH Key</option>
-            <option value="oauth_github">GitHub OAuth</option>
-            <option value="oauth_gitlab">GitLab OAuth</option>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Sync Direction</label>
+          <select name="sync_direction" class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+            {% for value, label in sync_direction_choices %}
+            <option value="{{ value }}" {% if editing_mirror and editing_mirror.sync_direction == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-1">Git Branch</label>
-          <input type="text" name="git_branch" value="main"
-                 class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm px-3 py-2">
+          <label class="block text-sm font-medium text-gray-300 mb-1">Auth Method</label>
+          <select name="auth_method" class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+            {% for value, label in auth_method_choices %}
+            <option value="{{ value }}" {% if editing_mirror and editing_mirror.auth_method == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
 
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Token / Credential</label>
-        <input type="password" name="auth_credential" placeholder="ghp_xxxxxxxxxxxx"
+        <input type="password" name="auth_credential"
+               placeholder="{% if editing_mirror %}Leave blank to keep current credential{% else %}ghp_xxxxxxxxxxxx{% endif %}"
                class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm px-3 py-2 font-mono">
-        <p class="mt-1 text-xs text-gray-500">For token auth: GitHub Personal Access Token or GitLab Access Token</p>
+        <p class="mt-1 text-xs text-gray-500">
+          {% if editing_mirror %}Leave blank to keep the existing credential.{% else %}For token auth: GitHub Personal Access Token or GitLab Access Token.{% endif %}
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Fossil Branch</label>
+          <input type="text" name="fossil_branch"
+                 value="{{ editing_mirror.fossil_branch|default:'trunk' }}"
+                 class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1">Git Branch</label>
+          <input type="text" name="git_branch"
+                 value="{{ editing_mirror.git_branch|default:'main' }}"
+                 class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm px-3 py-2">
+        </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-1">Sync Mode</label>
           <select name="sync_mode" class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-            <option value="scheduled">Scheduled</option>
-            <option value="on_change">On Change</option>
-            <option value="both">Both</option>
+            {% for value, label in sync_mode_choices %}
+            <option value="{{ value }}" {% if editing_mirror and editing_mirror.sync_mode == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
           </select>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-1">Schedule (cron)</label>
-          <input type="text" name="sync_schedule" value="*/15 * * * *"
+          <input type="text" name="sync_schedule"
+                 value="{{ editing_mirror.sync_schedule|default:'*/15 * * * *' }}"
                  class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm px-3 py-2 font-mono">
           <p class="mt-1 text-xs text-gray-500">Default: every 15 minutes</p>
         </div>
       </div>
 
-      <div class="flex justify-end pt-2">
+      {# Sync content options #}
+      <div>
+        <span class="block text-sm font-medium text-gray-300 mb-2">Sync Content</span>
+        <div class="flex items-center gap-6">
+          <label class="flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" name="sync_tickets"
+                   {% if editing_mirror and editing_mirror.sync_tickets %}checked{% endif %}
+                   class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+            Tickets as Issues
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" name="sync_wiki"
+                   {% if editing_mirror and editing_mirror.sync_wiki %}checked{% endif %}
+                   class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+            Wiki pages
+          </label>
+        </div>
+        <p class="mt-1 text-xs text-gray-500">Code is always synced. Optionally sync tickets and wiki.</p>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <a href="{% url 'fossil:sync' slug=project.slug %}" class="text-sm text-gray-400 hover:text-gray-200">Cancel</a>
         <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
-          Add Mirror
+          {% if editing_mirror %}Update Mirror{% else %}Add Mirror{% endif %}
         </button>
       </div>
     </form>
