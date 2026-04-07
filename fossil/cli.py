@@ -35,6 +35,22 @@ class FossilCLI:
         except (FileNotFoundError, subprocess.CalledProcessError):
             return False
 
+    def render_pikchr(self, source: str) -> str:
+        """Render Pikchr markup to SVG. Returns SVG string or empty on failure."""
+        try:
+            result = subprocess.run(
+                [self.binary, "pikchr", "-"],
+                input=source,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+        return ""
+
     def wiki_commit(self, repo_path: Path, page_name: str, content: str, user: str = "") -> bool:
         """Create or update a wiki page. Pipes content to fossil wiki commit."""
         cmd = [self.binary, "wiki", "commit", page_name, "-R", str(repo_path)]
