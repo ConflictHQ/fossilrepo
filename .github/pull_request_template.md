@@ -1,22 +1,17 @@
-## What does this PR do?
+## Summary
 
-<!-- Brief description of the change -->
+<!-- What changed and why? Keep it brief. -->
 
-## Type of change
+## Changes
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Refactor / chore
-- [ ] Documentation
+- 
 
-## Checklist
+## Test Plan
 
-- [ ] Lint passes
-- [ ] Tests pass
-- [ ] Migrations created for any model/schema changes
-- [ ] Tests added or updated
-- [ ] `bootstrap.md` updated if conventions changed
+- [ ] Tests added/updated
+- [ ] Lint passes (`ruff check . && ruff format --check .`)
+- [ ] Tested locally
 
-## Related issues
+## Related Issues
 
-<!-- Closes #123 -->
+<!-- Link issues: Closes #123, Fixes #456 -->
