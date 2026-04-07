@@ -97,6 +97,8 @@ def notify_project_event(project, event_type: str, title: str, body: str = "", u
         url: Relative URL to the event
         exclude_user: Don't notify this user (typically the actor)
     """
+    from django.template.loader import render_to_string
+
     watches = ProjectWatch.objects.filter(
         project=project,
         deleted_at__isnull=True,
@@ -111,6 +113,20 @@ def notify_project_event(project, event_type: str, title: str, body: str = "", u
         if watch.event_filter != "all" and watch.event_filter != event_type + "s":
             continue
 
+        # Skip non-immediate users -- they get digests instead
+        prefs = NotificationPreference.objects.filter(user=watch.user).first()
+        if prefs and prefs.delivery_mode != "immediate":
+            # Still create the notification record for the digest
+            Notification.objects.create(
+                user=watch.user,
+                project=project,
+                event_type=event_type,
+                title=title,
+                body=body,
+                url=url,
+            )
+            continue
+
         notification = Notification.objects.create(
             user=watch.user,
             project=project,
@@ -120,16 +136,26 @@ def notify_project_event(project, event_type: str, title: str, body: str = "", u
             url=url,
         )
 
-        # Send email
+        # Send email with HTML template
         if watch.email_enabled and watch.user.email:
             try:
-                subject = f"[{project.name}] {title}"
+                subject = f"[{project.name}] {event_type}: {title[:80]}"
                 text_body = f"{title}\n\n{body}\n\nView: {url}" if url else f"{title}\n\n{body}"
+                html_body = render_to_string("email/notification.html", {
+                    "event_type": event_type,
+                    "project_name": project.name,
+                    "message": body or title,
+                    "action_url": url,
+                    "project_url": f"/projects/{project.slug}/",
+                    "unsubscribe_url": f"/projects/{project.slug}/fossil/watch/",
+                    "preferences_url": "/auth/notifications/",
+                })
                 send_mail(
                     subject=subject,
                     message=text_body,
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[watch.user.email],
+                    html_message=html_body,
                     fail_silently=True,
                 )
                 notification.emailed = True

@@ -15,13 +15,13 @@ from .forms import PageForm
 from .models import Page
 
 
-@login_required
 def page_list(request):
-    P.PAGE_VIEW.check(request.user)
-    pages = Page.objects.filter(is_published=True)
-
-    if request.user.has_perm("pages.change_page") or request.user.is_superuser:
+    # Published pages are visible to everyone (including anonymous users).
+    # Authenticated editors/admins can also see unpublished drafts.
+    if request.user.is_authenticated and (request.user.has_perm("pages.change_page") or request.user.is_superuser):
         pages = Page.objects.all()
+    else:
+        pages = Page.objects.filter(is_published=True)
 
     search = request.GET.get("search", "").strip()
     if search:
@@ -59,10 +59,16 @@ def page_create(request):
     return render(request, "pages/page_form.html", {"form": form, "title": "New Page"})
 
 
-@login_required
 def page_detail(request, slug):
-    P.PAGE_VIEW.check(request.user)
+    from django.core.exceptions import PermissionDenied
+
     page = get_object_or_404(Page, slug=slug, deleted_at__isnull=True)
+    # Published pages are public. Unpublished drafts require auth + edit permission.
+    if not page.is_published:
+        if not request.user.is_authenticated:
+            raise PermissionDenied("Authentication required.")
+        if not (request.user.has_perm("pages.change_page") or request.user.is_superuser):
+            raise PermissionDenied("You don't have permission to view this draft page.")
     content_html = mark_safe(sanitize_html(markdown.markdown(page.content, extensions=["fenced_code", "tables", "toc"])))
     return render(request, "pages/page_detail.html", {"page": page, "content_html": content_html})
 

@@ -35,7 +35,13 @@ readonly POSTGRES_VERSION="16"
 readonly REDIS_VERSION="7"
 
 readonly REPO_URL="https://github.com/ConflictHQ/fossilrepo.git"
+readonly REPO_SSH_URL="git@github.com:ConflictHQ/fossilrepo.git"
 readonly DEFAULT_PREFIX="/opt/fossilrepo"
+
+# Update check sources (tried in order of preference)
+readonly UPDATE_URL_FOSSILREPO="https://fossilrepo.io/api/version/"
+readonly UPDATE_URL_GITHUB="https://api.github.com/repos/ConflictHQ/fossilrepo/releases/latest"
+readonly UPDATE_URL_PYPI="https://pypi.org/pypi/fossilrepo/json"
 readonly DATA_DIR="/data"
 readonly LOG_DIR="/var/log/fossilrepo"
 readonly CADDY_DOWNLOAD_BASE="https://caddyserver.com/api/download"

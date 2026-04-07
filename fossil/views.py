@@ -1800,6 +1800,8 @@ def fossil_xfer(request, slug):
         if not fossil_repo.exists_on_disk:
             raise Http404("Repository file not found on disk.")
 
+        from projects.access import can_admin_project
+
         has_write = can_write_project(request.user, project)
         has_read = can_read_project(request.user, project)
 
@@ -1811,12 +1813,44 @@ def fossil_xfer(request, slug):
         # With --localauth, fossil grants full push access (for authenticated
         # writers).  Without it, fossil only allows pull/clone (for anonymous
         # or read-only users on public repos).
+        localauth = has_write
+
+        # Branch protection enforcement: if any protected branches restrict
+        # push, only admins get --localauth (push access). Non-admins are
+        # downgraded to read-only.
+        if localauth and not can_admin_project(request.user, project):
+            from fossil.branch_protection import BranchProtection
+
+            has_restrictions = BranchProtection.objects.filter(repository=fossil_repo, restrict_push=True, deleted_at__isnull=True).exists()
+            if has_restrictions:
+                localauth = False
+
+        # Required status checks enforcement: if any protected branches require
+        # status checks, verify all required CI contexts have a passing latest
+        # result before granting push access.
+        if localauth and not can_admin_project(request.user, project):
+            from fossil.branch_protection import BranchProtection
+            from fossil.ci import StatusCheck
+
+            protections_requiring_checks = BranchProtection.objects.filter(
+                repository=fossil_repo, require_status_checks=True, deleted_at__isnull=True
+            )
+            for protection in protections_requiring_checks:
+                required_contexts = protection.get_required_contexts_list()
+                for context in required_contexts:
+                    latest = StatusCheck.objects.filter(repository=fossil_repo, context=context).order_by("-created_at").first()
+                    if not latest or latest.state != "success":
+                        localauth = False
+                        break
+                if not localauth:
+                    break
+
         cli = FossilCLI()
         body, content_type = cli.http_proxy(
             fossil_repo.full_path,
             request.body,
             request.content_type,
-            localauth=has_write,
+            localauth=localauth,
         )
         return HttpResponse(body, content_type=content_type)
 
@@ -2459,7 +2493,6 @@ def tag_list(request, slug):
 # --- Raw File Download ---
 
 
-@login_required
 def code_raw(request, slug, filepath):
     project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
@@ -2575,7 +2608,10 @@ FOSSIL_SCM_SLUG = "fossil-scm"
 
 def fossil_docs(request, slug):
     """Curated Fossil documentation index page."""
+    from projects.access import require_project_read
+
     project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+    require_project_read(request, project)
     return render(request, "fossil/docs_index.html", {"project": project, "fossil_scm_slug": slug, "active_tab": "wiki"})
 
 
@@ -3700,7 +3736,6 @@ def ticket_fields_delete(request, slug, pk):
 # ---------------------------------------------------------------------------
 
 
-@login_required
 def ticket_reports_list(request, slug):
     """List available ticket reports for a project."""
     from projects.access import can_admin_project
@@ -3827,7 +3862,6 @@ def ticket_report_edit(request, slug, pk):
     )
 
 
-@login_required
 def ticket_report_run(request, slug, pk):
     """Execute a ticket report and display results."""
     import sqlite3
