@@ -67,6 +67,9 @@ INSTALLED_APPS = [
     "testdata",
 ]
 
+# Fossil sync pushes can be large (binary artifacts, images, etc.)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
+
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
