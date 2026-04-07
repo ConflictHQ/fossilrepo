@@ -42,7 +42,7 @@ RUN uv pip install --system --no-cache -r pyproject.toml
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput 2>/dev/null || true
+RUN DJANGO_SECRET_KEY=build-placeholder DJANGO_DEBUG=true python manage.py collectstatic --noinput
 
 # Create data directory for .fossil files
 RUN mkdir -p /data/repos /data/trash
