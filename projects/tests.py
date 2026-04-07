@@ -33,9 +33,15 @@ class TestProjectViews:
         response = admin_client.get("/projects/?search=Frontend")
         assert response.status_code == 200
 
-    def test_project_list_denied(self, no_perm_client):
+    def test_project_list_no_perm_sees_public_only(self, no_perm_client, org, admin_user):
+        # User without PROJECT_VIEW perm sees only public + internal, not private
+        public = Project.objects.create(name="PubProj", organization=org, visibility="public", created_by=admin_user)
+        Project.objects.create(name="PrivProj", organization=org, visibility="private", created_by=admin_user)
         response = no_perm_client.get("/projects/")
-        assert response.status_code == 403
+        assert response.status_code == 200
+        body = response.content.decode()
+        assert public.name in body
+        assert "PrivProj" not in body
 
     def test_project_create(self, admin_client, org):
         response = admin_client.post("/projects/create/", {"name": "New Project", "description": "Test", "visibility": "private"})

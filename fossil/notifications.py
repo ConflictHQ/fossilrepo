@@ -141,15 +141,18 @@ def notify_project_event(project, event_type: str, title: str, body: str = "", u
             try:
                 subject = f"[{project.name}] {event_type}: {title[:80]}"
                 text_body = f"{title}\n\n{body}\n\nView: {url}" if url else f"{title}\n\n{body}"
-                html_body = render_to_string("email/notification.html", {
-                    "event_type": event_type,
-                    "project_name": project.name,
-                    "message": body or title,
-                    "action_url": url,
-                    "project_url": f"/projects/{project.slug}/",
-                    "unsubscribe_url": f"/projects/{project.slug}/fossil/watch/",
-                    "preferences_url": "/auth/notifications/",
-                })
+                html_body = render_to_string(
+                    "email/notification.html",
+                    {
+                        "event_type": event_type,
+                        "project_name": project.name,
+                        "message": body or title,
+                        "action_url": url,
+                        "project_url": f"/projects/{project.slug}/",
+                        "unsubscribe_url": f"/projects/{project.slug}/fossil/watch/",
+                        "preferences_url": "/auth/notifications/",
+                    },
+                )
                 send_mail(
                     subject=subject,
                     message=text_body,

@@ -19,16 +19,19 @@ from fossil.notifications import Notification, NotificationPreference, ProjectWa
 @pytest.mark.django_db
 class TestNotificationTemplateRendering:
     def test_notification_template_renders(self):
-        html = render_to_string("email/notification.html", {
-            "event_type": "checkin",
-            "project_name": "My Project",
-            "message": "Added new feature",
-            "action_url": "/projects/my-project/fossil/checkin/abc123/",
-            "project_url": "/projects/my-project/",
-            "unsubscribe_url": "/projects/my-project/fossil/watch/",
-            "preferences_url": "/auth/notifications/",
-        })
-        assert "fossilrepo" in html
+        html = render_to_string(
+            "email/notification.html",
+            {
+                "event_type": "checkin",
+                "project_name": "My Project",
+                "message": "Added new feature",
+                "action_url": "/projects/my-project/fossil/checkin/abc123/",
+                "project_url": "/projects/my-project/",
+                "unsubscribe_url": "/projects/my-project/fossil/watch/",
+                "preferences_url": "/auth/notifications/",
+            },
+        )
+        assert "fossil<span>repo</span>" in html
         assert "My Project" in html
         assert "Added new feature" in html
         assert "checkin" in html
@@ -37,29 +40,35 @@ class TestNotificationTemplateRendering:
         assert "Unsubscribe" in html
 
     def test_notification_template_without_action_url(self):
-        html = render_to_string("email/notification.html", {
-            "event_type": "ticket",
-            "project_name": "My Project",
-            "message": "New ticket filed",
-            "action_url": "",
-            "project_url": "/projects/my-project/",
-            "unsubscribe_url": "/projects/my-project/fossil/watch/",
-            "preferences_url": "/auth/notifications/",
-        })
+        html = render_to_string(
+            "email/notification.html",
+            {
+                "event_type": "ticket",
+                "project_name": "My Project",
+                "message": "New ticket filed",
+                "action_url": "",
+                "project_url": "/projects/my-project/",
+                "unsubscribe_url": "/projects/my-project/fossil/watch/",
+                "preferences_url": "/auth/notifications/",
+            },
+        )
         assert "View Details" not in html
         assert "New ticket filed" in html
 
     def test_notification_template_event_types(self):
         for event_type in ["checkin", "ticket", "wiki", "release", "forum"]:
-            html = render_to_string("email/notification.html", {
-                "event_type": event_type,
-                "project_name": "Test",
-                "message": "Test message",
-                "action_url": "",
-                "project_url": "/projects/test/",
-                "unsubscribe_url": "/projects/test/fossil/watch/",
-                "preferences_url": "/auth/notifications/",
-            })
+            html = render_to_string(
+                "email/notification.html",
+                {
+                    "event_type": event_type,
+                    "project_name": "Test",
+                    "message": "Test message",
+                    "action_url": "",
+                    "project_url": "/projects/test/",
+                    "unsubscribe_url": "/projects/test/fossil/watch/",
+                    "preferences_url": "/auth/notifications/",
+                },
+            )
             assert event_type in html
 
     def test_digest_template_renders(self):
@@ -78,14 +87,17 @@ class TestNotificationTemplateRendering:
             MockNotif("ticket", "Bug: 404 on settings", "Backend"),
             MockNotif("wiki", "Updated README", "Docs"),
         ]
-        html = render_to_string("email/digest.html", {
-            "digest_type": "daily",
-            "count": 3,
-            "notifications": notifications,
-            "overflow_count": 0,
-            "dashboard_url": "/",
-            "preferences_url": "/auth/notifications/",
-        })
+        html = render_to_string(
+            "email/digest.html",
+            {
+                "digest_type": "daily",
+                "count": 3,
+                "notifications": notifications,
+                "overflow_count": 0,
+                "dashboard_url": "/",
+                "preferences_url": "/auth/notifications/",
+            },
+        )
         assert "Daily Digest" in html
         assert "3 update" in html
         assert "Frontend" in html
@@ -95,14 +107,17 @@ class TestNotificationTemplateRendering:
         assert "View All Notifications" in html
 
     def test_digest_template_overflow(self):
-        html = render_to_string("email/digest.html", {
-            "digest_type": "weekly",
-            "count": 75,
-            "notifications": [],
-            "overflow_count": 25,
-            "dashboard_url": "/",
-            "preferences_url": "/auth/notifications/",
-        })
+        html = render_to_string(
+            "email/digest.html",
+            {
+                "digest_type": "weekly",
+                "count": 75,
+                "notifications": [],
+                "overflow_count": 25,
+                "dashboard_url": "/",
+                "preferences_url": "/auth/notifications/",
+            },
+        )
         assert "Weekly Digest" in html
         assert "75 update" in html
         assert "25 more" in html
@@ -139,7 +154,7 @@ class TestNotifyProjectEventHTML:
         mock_send.assert_called_once()
         call_kwargs = mock_send.call_args.kwargs
         assert "html_message" in call_kwargs
-        assert "fossilrepo" in call_kwargs["html_message"]
+        assert "fossil<span>repo</span>" in call_kwargs["html_message"]
         assert "checkin" in call_kwargs["html_message"]
         assert "Added login feature" in call_kwargs["html_message"]
         # Plain text fallback is also present
@@ -208,7 +223,7 @@ class TestSendDigestHTML:
 
         from fossil.tasks import send_digest
 
-        with patch("fossil.tasks.send_mail") as mock_send:
+        with patch("django.core.mail.send_mail") as mock_send:
             send_digest.apply(kwargs={"mode": "daily"})
 
         mock_send.assert_called_once()
@@ -216,7 +231,7 @@ class TestSendDigestHTML:
         assert "html_message" in call_kwargs
         assert "Daily Digest" in call_kwargs["html_message"]
         assert "3 update" in call_kwargs["html_message"]
-        assert "fossilrepo" in call_kwargs["html_message"]
+        assert 'fossil<span style="color: #DC394C;">repo</span>' in call_kwargs["html_message"]
         # Plain text fallback
         assert "3 new notifications" in call_kwargs["message"]
 
@@ -230,7 +245,7 @@ class TestSendDigestHTML:
 
         from fossil.tasks import send_digest
 
-        with patch("fossil.tasks.send_mail") as mock_send:
+        with patch("django.core.mail.send_mail") as mock_send:
             send_digest.apply(kwargs={"mode": "daily"})
 
         call_kwargs = mock_send.call_args.kwargs
@@ -247,7 +262,7 @@ class TestSendDigestHTML:
 
         from fossil.tasks import send_digest
 
-        with patch("fossil.tasks.send_mail") as mock_send:
+        with patch("django.core.mail.send_mail") as mock_send:
             send_digest.apply(kwargs={"mode": "daily"})
 
         call_kwargs = mock_send.call_args.kwargs
@@ -267,7 +282,7 @@ class TestSendDigestHTML:
 
         from fossil.tasks import send_digest
 
-        with patch("fossil.tasks.send_mail") as mock_send:
+        with patch("django.core.mail.send_mail") as mock_send:
             send_digest.apply(kwargs={"mode": "weekly"})
 
         mock_send.assert_called_once()
