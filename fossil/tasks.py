@@ -192,6 +192,64 @@ def run_git_sync(mirror_id: int | None = None):
             log.save()
 
 
+@shared_task(name="fossil.dispatch_webhook", bind=True, max_retries=3)
+def dispatch_webhook(self, webhook_id, event_type, payload):
+    """Deliver a webhook with retry and logging."""
+    import hashlib
+    import hmac
+    import json
+    import time
+
+    import requests
+
+    from fossil.webhooks import Webhook, WebhookDelivery
+
+    try:
+        webhook = Webhook.objects.get(id=webhook_id)
+    except Webhook.DoesNotExist:
+        logger.warning("Webhook %s not found, skipping delivery", webhook_id)
+        return
+
+    headers = {"Content-Type": "application/json", "X-Fossilrepo-Event": event_type}
+    body = json.dumps(payload)
+
+    if webhook.secret:
+        sig = hmac.new(webhook.secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+        headers["X-Fossilrepo-Signature"] = f"sha256={sig}"
+
+    start = time.monotonic()
+    try:
+        resp = requests.post(webhook.url, data=body, headers=headers, timeout=30)
+        duration = int((time.monotonic() - start) * 1000)
+
+        WebhookDelivery.objects.create(
+            webhook=webhook,
+            event_type=event_type,
+            payload=payload,
+            response_status=resp.status_code,
+            response_body=resp.text[:5000],
+            success=200 <= resp.status_code < 300,
+            duration_ms=duration,
+            attempt=self.request.retries + 1,
+        )
+
+        if not (200 <= resp.status_code < 300):
+            raise self.retry(countdown=60 * (2**self.request.retries))
+    except requests.RequestException as exc:
+        duration = int((time.monotonic() - start) * 1000)
+        WebhookDelivery.objects.create(
+            webhook=webhook,
+            event_type=event_type,
+            payload=payload,
+            response_status=0,
+            response_body=str(exc)[:5000],
+            success=False,
+            duration_ms=duration,
+            attempt=self.request.retries + 1,
+        )
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries)) from exc
+
+
 @shared_task(name="fossil.dispatch_notifications")
 def dispatch_notifications():
     """Check for new Fossil events and send notifications to watchers."""

@@ -18,6 +18,20 @@
   .line-row:target { background: rgba(220, 57, 76, 0.15) !important; }
   .line-row:target .diff-gutter { color: #DC394C; font-weight: 600; }
   .line-row { scroll-margin-top: 40vh; }
+  /* Split diff view */
+  .split-diff { display: grid; grid-template-columns: 1fr 1fr; }
+  .split-diff-side { overflow-x: auto; }
+  .split-diff-side:first-child { border-right: 1px solid #374151; }
+  .split-diff-side .diff-table td:last-child { width: 100%; }
+  .split-line-add { background: rgba(34, 197, 94, 0.1); }
+  .split-line-add td:last-child { color: #86efac; }
+  .split-line-del { background: rgba(239, 68, 68, 0.1); }
+  .split-line-del td:last-child { color: #fca5a5; }
+  .split-line-empty { background: rgba(107, 114, 128, 0.05); }
+  .split-line-empty td:last-child { color: transparent; }
+  /* Syntax highlighting: preserve diff bg colors over hljs */
+  .diff-code .hljs { background: transparent !important; padding: 0 !important; }
+  .diff-code { display: inline; }
   .line-popover {
     position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
     margin-left: 4px; z-index: 20; white-space: nowrap;
@@ -104,9 +118,16 @@
     </div>
   </div>
 
+  <!-- Diff mode toggle -->
+  <div x-data="{ mode: localStorage.getItem('diff-mode') || 'unified' }" x-init="$watch('mode', val => localStorage.setItem('diff-mode', val))" x-ref="diffToggle">
+    <div class="flex items-center gap-2 mb-3">
+      <button @click="mode = 'unified'" :class="mode === 'unified' ? 'bg-gray-700 text-gray-100' : 'text-gray-400 hover:text-gray-200'" class="px-3 py-1 text-xs rounded-md">Unified</button>
+      <button @click="mode = 'split'" :class="mode === 'split' ? 'bg-gray-700 text-gray-100' : 'text-gray-400 hover:text-gray-200'" class="px-3 py-1 text-xs rounded-md">Split</button>
+    </div>
+
   <!-- Diffs -->
   {% for fd in file_diffs %}
-  <div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden" id="diff-{{ forloop.counter }}">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden mb-4" id="diff-{{ forloop.counter }}" data-filename="{{ fd.name }}">
     <div class="px-4 py-2.5 border-b border-gray-700 flex items-center justify-between bg-gray-900/50">
       <div class="flex items-center gap-3">
         {% if fd.change_type == "added" %}
@@ -128,24 +149,100 @@
         {% if fd.deletions %}<span class="text-red-400">-{{ fd.deletions }}</span>{% endif %}
       </div>
     </div>
-    <div class="overflow-x-auto">
-      {% if fd.is_binary %}
-      <p class="p-4 text-sm text-gray-500">Binary file</p>
-      {% elif fd.diff_lines %}
+
+    {% if fd.is_binary %}
+    <p class="p-4 text-sm text-gray-500">Binary file</p>
+    {% elif fd.diff_lines %}
+
+    <!-- Unified view -->
+    <div class="overflow-x-auto" x-show="mode === 'unified'">
       <table class="diff-table">
         <tbody>
           {% for dl in fd.diff_lines %}
-{% if dl.new_num %}<tr class="diff-line-{{ dl.type }} line-row" id="diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}"><td class="diff-gutter">{{ dl.old_num }}</td><td class="diff-gutter" style="position:relative" x-data="{ pop: false, copied: false }" @click.stop="pop = !pop; window.location.hash = 'diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}'" @click.outside="pop = false">{{ dl.new_num }}<div class="line-popover" x-show="pop" x-transition @click.stop><button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'"><span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span></button></div></td><td>{{ dl.text }}</td></tr>{% elif dl.old_num %}<tr class="diff-line-{{ dl.type }} line-row" id="diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}"><td class="diff-gutter" style="position:relative" x-data="{ pop: false, copied: false }" @click.stop="pop = !pop; window.location.hash = 'diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}'" @click.outside="pop = false">{{ dl.old_num }}<div class="line-popover" x-show="pop" x-transition @click.stop><button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'"><span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span></button></div></td><td class="diff-gutter"></td><td>{{ dl.text }}</td></tr>{% else %}<tr class="diff-line-{{ dl.type }}"><td class="diff-gutter"></td><td class="diff-gutter"></td><td>{{ dl.text }}</td></tr>{% endif %}
+{% if dl.new_num %}<tr class="diff-line-{{ dl.type }} line-row" id="diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}"><td class="diff-gutter">{{ dl.old_num }}</td><td class="diff-gutter" style="position:relative" x-data="{ pop: false, copied: false }" @click.stop="pop = !pop; window.location.hash = 'diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}'" @click.outside="pop = false">{{ dl.new_num }}<div class="line-popover" x-show="pop" x-transition @click.stop><button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#diff-{{ forloop.parentloop.counter }}-R{{ dl.new_num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'"><span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span></button></div></td><td><span class="diff-prefix">{{ dl.prefix }}</span><span class="diff-code">{{ dl.code }}</span></td></tr>{% elif dl.old_num %}<tr class="diff-line-{{ dl.type }} line-row" id="diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}"><td class="diff-gutter" style="position:relative" x-data="{ pop: false, copied: false }" @click.stop="pop = !pop; window.location.hash = 'diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}'" @click.outside="pop = false">{{ dl.old_num }}<div class="line-popover" x-show="pop" x-transition @click.stop><button @click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '#diff-{{ forloop.parentloop.counter }}-L{{ dl.old_num }}'); copied = true; setTimeout(() => { copied = false; pop = false }, 1000)" :class="copied && 'copied'"><span x-show="!copied">Copy link</span><span x-show="copied">Copied!</span></button></div></td><td class="diff-gutter"></td><td><span class="diff-prefix">{{ dl.prefix }}</span><span class="diff-code">{{ dl.code }}</span></td></tr>{% else %}<tr class="diff-line-{{ dl.type }}"><td class="diff-gutter"></td><td class="diff-gutter"></td><td><span class="diff-prefix">{{ dl.prefix }}</span><span class="diff-code">{{ dl.code }}</span></td></tr>{% endif %}
           {% endfor %}
         </tbody>
       </table>
-      {% else %}
-      <p class="p-4 text-sm text-gray-500">No diff available</p>
-      {% endif %}
     </div>
+
+    <!-- Split view -->
+    <div class="split-diff" x-show="mode === 'split'" x-cloak>
+      <div class="split-diff-side">
+        <table class="diff-table">
+          <tbody>
+            {% for dl in fd.split_left %}
+            <tr class="{% if dl.type == 'del' %}split-line-del{% elif dl.type == 'hunk' %}diff-line-hunk{% elif dl.type == 'header' %}diff-line-header{% elif dl.type == 'empty' %}split-line-empty{% endif %}">
+              <td class="diff-gutter">{{ dl.old_num }}</td>
+              <td>{% if dl.type == 'empty' %}&nbsp;{% elif dl.type == 'hunk' or dl.type == 'header' %}{{ dl.text }}{% else %}<span class="diff-code">{{ dl.code }}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="split-diff-side">
+        <table class="diff-table">
+          <tbody>
+            {% for dl in fd.split_right %}
+            <tr class="{% if dl.type == 'add' %}split-line-add{% elif dl.type == 'hunk' %}diff-line-hunk{% elif dl.type == 'header' %}diff-line-header{% elif dl.type == 'empty' %}split-line-empty{% endif %}">
+              <td class="diff-gutter">{{ dl.new_num }}</td>
+              <td>{% if dl.type == 'empty' %}&nbsp;{% elif dl.type == 'hunk' or dl.type == 'header' %}{{ dl.text }}{% else %}<span class="diff-code">{{ dl.code }}</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% else %}
+    <p class="p-4 text-sm text-gray-500">No diff available</p>
+    {% endif %}
   </div>
   {% endfor %}
+  </div>
   {% endif %}
 </div>
 <!-- scroll-margin-top on .line-row handles anchor positioning via CSS -->
+<script>
+(function() {
+  var langMap = {
+    'py': 'python', 'js': 'javascript', 'ts': 'typescript',
+    'html': 'html', 'css': 'css', 'json': 'json', 'yaml': 'yaml',
+    'yml': 'yaml', 'md': 'markdown', 'sh': 'bash', 'sql': 'sql',
+    'rs': 'rust', 'go': 'go', 'rb': 'ruby', 'java': 'java',
+    'toml': 'toml', 'xml': 'xml', 'jsx': 'javascript', 'tsx': 'typescript',
+    'c': 'c', 'h': 'c', 'cpp': 'cpp', 'hpp': 'cpp',
+  };
+  function highlightDiffCode() {
+    document.querySelectorAll('[data-filename]').forEach(function(container) {
+      var filename = container.dataset.filename || '';
+      var ext = filename.split('.').pop();
+      var lang = langMap[ext] || '';
+      if (lang && window.hljs) {
+        container.querySelectorAll('.diff-code').forEach(function(el) {
+          if (el.dataset.highlighted) return;
+          var text = el.textContent;
+          if (!text.trim()) return;
+          try {
+            var result = hljs.highlight(text, { language: lang, ignoreIllegals: true });
+            el.innerHTML = result.value;
+            el.dataset.highlighted = '1';
+          } catch(e) {}
+        });
+      }
+    });
+  }
+  // Run after DOM ready and after Alpine toggles
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', highlightDiffCode);
+  } else {
+    highlightDiffCode();
+  }
+  // Re-run when split view is toggled (elements become visible)
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('[x-ref="diffToggle"]')) {
+      setTimeout(highlightDiffCode, 50);
+    }
+  });
+})();
+</script>
 {% endblock %}

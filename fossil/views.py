@@ -445,6 +445,61 @@ def code_file(request, slug, filepath):
     )
 
 
+# --- Split-diff helper ---
+
+
+def _compute_split_lines(diff_lines):
+    """Convert unified diff lines into parallel left/right arrays for split view.
+
+    Context lines appear on both sides.  Deletions appear only on the left with
+    an empty placeholder on the right.  Additions appear only on the right with
+    an empty placeholder on the left.  Adjacent del+add runs are paired row-by-row
+    so moves read naturally.
+    """
+    left = []
+    right = []
+
+    # Collect runs of consecutive del/add lines so we can pair them
+    i = 0
+    while i < len(diff_lines):
+        dl = diff_lines[i]
+        if dl["type"] in ("header", "hunk"):
+            left.append(dl)
+            right.append(dl)
+            i += 1
+            continue
+
+        if dl["type"] == "del":
+            # Gather contiguous del block, then contiguous add block
+            dels = []
+            while i < len(diff_lines) and diff_lines[i]["type"] == "del":
+                dels.append(diff_lines[i])
+                i += 1
+            adds = []
+            while i < len(diff_lines) and diff_lines[i]["type"] == "add":
+                adds.append(diff_lines[i])
+                i += 1
+            max_len = max(len(dels), len(adds))
+            for j in range(max_len):
+                left.append(dels[j] if j < len(dels) else {"text": "", "type": "empty", "old_num": "", "new_num": ""})
+                right.append(adds[j] if j < len(adds) else {"text": "", "type": "empty", "old_num": "", "new_num": ""})
+            continue
+
+        if dl["type"] == "add":
+            # Orphan add with no preceding del
+            left.append({"text": "", "type": "empty", "old_num": "", "new_num": ""})
+            right.append(dl)
+            i += 1
+            continue
+
+        # Context line
+        left.append(dl)
+        right.append(dl)
+        i += 1
+
+    return left, right
+
+
 # --- Checkin Detail ---
 
 
@@ -521,8 +576,25 @@ def checkin_detail(request, slug, checkin_uuid):
                         new_num = new_line
                         old_line += 1
                         new_line += 1
-                    diff_lines.append({"text": line, "type": line_type, "old_num": old_num, "new_num": new_num})
+                    # Separate prefix character from code text for syntax highlighting
+                    if line_type in ("add", "del", "context") and len(line) > 0:
+                        prefix = line[0]
+                        code = line[1:]
+                    else:
+                        prefix = ""
+                        code = line
+                    diff_lines.append(
+                        {
+                            "text": line,
+                            "type": line_type,
+                            "old_num": old_num,
+                            "new_num": new_num,
+                            "prefix": prefix,
+                            "code": code,
+                        }
+                    )
 
+            split_left, split_right = _compute_split_lines(diff_lines)
             ext = f["name"].rsplit(".", 1)[-1] if "." in f["name"] else ""
             file_diffs.append(
                 {
@@ -531,6 +603,8 @@ def checkin_detail(request, slug, checkin_uuid):
                     "uuid": f["uuid"],
                     "is_binary": is_binary,
                     "diff_lines": diff_lines,
+                    "split_left": split_left,
+                    "split_right": split_right,
                     "additions": additions,
                     "deletions": deletions,
                     "language": ext,
@@ -728,10 +802,44 @@ def wiki_page(request, slug, page_name):
 
 
 def forum_list(request, slug):
-    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
+    from projects.access import can_write_project
 
-    with reader:
-        posts = reader.get_forum_posts()
+    project, fossil_repo = _get_project_and_repo(slug, request, "read")
+
+    # Read Fossil-native forum posts if the .fossil file exists
+    fossil_posts = []
+    if fossil_repo.exists_on_disk:
+        with FossilReader(fossil_repo.full_path) as reader:
+            fossil_posts = reader.get_forum_posts()
+
+    # Merge Django-backed forum posts alongside Fossil native posts
+    from fossil.forum import ForumPost as DjangoForumPost
+
+    django_threads = DjangoForumPost.objects.filter(
+        repository=fossil_repo,
+        parent__isnull=True,
+    ).select_related("created_by")
+
+    # Build unified post list with a common interface
+    merged = []
+    for p in fossil_posts:
+        merged.append({"uuid": p.uuid, "title": p.title, "body": p.body, "user": p.user, "timestamp": p.timestamp, "source": "fossil"})
+    for p in django_threads:
+        merged.append(
+            {
+                "uuid": str(p.pk),
+                "title": p.title,
+                "body": p.body,
+                "user": p.created_by.username if p.created_by else "",
+                "timestamp": p.created_at,
+                "source": "django",
+            }
+        )
+
+    # Sort merged list by timestamp descending
+    merged.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    has_write = can_write_project(request.user, project)
 
     return render(
         request,
@@ -739,26 +847,74 @@ def forum_list(request, slug):
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "posts": posts,
+            "posts": merged,
+            "has_write": has_write,
             "active_tab": "forum",
         },
     )
 
 
 def forum_thread(request, slug, thread_uuid):
-    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
+    from projects.access import can_write_project
 
-    with reader:
-        posts = reader.get_forum_thread(thread_uuid)
+    project, fossil_repo = _get_project_and_repo(slug, request, "read")
 
-    if not posts:
-        raise Http404("Forum thread not found")
+    # Check if this is a Fossil-native thread or a Django-backed thread
+    is_django_thread = False
+    from fossil.forum import ForumPost as DjangoForumPost
 
-    # Render each post's body through the content renderer
+    try:
+        django_root = DjangoForumPost.objects.get(pk=int(thread_uuid))
+        is_django_thread = True
+    except (ValueError, DjangoForumPost.DoesNotExist):
+        django_root = None
+
     rendered_posts = []
-    for post in posts:
-        body_html = mark_safe(_render_fossil_content(post.body, project_slug=slug)) if post.body else ""
-        rendered_posts.append({"post": post, "body_html": body_html})
+
+    if is_django_thread:
+        # Django-backed thread: root + replies
+        root = django_root
+        body_html = mark_safe(md.markdown(root.body, extensions=["fenced_code", "tables"])) if root.body else ""
+        rendered_posts.append(
+            {
+                "post": {
+                    "user": root.created_by.username if root.created_by else "",
+                    "title": root.title,
+                    "timestamp": root.created_at,
+                    "in_reply_to": "",
+                },
+                "body_html": body_html,
+            }
+        )
+        for reply in DjangoForumPost.objects.filter(thread_root=root).exclude(pk=root.pk).select_related("created_by"):
+            reply_html = mark_safe(md.markdown(reply.body, extensions=["fenced_code", "tables"])) if reply.body else ""
+            rendered_posts.append(
+                {
+                    "post": {
+                        "user": reply.created_by.username if reply.created_by else "",
+                        "title": "",
+                        "timestamp": reply.created_at,
+                        "in_reply_to": str(root.pk),
+                    },
+                    "body_html": reply_html,
+                }
+            )
+    else:
+        # Fossil-native thread -- requires .fossil file on disk
+        if not fossil_repo.exists_on_disk:
+            raise Http404("Forum thread not found")
+
+        with FossilReader(fossil_repo.full_path) as reader:
+            posts = reader.get_forum_thread(thread_uuid)
+
+        if not posts:
+            raise Http404("Forum thread not found")
+
+        for post in posts:
+            body_html = mark_safe(_render_fossil_content(post.body, project_slug=slug)) if post.body else ""
+            rendered_posts.append({"post": post, "body_html": body_html})
+
+    has_write = can_write_project(request.user, project)
 
     return render(
         request,
@@ -768,7 +924,239 @@ def forum_thread(request, slug, thread_uuid):
             "fossil_repo": fossil_repo,
             "posts": rendered_posts,
             "thread_uuid": thread_uuid,
+            "is_django_thread": is_django_thread,
+            "has_write": has_write,
             "active_tab": "forum",
+        },
+    )
+
+
+@login_required
+def forum_create(request, slug):
+    """Create a new Django-backed forum thread."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "write")
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        body = request.POST.get("body", "")
+        if title and body:
+            from fossil.forum import ForumPost as DjangoForumPost
+
+            post = DjangoForumPost.objects.create(
+                repository=fossil_repo,
+                title=title,
+                body=body,
+                created_by=request.user,
+            )
+            # Thread root is self for root posts
+            post.thread_root = post
+            post.save(update_fields=["thread_root", "updated_at", "version"])
+            messages.success(request, f'Thread "{title}" created.')
+            return redirect("fossil:forum_thread", slug=slug, thread_uuid=str(post.pk))
+
+    return render(
+        request,
+        "fossil/forum_form.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "form_title": "New Thread",
+            "active_tab": "forum",
+        },
+    )
+
+
+@login_required
+def forum_reply(request, slug, post_id):
+    """Reply to a Django-backed forum thread."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "write")
+
+    from fossil.forum import ForumPost as DjangoForumPost
+
+    parent = get_object_or_404(DjangoForumPost, pk=post_id, deleted_at__isnull=True)
+
+    # Determine the thread root
+    thread_root = parent.thread_root if parent.thread_root else parent
+
+    if request.method == "POST":
+        body = request.POST.get("body", "")
+        if body:
+            DjangoForumPost.objects.create(
+                repository=fossil_repo,
+                title="",
+                body=body,
+                parent=parent,
+                thread_root=thread_root,
+                created_by=request.user,
+            )
+            messages.success(request, "Reply posted.")
+            return redirect("fossil:forum_thread", slug=slug, thread_uuid=str(thread_root.pk))
+
+    return render(
+        request,
+        "fossil/forum_form.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "parent": parent,
+            "form_title": f"Reply to: {thread_root.title}",
+            "active_tab": "forum",
+        },
+    )
+
+
+# --- Webhook Management ---
+
+
+@login_required
+def webhook_list(request, slug):
+    """List webhooks for a project."""
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.webhooks import Webhook
+
+    webhooks = Webhook.objects.filter(repository=fossil_repo)
+
+    return render(
+        request,
+        "fossil/webhook_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "webhooks": webhooks,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def webhook_create(request, slug):
+    """Create a new webhook."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.webhooks import Webhook
+
+    if request.method == "POST":
+        url = request.POST.get("url", "").strip()
+        secret = request.POST.get("secret", "").strip()
+        events = request.POST.getlist("events")
+        is_active = request.POST.get("is_active") == "on"
+
+        if url:
+            events_str = ",".join(events) if events else "all"
+            Webhook.objects.create(
+                repository=fossil_repo,
+                url=url,
+                secret=secret,
+                events=events_str,
+                is_active=is_active,
+                created_by=request.user,
+            )
+            messages.success(request, f"Webhook for {url} created.")
+            return redirect("fossil:webhooks", slug=slug)
+
+    return render(
+        request,
+        "fossil/webhook_form.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "form_title": "Create Webhook",
+            "submit_label": "Create Webhook",
+            "event_choices": Webhook.EventType.choices,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def webhook_edit(request, slug, webhook_id):
+    """Edit an existing webhook."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.webhooks import Webhook
+
+    webhook = get_object_or_404(Webhook, pk=webhook_id, repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        url = request.POST.get("url", "").strip()
+        secret = request.POST.get("secret", "").strip()
+        events = request.POST.getlist("events")
+        is_active = request.POST.get("is_active") == "on"
+
+        if url:
+            webhook.url = url
+            # Only update secret if a new one was provided (don't blank it on edit)
+            if secret:
+                webhook.secret = secret
+            webhook.events = ",".join(events) if events else "all"
+            webhook.is_active = is_active
+            webhook.updated_by = request.user
+            webhook.save()
+            messages.success(request, f"Webhook for {webhook.url} updated.")
+            return redirect("fossil:webhooks", slug=slug)
+
+    return render(
+        request,
+        "fossil/webhook_form.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "webhook": webhook,
+            "form_title": f"Edit Webhook: {webhook.url}",
+            "submit_label": "Update Webhook",
+            "event_choices": Webhook.EventType.choices,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def webhook_delete(request, slug, webhook_id):
+    """Soft-delete a webhook."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.webhooks import Webhook
+
+    webhook = get_object_or_404(Webhook, pk=webhook_id, repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        webhook.soft_delete(user=request.user)
+        messages.success(request, f"Webhook for {webhook.url} deleted.")
+        return redirect("fossil:webhooks", slug=slug)
+
+    return redirect("fossil:webhooks", slug=slug)
+
+
+@login_required
+def webhook_deliveries(request, slug, webhook_id):
+    """View delivery log for a webhook."""
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.webhooks import Webhook, WebhookDelivery
+
+    webhook = get_object_or_404(Webhook, pk=webhook_id, repository=fossil_repo, deleted_at__isnull=True)
+    deliveries = WebhookDelivery.objects.filter(webhook=webhook)[:100]
+
+    return render(
+        request,
+        "fossil/webhook_deliveries.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "webhook": webhook,
+            "deliveries": deliveries,
+            "active_tab": "settings",
         },
     )
 
@@ -1355,20 +1743,67 @@ def compare_checkins(request, slug):
                             n=3,
                         )
                         diff_lines = []
+                        old_line = 0
+                        new_line = 0
+                        additions = 0
+                        deletions = 0
                         for line in diff:
                             line_type = "context"
+                            old_num = ""
+                            new_num = ""
                             if line.startswith("+++") or line.startswith("---"):
                                 line_type = "header"
                             elif line.startswith("@@"):
                                 line_type = "hunk"
+                                hunk_match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
+                                if hunk_match:
+                                    old_line = int(hunk_match.group(1))
+                                    new_line = int(hunk_match.group(2))
                             elif line.startswith("+"):
                                 line_type = "add"
+                                additions += 1
+                                new_num = new_line
+                                new_line += 1
                             elif line.startswith("-"):
                                 line_type = "del"
-                            diff_lines.append({"text": line, "type": line_type})
+                                deletions += 1
+                                old_num = old_line
+                                old_line += 1
+                            else:
+                                old_num = old_line
+                                new_num = new_line
+                                old_line += 1
+                                new_line += 1
+                            # Separate prefix from code text for syntax highlighting
+                            if line_type in ("add", "del", "context") and len(line) > 0:
+                                prefix = line[0]
+                                code = line[1:]
+                            else:
+                                prefix = ""
+                                code = line
+                            diff_lines.append(
+                                {
+                                    "text": line,
+                                    "type": line_type,
+                                    "old_num": old_num,
+                                    "new_num": new_num,
+                                    "prefix": prefix,
+                                    "code": code,
+                                }
+                            )
 
                         if diff_lines:
-                            file_diffs.append({"name": fname, "diff_lines": diff_lines})
+                            split_left, split_right = _compute_split_lines(diff_lines)
+                            file_diffs.append(
+                                {
+                                    "name": fname,
+                                    "diff_lines": diff_lines,
+                                    "split_left": split_left,
+                                    "split_right": split_right,
+                                    "additions": additions,
+                                    "deletions": deletions,
+                                }
+                            )
 
     return render(
         request,

@@ -12,6 +12,21 @@
   .diff-line-hunk { background: rgba(96, 165, 250, 0.08); }
   .diff-line-hunk td { color: #93c5fd; }
   .diff-line-header td { color: #6b7280; }
+  .diff-gutter { width: 1%; user-select: none; color: #4b5563; text-align: right; padding: 0 6px; border-right: 1px solid #374151; white-space: nowrap; }
+  /* Split diff view */
+  .split-diff { display: grid; grid-template-columns: 1fr 1fr; }
+  .split-diff-side { overflow-x: auto; }
+  .split-diff-side:first-child { border-right: 1px solid #374151; }
+  .split-diff-side .diff-table td:last-child { width: 100%; }
+  .split-line-add { background: rgba(34, 197, 94, 0.1); }
+  .split-line-add td:last-child { color: #86efac; }
+  .split-line-del { background: rgba(239, 68, 68, 0.1); }
+  .split-line-del td:last-child { color: #fca5a5; }
+  .split-line-empty { background: rgba(107, 114, 128, 0.05); }
+  .split-line-empty td:last-child { color: transparent; }
+  /* Syntax highlighting: preserve diff bg colors over hljs */
+  .diff-code .hljs { background: transparent !important; padding: 0 !important; }
+  .diff-code { display: inline; }
 </style>
 {% endblock %}
 
@@ -51,21 +66,68 @@
 </div>
 
 {% if file_diffs %}
-<div class="space-y-4">
-  {% for fd in file_diffs %}
-  <div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden">
-    <div class="px-4 py-2.5 border-b border-gray-700 bg-gray-900/50">
-      <span class="text-sm font-mono text-gray-300">{{ fd.name }}</span>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="diff-table">
-        <tbody>
-          {% for dl in fd.diff_lines %}<tr class="diff-line-{{ dl.type }}"><td>{{ dl.text }}</td></tr>{% endfor %}
-        </tbody>
-      </table>
-    </div>
+<div x-data="{ mode: localStorage.getItem('diff-mode') || 'unified' }" x-init="$watch('mode', val => localStorage.setItem('diff-mode', val))" x-ref="diffToggle">
+  <div class="flex items-center gap-2 mb-3">
+    <button @click="mode = 'unified'" :class="mode === 'unified' ? 'bg-gray-700 text-gray-100' : 'text-gray-400 hover:text-gray-200'" class="px-3 py-1 text-xs rounded-md">Unified</button>
+    <button @click="mode = 'split'" :class="mode === 'split' ? 'bg-gray-700 text-gray-100' : 'text-gray-400 hover:text-gray-200'" class="px-3 py-1 text-xs rounded-md">Split</button>
   </div>
-  {% endfor %}
+
+  <div class="space-y-4">
+    {% for fd in file_diffs %}
+    <div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden" data-filename="{{ fd.name }}">
+      <div class="px-4 py-2.5 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between">
+        <span class="text-sm font-mono text-gray-300">{{ fd.name }}</span>
+        <div class="flex items-center gap-2 text-xs">
+          {% if fd.additions %}<span class="text-green-400">+{{ fd.additions }}</span>{% endif %}
+          {% if fd.deletions %}<span class="text-red-400">-{{ fd.deletions }}</span>{% endif %}
+        </div>
+      </div>
+
+      <!-- Unified view -->
+      <div class="overflow-x-auto" x-show="mode === 'unified'">
+        <table class="diff-table">
+          <tbody>
+            {% for dl in fd.diff_lines %}
+            <tr class="diff-line-{{ dl.type }}">
+              <td class="diff-gutter">{{ dl.old_num }}</td>
+              <td class="diff-gutter">{{ dl.new_num }}</td>
+              <td><span class="diff-prefix">{{ dl.prefix }}</span><span class="diff-code">{{ dl.code }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Split view -->
+      <div class="split-diff" x-show="mode === 'split'" x-cloak>
+        <div class="split-diff-side">
+          <table class="diff-table">
+            <tbody>
+              {% for dl in fd.split_left %}
+              <tr class="{% if dl.type == 'del' %}split-line-del{% elif dl.type == 'hunk' %}diff-line-hunk{% elif dl.type == 'header' %}diff-line-header{% elif dl.type == 'empty' %}split-line-empty{% endif %}">
+                <td class="diff-gutter">{{ dl.old_num }}</td>
+                <td>{% if dl.type == 'empty' %}&nbsp;{% elif dl.type == 'hunk' or dl.type == 'header' %}{{ dl.text }}{% else %}<span class="diff-code">{{ dl.code }}</span>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="split-diff-side">
+          <table class="diff-table">
+            <tbody>
+              {% for dl in fd.split_right %}
+              <tr class="{% if dl.type == 'add' %}split-line-add{% elif dl.type == 'hunk' %}diff-line-hunk{% elif dl.type == 'header' %}diff-line-header{% elif dl.type == 'empty' %}split-line-empty{% endif %}">
+                <td class="diff-gutter">{{ dl.new_num }}</td>
+                <td>{% if dl.type == 'empty' %}&nbsp;{% elif dl.type == 'hunk' or dl.type == 'header' %}{{ dl.text }}{% else %}<span class="diff-code">{{ dl.code }}</span>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 {% else %}
 <p class="text-sm text-gray-500 text-center py-8">No differences found between these checkins.</p>
@@ -74,4 +136,45 @@
 {% elif from_uuid and to_uuid %}
 <p class="text-sm text-gray-500 text-center py-8">One or both checkins not found.</p>
 {% endif %}
+<script>
+(function() {
+  var langMap = {
+    'py': 'python', 'js': 'javascript', 'ts': 'typescript',
+    'html': 'html', 'css': 'css', 'json': 'json', 'yaml': 'yaml',
+    'yml': 'yaml', 'md': 'markdown', 'sh': 'bash', 'sql': 'sql',
+    'rs': 'rust', 'go': 'go', 'rb': 'ruby', 'java': 'java',
+    'toml': 'toml', 'xml': 'xml', 'jsx': 'javascript', 'tsx': 'typescript',
+    'c': 'c', 'h': 'c', 'cpp': 'cpp', 'hpp': 'cpp',
+  };
+  function highlightDiffCode() {
+    document.querySelectorAll('[data-filename]').forEach(function(container) {
+      var filename = container.dataset.filename || '';
+      var ext = filename.split('.').pop();
+      var lang = langMap[ext] || '';
+      if (lang && window.hljs) {
+        container.querySelectorAll('.diff-code').forEach(function(el) {
+          if (el.dataset.highlighted) return;
+          var text = el.textContent;
+          if (!text.trim()) return;
+          try {
+            var result = hljs.highlight(text, { language: lang, ignoreIllegals: true });
+            el.innerHTML = result.value;
+            el.dataset.highlighted = '1';
+          } catch(e) {}
+        });
+      }
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', highlightDiffCode);
+  } else {
+    highlightDiffCode();
+  }
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('[x-ref="diffToggle"]')) {
+      setTimeout(highlightDiffCode, 50);
+    }
+  });
+})();
+</script>
 {% endblock %}

@@ -8,12 +8,20 @@
 
 <div class="md:flex md:items-center md:justify-between mb-6">
   <h1 class="text-2xl font-bold text-gray-100">Members</h1>
-  {% if perms.organization.add_organizationmember %}
-  <a href="{% url 'organization:member_add' %}"
-     class="mt-4 md:mt-0 inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
-    Add Member
-  </a>
-  {% endif %}
+  <div class="mt-4 md:mt-0 flex gap-3">
+    {% if perms.organization.change_organization or user.is_superuser %}
+    <a href="{% url 'organization:user_create' %}"
+       class="inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+      Create User
+    </a>
+    {% endif %}
+    {% if perms.organization.add_organizationmember %}
+    <a href="{% url 'organization:member_add' %}"
+       class="inline-flex items-center rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+      Add Existing Member
+    </a>
+    {% endif %}
+  </div>
 </div>
 
 <div class="mb-4">

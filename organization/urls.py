@@ -11,6 +11,10 @@ urlpatterns = [
     # Members
     path("members/", views.member_list, name="members"),
     path("members/add/", views.member_add, name="member_add"),
+    path("members/create/", views.user_create, name="user_create"),
+    path("members/<str:username>/", views.user_detail, name="user_detail"),
+    path("members/<str:username>/edit/", views.user_edit, name="user_edit"),
+    path("members/<str:username>/password/", views.user_password, name="user_password"),
     path("members/<str:username>/remove/", views.member_remove, name="member_remove"),
     # Teams
     path("teams/", views.team_list, name="team_list"),
