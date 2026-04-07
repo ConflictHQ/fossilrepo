@@ -26,7 +26,7 @@ def github_authorize_url(request, slug, mirror_id=None):
     if not client_id:
         return None
 
-    callback = request.build_absolute_uri(f"/projects/{slug}/fossil/sync/git/callback/github/")
+    callback = request.build_absolute_uri("/oauth/callback/github/")
     state = f"{slug}:{mirror_id or 'new'}"
 
     return f"{GITHUB_AUTHORIZE_URL}?client_id={client_id}&redirect_uri={callback}&scope=repo&state={state}"
@@ -73,7 +73,7 @@ def gitlab_authorize_url(request, slug, mirror_id=None):
     if not client_id:
         return None
 
-    callback = request.build_absolute_uri(f"/projects/{slug}/fossil/sync/git/callback/gitlab/")
+    callback = request.build_absolute_uri("/oauth/callback/gitlab/")
     state = f"{slug}:{mirror_id or 'new'}"
 
     return f"{GITLAB_AUTHORIZE_URL}?client_id={client_id}&redirect_uri={callback}&response_type=code&scope=api&state={state}"
@@ -89,7 +89,7 @@ def gitlab_exchange_token(request, slug):
 
     client_id = config.GITLAB_OAUTH_CLIENT_ID
     client_secret = config.GITLAB_OAUTH_CLIENT_SECRET
-    callback = request.build_absolute_uri(f"/projects/{slug}/fossil/sync/git/callback/gitlab/")
+    callback = request.build_absolute_uri("/oauth/callback/gitlab/")
 
     try:
         resp = requests.post(
