@@ -68,7 +68,7 @@ INSTALLED_APPS = [
 ]
 
 # Fossil sync pushes can be large (binary artifacts, images, etc.)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024  # 2 GB
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
