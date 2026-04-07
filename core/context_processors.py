@@ -27,7 +27,8 @@ def sidebar(request):
     # Split pages: product docs (known slugs) vs org knowledge base (user-created)
     PRODUCT_DOC_SLUGS = {
         "agentic-development", "api-reference", "architecture",
-        "administration", "setup-guide",
+        "administration", "setup-guide", "getting-started", "features",
+        "roadmap",
     }
     product_docs = [p for p in pages if p.slug in PRODUCT_DOC_SLUGS]
     kb_pages = [p for p in pages if p.slug not in PRODUCT_DOC_SLUGS]
