@@ -156,3 +156,12 @@ class FossilCLI:
             cmd.append(f"{value}")
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return result.returncode == 0
+
+    def ticket_change(self, repo_path: Path, uuid: str, fields: dict) -> bool:
+        """Update an existing ticket."""
+        cmd = [self.binary, "ticket", "change", uuid, "-R", str(repo_path)]
+        for key, value in fields.items():
+            cmd.append(f"{key}")
+            cmd.append(f"{value}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        return result.returncode == 0

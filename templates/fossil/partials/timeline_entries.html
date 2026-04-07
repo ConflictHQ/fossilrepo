@@ -51,9 +51,9 @@
       {% endfor %}
       <div class="tl-node {% if e.is_merge %}tl-node-merge{% elif e.event_type == 'ci' %}tl-node-ci{% elif e.event_type == 'w' %}tl-node-w{% elif e.event_type == 't' %}tl-node-t{% elif e.event_type == 'f' %}tl-node-f{% else %}tl-node-other{% endif %}"
            style="left: {{ item.node_x }}px;"></div>
-      {% if item.connector %}
-      <div style="position:absolute; top:75%; height:25%; left:{{ item.connector.left }}px; width:{{ item.connector.width }}px; border-bottom:2px solid rgba(220,57,76,0.3); border-left:2px solid rgba(220,57,76,0.3); border-right:2px solid rgba(220,57,76,0.3); border-radius:0 0 4px 4px; z-index:1;"></div>
-      {% endif %}
+      {% for conn in item.connectors %}
+      <div style="position:absolute; top:40%; height:30%; left:{{ conn.left }}px; width:{{ conn.width }}px; border-bottom:2px solid rgba(220,57,76,0.35); border-left:2px solid rgba(220,57,76,0.35); border-right:2px solid rgba(220,57,76,0.35); border-radius:0 0 4px 4px; z-index:1;"></div>
+      {% endfor %}
     </div>
 
     {# Time #}
