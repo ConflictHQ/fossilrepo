@@ -475,6 +475,32 @@ class FossilReader:
             pass
         return activity
 
+    def get_daily_commit_activity(self, days: int = 365) -> list[dict]:
+        """Get daily commit counts for the last N days. Returns [{date, count}].
+
+        Each entry has a date string (YYYY-MM-DD) and the number of checkins on that day.
+        Used for heatmap visualizations.
+        """
+        activity = []
+        try:
+            rows = self.conn.execute(
+                """
+                SELECT date(event.mtime - 0.5) as day, count(*) as cnt
+                FROM event
+                WHERE event.type = 'ci'
+                  AND event.mtime > julianday('now') - ?
+                GROUP BY day
+                ORDER BY day
+                """,
+                (days,),
+            ).fetchall()
+            for r in rows:
+                if r["day"]:
+                    activity.append({"date": r["day"], "count": r["cnt"]})
+        except sqlite3.OperationalError:
+            pass
+        return activity
+
     def get_top_contributors(self, limit: int = 10) -> list[dict]:
         """Get top contributors by checkin count."""
         contributors = []

@@ -16,8 +16,12 @@ def dashboard(request):
     total_tickets = 0
     total_wiki = 0
     system_activity = []  # weekly commit counts across all repos
+    heatmap_data = {}  # {date_string: count} -- daily commit counts across all repos
     recent_across_all = []
 
+    # NOTE: For large installations with many repos, this per-request aggregation
+    # could become slow. Consider caching heatmap_data with a short TTL (e.g. 5 min)
+    # via Django's cache framework if this becomes a bottleneck.
     repos = FossilRepository.objects.filter(deleted_at__isnull=True)
     for repo in repos:
         if not repo.exists_on_disk:
@@ -37,6 +41,12 @@ def dashboard(request):
                         if i < len(system_activity):
                             system_activity[i] += c["count"]
 
+                # Aggregate daily activity for heatmap (single pass per repo)
+                daily = reader.get_daily_commit_activity(days=365)
+                for entry in daily:
+                    date = entry["date"]
+                    heatmap_data[date] = heatmap_data.get(date, 0) + entry["count"]
+
                 commits = reader.get_timeline(limit=3, event_type="ci")
                 for c in commits:
                     recent_across_all.append({"project": repo.project, "entry": c})
@@ -46,6 +56,9 @@ def dashboard(request):
     # Sort recent across all by timestamp, take top 10
     recent_across_all.sort(key=lambda x: x["entry"].timestamp, reverse=True)
     recent_across_all = recent_across_all[:10]
+
+    # Convert heatmap to sorted list for the template
+    heatmap_json = json.dumps(sorted([{"date": d, "count": c} for d, c in heatmap_data.items()], key=lambda x: x["date"]))
 
     return render(
         request,
@@ -57,6 +70,7 @@ def dashboard(request):
             "total_wiki": total_wiki,
             "total_repos": repos.count(),
             "system_activity_json": json.dumps(system_activity),
+            "heatmap_json": heatmap_json,
             "recent_across_all": recent_across_all,
         },
     )

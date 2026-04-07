@@ -1,10 +1,23 @@
 from django.urls import path
 
-from . import views
+from . import api_views, views
 
 app_name = "fossil"
 
 urlpatterns = [
+    # JSON API
+    path("api/", api_views.api_docs, name="api_docs"),
+    path("api/project", api_views.api_project, name="api_project"),
+    path("api/timeline", api_views.api_timeline, name="api_timeline"),
+    path("api/tickets", api_views.api_tickets, name="api_tickets"),
+    path("api/tickets/<str:ticket_uuid>", api_views.api_ticket_detail, name="api_ticket_detail"),
+    path("api/wiki", api_views.api_wiki_list, name="api_wiki_list"),
+    path("api/wiki/<path:page_name>", api_views.api_wiki_page, name="api_wiki_page"),
+    path("api/branches", api_views.api_branches, name="api_branches"),
+    path("api/tags", api_views.api_tags, name="api_tags"),
+    path("api/releases", api_views.api_releases, name="api_releases"),
+    path("api/search", api_views.api_search, name="api_search"),
+    #
     path("code/", views.code_browser, name="code"),
     path("code/tree/<path:dirpath>/", views.code_browser, name="code_dir"),
     path("code/file/<path:filepath>", views.code_file, name="code_file"),

@@ -32,6 +32,23 @@
   </div>
 </div>
 
+<!-- Activity heatmap (all projects, last year) -->
+{% if heatmap_json %}
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-4 mb-6">
+  <h3 class="text-sm font-medium text-gray-300 mb-3">Activity (last year)</h3>
+  <div id="heatmap" class="overflow-x-auto"></div>
+  <div class="flex items-center justify-end gap-1 mt-2 text-xs text-gray-500">
+    <span>Less</span>
+    <span class="inline-block w-3 h-3 rounded-sm bg-gray-700"></span>
+    <span class="inline-block w-3 h-3 rounded-sm" style="background:#14532d"></span>
+    <span class="inline-block w-3 h-3 rounded-sm" style="background:#166534"></span>
+    <span class="inline-block w-3 h-3 rounded-sm" style="background:#22c55e"></span>
+    <span class="inline-block w-3 h-3 rounded-sm" style="background:#4ade80"></span>
+    <span>More</span>
+  </div>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
   <!-- Main column -->
   <div class="lg:col-span-2 space-y-6">
@@ -136,6 +153,87 @@
       }
     }
   });
+</script>
+{% endif %}
+
+{% if heatmap_json %}
+<script>
+(function() {
+  var data = {{ heatmap_json|safe }};
+  var counts = {};
+  data.forEach(function(d) { counts[d.date] = d.count; });
+
+  // Generate 365 days ending today
+  var today = new Date();
+  var days = [];
+  for (var i = 364; i >= 0; i--) {
+    var d = new Date(today);
+    d.setDate(d.getDate() - i);
+    var key = d.toISOString().slice(0, 10);
+    days.push({ date: key, count: counts[key] || 0, dow: d.getDay() });
+  }
+
+  var cellSize = 12;
+  var cellGap = 2;
+  var step = cellSize + cellGap;
+  var labelWidth = 28;
+  var monthHeight = 16;
+
+  // The first day may not be Sunday (dow=0). We need to offset the first column.
+  var startDow = days[0].dow;
+  var totalSlots = days.length + startDow;
+  var weeks = Math.ceil(totalSlots / 7);
+  var svgWidth = labelWidth + weeks * step;
+  var svgHeight = monthHeight + 7 * step;
+
+  var svg = '<svg width="' + svgWidth + '" height="' + svgHeight + '" class="text-gray-500">';
+
+  // Day-of-week labels (Mon, Wed, Fri)
+  var dayLabels = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+  for (var di = 0; di < dayLabels.length; di++) {
+    if (dayLabels[di]) {
+      svg += '<text x="0" y="' + (monthHeight + di * step + cellSize - 2) + '" fill="currentColor" font-size="9" font-family="sans-serif">' + dayLabels[di] + '</text>';
+    }
+  }
+
+  // Month labels -- find the first occurrence of each month in the grid
+  var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var lastMonth = -1;
+  for (var mi = 0; mi < days.length; mi++) {
+    var monthNum = parseInt(days[mi].date.slice(5, 7), 10) - 1;
+    if (monthNum !== lastMonth) {
+      lastMonth = monthNum;
+      var weekIdx = Math.floor((mi + startDow) / 7);
+      var x = labelWidth + weekIdx * step;
+      svg += '<text x="' + x + '" y="10" fill="currentColor" font-size="9" font-family="sans-serif">' + monthNames[monthNum] + '</text>';
+    }
+  }
+
+  // Color scale
+  function getColor(count) {
+    if (count === 0) return '#1f2937';
+    if (count <= 2) return '#14532d';
+    if (count <= 5) return '#166534';
+    if (count <= 10) return '#22c55e';
+    return '#4ade80';
+  }
+
+  // Render cells
+  for (var ci = 0; ci < days.length; ci++) {
+    var day = days[ci];
+    var wk = Math.floor((ci + startDow) / 7);
+    var dow = (ci + startDow) % 7;
+    var cx = labelWidth + wk * step;
+    var cy = monthHeight + dow * step;
+    var color = getColor(day.count);
+    svg += '<rect x="' + cx + '" y="' + cy + '" width="' + cellSize + '" height="' + cellSize + '" rx="2" fill="' + color + '">';
+    svg += '<title>' + day.date + ': ' + day.count + ' commit' + (day.count !== 1 ? 's' : '') + '</title>';
+    svg += '</rect>';
+  }
+
+  svg += '</svg>';
+  document.getElementById('heatmap').innerHTML = svg;
+})();
 </script>
 {% endif %}
 {% endblock %}
