@@ -22,6 +22,7 @@ urlpatterns = [
     path("user/<str:username>/", views.user_activity, name="user_activity"),
     path("branches/", views.branch_list, name="branches"),
     path("tags/", views.tag_list, name="tags"),
+    path("technotes/", views.technote_list, name="technotes"),
     path("search/", views.search, name="search"),
     path("stats/", views.repo_stats, name="stats"),
     path("code/raw/<path:filepath>", views.code_raw, name="code_raw"),

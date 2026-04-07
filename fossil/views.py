@@ -852,6 +852,10 @@ def user_activity(request, slug, username):
     with reader:
         activity = reader.get_user_activity(username)
 
+    import json
+
+    heatmap_json = json.dumps(activity.get("daily_activity", {}))
+
     return render(
         request,
         "fossil/user_activity.html",
@@ -860,8 +864,27 @@ def user_activity(request, slug, username):
             "fossil_repo": fossil_repo,
             "username": username,
             "activity": activity,
+            "heatmap_json": heatmap_json,
             "active_tab": "timeline",
         },
+    )
+
+
+# --- Technotes ---
+
+
+@login_required
+def technote_list(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        notes = reader.get_technotes()
+
+    return render(
+        request,
+        "fossil/technote_list.html",
+        {"project": project, "notes": notes, "active_tab": "wiki"},
     )
 
 
