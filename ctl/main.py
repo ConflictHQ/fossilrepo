@@ -208,21 +208,72 @@ def sync() -> None:
 
 @sync.command(name="run")
 @click.argument("repo_name")
-@click.option("--remote", required=True, help="Git remote URL.")
-@click.option("--tickets/--no-tickets", default=False, help="Sync tickets as issues.")
-@click.option("--wiki/--no-wiki", default=False, help="Sync wiki pages.")
-def sync_run(repo_name: str, remote: str, tickets: bool, wiki: bool) -> None:
-    """Run a sync from a Fossil repo to a Git remote."""
-    console.print(f"[bold]Syncing[/bold] {repo_name} -> {remote}")
-    raise NotImplementedError("Sync not yet implemented")
+@click.option("--mirror-id", type=int, help="Specific Git mirror ID to sync.")
+def sync_run(repo_name: str, mirror_id: int | None = None) -> None:
+    """Run Git sync for a Fossil repository."""
+    import django
+
+    django.setup()
+    from fossil.models import FossilRepository
+    from fossil.sync_models import GitMirror
+    from fossil.tasks import run_git_sync
+
+    repo = FossilRepository.objects.filter(filename=f"{repo_name}.fossil").first()
+    if not repo:
+        console.print(f"[red]Repo not found: {repo_name}.fossil[/red]")
+        return
+
+    mirrors = GitMirror.objects.filter(repository=repo, deleted_at__isnull=True).exclude(sync_mode="disabled")
+    if mirror_id:
+        mirrors = mirrors.filter(pk=mirror_id)
+
+    if not mirrors.exists():
+        console.print("[yellow]No Git mirrors configured for this repo.[/yellow]")
+        return
+
+    for mirror in mirrors:
+        console.print(f"[bold]Syncing[/bold] {repo.filename} → {mirror.git_remote_url}")
+        run_git_sync(mirror.pk)
+        mirror.refresh_from_db()
+        if mirror.last_sync_status == "success":
+            console.print(f"  [green]Success[/green] — {mirror.last_sync_message[:100]}")
+        else:
+            console.print(f"  [red]Failed[/red] — {mirror.last_sync_message[:100]}")
 
 
 @sync.command(name="status")
-@click.argument("repo_name")
-def sync_status(repo_name: str) -> None:
-    """Show sync status for a repository."""
-    console.print(f"[bold]Sync status for:[/bold] {repo_name}")
-    raise NotImplementedError("Sync status not yet implemented")
+@click.argument("repo_name", required=False)
+def sync_status(repo_name: str | None = None) -> None:
+    """Show sync status for repositories."""
+    import django
+
+    django.setup()
+    from rich.table import Table
+
+    from fossil.sync_models import GitMirror
+
+    mirrors = GitMirror.objects.filter(deleted_at__isnull=True)
+    if repo_name:
+        mirrors = mirrors.filter(repository__filename=f"{repo_name}.fossil")
+
+    table = Table(title="Git Mirror Status")
+    table.add_column("Repo", style="cyan")
+    table.add_column("Remote")
+    table.add_column("Mode")
+    table.add_column("Status")
+    table.add_column("Last Sync")
+    table.add_column("Syncs", justify="right")
+    for m in mirrors:
+        status_style = "green" if m.last_sync_status == "success" else "red" if m.last_sync_status == "failed" else "yellow"
+        table.add_row(
+            m.repository.filename,
+            m.git_remote_url[:40],
+            m.get_sync_mode_display(),
+            f"[{status_style}]{m.last_sync_status or 'never'}[/{status_style}]",
+            str(m.last_sync_at.strftime("%Y-%m-%d %H:%M") if m.last_sync_at else "—"),
+            str(m.total_syncs),
+        )
+    console.print(table)
 
 
 # ---------------------------------------------------------------------------
