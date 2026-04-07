@@ -43,6 +43,21 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
         content = re.sub(r"\[([^\]\|]+?)\s*\|\s*([^\]]+?)\]", _fossil_to_md_link, content)
         content = re.sub(r"<verbatim>(.*?)</verbatim>", r"```\n\1\n```", content, flags=re.DOTALL)
         html = md.markdown(content, extensions=["fenced_code", "tables", "toc"])
+
+        # Post-process: render pikchr fenced code blocks to SVG
+        def _render_pikchr_md(m):
+            try:
+                from fossil.cli import FossilCLI
+
+                cli = FossilCLI()
+                svg = cli.render_pikchr(m.group(1))
+                if svg:
+                    return f'<div class="pikchr-diagram">{svg}</div>'
+            except Exception:
+                pass
+            return m.group(0)
+
+        html = re.sub(r'<code class="language-pikchr">(.*?)</code>', _render_pikchr_md, html, flags=re.DOTALL)
         return _rewrite_fossil_links(html, project_slug) if project_slug else html
 
     # Fossil wiki / HTML: convert Fossil-specific syntax to HTML
@@ -65,7 +80,23 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
     content = re.sub(r"\[#([^\]]+)\]", r'<a href="#\1">\1</a>', content)
     # Bare wiki links: [PageName] (no pipe, not a URL)
     content = re.sub(r"\[([A-Z][a-zA-Z0-9_]+)\]", r'<a href="\1">\1</a>', content)
+
     # Verbatim blocks
+    # Pikchr diagrams: <verbatim type="pikchr">...</verbatim> → SVG
+    def _render_pikchr_block(m):
+        try:
+            from fossil.cli import FossilCLI
+
+            cli = FossilCLI()
+            svg = cli.render_pikchr(m.group(1))
+            if svg:
+                return f'<div class="pikchr-diagram">{svg}</div>'
+        except Exception:
+            pass
+        return f'<pre><code class="language-pikchr">{m.group(1)}</code></pre>'
+
+    content = re.sub(r'<verbatim\s+type="pikchr">(.*?)</verbatim>', _render_pikchr_block, content, flags=re.DOTALL)
+    # Regular verbatim blocks
     content = re.sub(r"<verbatim>(.*?)</verbatim>", r"<pre><code>\1</code></pre>", content, flags=re.DOTALL)
     # <nowiki> blocks — strip the tags, content passes through as-is
     content = re.sub(r"<nowiki>(.*?)</nowiki>", r"\1", content, flags=re.DOTALL)
