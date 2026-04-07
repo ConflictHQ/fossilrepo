@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Generate Token — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'accounts:profile' %}" class="text-gray-400 hover:text-white">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+      </svg>
+    </a>
+    <h1 class="text-2xl font-bold text-gray-100">Generate Personal Access Token</h1>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-6 space-y-4">
+      <div>
+        <label for="name" class="block text-sm font-medium text-gray-300 mb-1">Token Name</label>
+        <input type="text" name="name" id="name" required maxlength="200"
+               placeholder="e.g. CI/CD pipeline, CLI access"
+               class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+        <p class="mt-1 text-xs text-gray-500">A descriptive name to remember what this token is for.</p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-2">Scopes</label>
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="scope_read" checked disabled
+                   class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+            <div>
+              <span class="text-sm font-medium text-gray-200">read</span>
+              <span class="text-xs text-gray-500 ml-2">Read access to repositories and data (always included)</span>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="scope_write" value="write"
+                   class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+            <div>
+              <span class="text-sm font-medium text-gray-200">write</span>
+              <span class="text-xs text-gray-500 ml-2">Push changes, create/update tickets and wiki</span>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="scope_admin" value="admin"
+                   class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+            <div>
+              <span class="text-sm font-medium text-gray-200">admin</span>
+              <span class="text-xs text-gray-500 ml-2">Full administrative access</span>
+            </div>
+          </label>
+        </div>
+        <input type="hidden" name="scopes" id="scopes_hidden" value="read">
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button type="submit" onclick="buildScopes()" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">
+        Generate Token
+      </button>
+      <a href="{% url 'accounts:profile' %}" class="text-sm text-gray-400 hover:text-white">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+function buildScopes() {
+  var scopes = ['read'];
+  if (document.querySelector('input[name="scope_write"]').checked) scopes.push('write');
+  if (document.querySelector('input[name="scope_admin"]').checked) scopes.push('admin');
+  document.getElementById('scopes_hidden').value = scopes.join(',');
+}
+</script>
+{% endblock %}
