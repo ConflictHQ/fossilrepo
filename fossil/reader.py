@@ -405,6 +405,66 @@ class FossilReader:
             pass
         return branches
 
+    def get_tags(self) -> list[dict]:
+        """Get all tags (non-branch sym- tags that mark specific checkins)."""
+        tags = []
+        try:
+            rows = self.conn.execute(
+                """
+                SELECT tag.tagname, event.mtime, event.user, blob.uuid
+                FROM tag
+                JOIN tagxref ON tag.tagid = tagxref.tagid AND tagxref.value > 0
+                JOIN event ON tagxref.rid = event.objid
+                JOIN blob ON event.objid = blob.rid
+                WHERE tag.tagname LIKE 'sym-%'
+                  AND tag.tagname NOT IN (SELECT tagname FROM tag JOIN tagxref ON tag.tagid=tagxref.tagid GROUP BY tagname HAVING count(*) > 5)
+                ORDER BY event.mtime DESC
+                LIMIT 100
+                """,
+            ).fetchall()
+            for r in rows:
+                tags.append(
+                    {
+                        "name": r["tagname"].replace("sym-", "", 1),
+                        "timestamp": _julian_to_datetime(r["mtime"]),
+                        "user": r["user"] or "",
+                        "uuid": r["uuid"],
+                    }
+                )
+        except sqlite3.OperationalError:
+            pass
+        return tags
+
+    def get_repo_statistics(self) -> dict:
+        """Get comprehensive repository statistics."""
+        stats = {}
+        try:
+            stats["total_artifacts"] = self.conn.execute("SELECT count(*) FROM blob").fetchone()[0]
+            stats["total_events"] = self.conn.execute("SELECT count(*) FROM event").fetchone()[0]
+            stats["checkin_count"] = self.conn.execute("SELECT count(*) FROM event WHERE type='ci'").fetchone()[0]
+            stats["wiki_events"] = self.conn.execute("SELECT count(*) FROM event WHERE type='w'").fetchone()[0]
+            stats["ticket_events"] = self.conn.execute("SELECT count(*) FROM event WHERE type='t'").fetchone()[0]
+            stats["forum_events"] = self.conn.execute("SELECT count(*) FROM event WHERE type='f'").fetchone()[0]
+
+            # First and last checkin dates
+            first = self.conn.execute("SELECT min(mtime) FROM event WHERE type='ci'").fetchone()
+            last = self.conn.execute("SELECT max(mtime) FROM event WHERE type='ci'").fetchone()
+            if first and first[0]:
+                stats["first_checkin"] = _julian_to_datetime(first[0])
+            if last and last[0]:
+                stats["last_checkin"] = _julian_to_datetime(last[0])
+
+            # Unique contributors
+            stats["contributors"] = self.conn.execute("SELECT count(DISTINCT user) FROM event WHERE type='ci'").fetchone()[0]
+
+            # DB size
+            stats["db_pages"] = self.conn.execute("PRAGMA page_count").fetchone()[0]
+            stats["page_size"] = self.conn.execute("PRAGMA page_size").fetchone()[0]
+            stats["db_size_mb"] = round((stats["db_pages"] * stats["page_size"]) / (1024 * 1024), 1)
+        except sqlite3.OperationalError:
+            pass
+        return stats
+
     # --- Timeline ---
 
     def get_timeline(self, limit: int = 50, offset: int = 0, event_type: str | None = None) -> list[TimelineEntry]:
