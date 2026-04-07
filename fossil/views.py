@@ -244,6 +244,25 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
     html = re.sub(r'href="(/[^"]*)"', replace_link, html)
     # Rewrite Fossil URI schemes: forum:/..., info:..., wiki:...
     html = re.sub(r'href="(forum|info|wiki):([^"]*)"', replace_scheme_link, html)
+
+    # Rewrite external fossil-scm.org links to local views
+    def replace_external_fossil(match):
+        path = match.group(1)
+        # /forum/forumpost/HASH
+        m = re.match(r"/forum/forumpost/([0-9a-f]+)", path)
+        if m:
+            return f'href="{base}/forum/{m.group(1)}/"'
+        # /info/HASH
+        m = re.match(r"/info/([0-9a-f]+)", path)
+        if m:
+            return f'href="{base}/checkin/{m.group(1)}/"'
+        # /wiki/PageName
+        m = re.match(r"/wiki/(.+)", path)
+        if m:
+            return f'href="{base}/wiki/page/{m.group(1)}"'
+        return match.group(0)
+
+    html = re.sub(r'href="https?://(?:www\.)?fossil-scm\.org(?:/home)?(/[^"]*)"', replace_external_fossil, html)
     return html
 
 
