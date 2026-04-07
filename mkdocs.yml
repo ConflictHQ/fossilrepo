@@ -69,14 +69,19 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Features: features.md
   - Getting Started:
       - Prerequisites: getting-started/prerequisites.md
       - Installation: getting-started/installation.md
       - Configuration: getting-started/configuration.md
       - First Repository: getting-started/first-repo.md
+      - Administration: getting-started/administration.md
   - Architecture:
       - Overview: architecture/overview.md
       - Sync Bridge: architecture/sync-bridge.md
+  - API:
+      - Reference: api/reference.md
+      - Agentic Development: api/agentic-development.md
 
 extra:
   social:
