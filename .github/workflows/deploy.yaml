@@ -8,11 +8,6 @@ on:
       - 'mkdocs.yml'
       - '*.md'
 
-env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REPO: fossilrepo
-  INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
-
 jobs:
   ci:
     uses: ./.github/workflows/ci.yaml
@@ -20,48 +15,20 @@ jobs:
   deploy:
     needs: [ci]
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
 
     steps:
-      - uses: actions/checkout@v4
-
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - uses: aws-actions/amazon-ecr-login@v2
-        id: ecr
-
-      - uses: docker/setup-qemu-action@v3
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build and push image (ARM64)
-        env:
-          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker buildx build \
-            --platform linux/arm64 \
-            --push \
-            -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPO:latest \
-            .
-
-      - name: Deploy to EC2 via SSM
+      - name: Deploy via SSM
         run: |
           aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=[
-              "aws ecr get-login-password --region '${{ env.AWS_REGION }}' | docker login --username AWS --password-stdin '${{ steps.ecr.outputs.registry }}'",
-              "cd /opt/fossilrepo && docker compose pull app && docker compose up -d app",
-              "sleep 10 && docker compose exec -T app python manage.py migrate --noinput"
-            ]' \
+            --parameters 'commands=["fossilrepo-deploy"]' \
             --timeout-seconds 300 \
             --output text
-          echo "Deploy command sent to $INSTANCE_ID"
+          echo "Deploy sent"

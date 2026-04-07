@@ -24,6 +24,7 @@ class TimelineEntry:
     branch: str = ""
     parent_rid: int = 0  # primary parent rid for DAG drawing
     is_merge: bool = False  # has multiple parents
+    merge_parent_rids: list[int] = field(default_factory=list)  # non-primary parent rids for merge connectors
     rail: int = 0  # column position for DAG graph
 
 
@@ -545,12 +546,15 @@ class FossilReader:
                     pass
 
                 # Get parent info from plink for DAG
+                merge_parent_rids = []
                 if row["type"] == "ci":
                     try:
                         parents = self.conn.execute("SELECT pid, isprim FROM plink WHERE cid=?", (row["rid"],)).fetchall()
                         for p in parents:
                             if p["isprim"]:
                                 parent_rid = p["pid"]
+                            else:
+                                merge_parent_rids.append(p["pid"])
                         is_merge = len(parents) > 1
                     except sqlite3.OperationalError:
                         pass
@@ -566,6 +570,7 @@ class FossilReader:
                         branch=branch,
                         parent_rid=parent_rid,
                         is_merge=is_merge,
+                        merge_parent_rids=merge_parent_rids,
                     )
                 )
         except sqlite3.OperationalError:

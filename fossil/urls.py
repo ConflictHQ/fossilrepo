@@ -44,4 +44,12 @@ urlpatterns = [
     path("docs/", views.fossil_docs, name="docs"),
     path("docs/<path:doc_path>", views.fossil_doc_page, name="doc_page"),
     path("xfer", views.fossil_xfer, name="xfer"),
+    # Releases
+    path("releases/", views.release_list, name="releases"),
+    path("releases/create/", views.release_create, name="release_create"),
+    path("releases/<str:tag_name>/", views.release_detail, name="release_detail"),
+    path("releases/<str:tag_name>/edit/", views.release_edit, name="release_edit"),
+    path("releases/<str:tag_name>/delete/", views.release_delete, name="release_delete"),
+    path("releases/<str:tag_name>/upload/", views.release_asset_upload, name="release_asset_upload"),
+    path("releases/<str:tag_name>/assets/<int:asset_id>/", views.release_asset_download, name="release_asset_download"),
 ]

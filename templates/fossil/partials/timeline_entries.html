@@ -4,15 +4,29 @@
     position: absolute; top: 50%; z-index: 2; border-radius: 50%;
     transform: translate(-50%, -50%); width: 10px; height: 10px;
   }
-  .tl-node-ci { background: #DC394C; border: 2px solid #e8677a; }
-  .tl-node-merge { background: #DC394C; border: 2px solid #e8677a; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
+  .tl-node-ci { border: 2px solid; }
+  .tl-node-merge {
+    border: 2px solid; border-radius: 2px;
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
+  .tl-node-leaf {
+    border: 2px solid; background: transparent !important;
+  }
   .tl-node-w { background: #3b82f6; border: 2px solid #60a5fa; width: 8px; height: 8px; }
   .tl-node-t { background: #eab308; border: 2px solid #facc15; width: 8px; height: 8px; }
   .tl-node-f { background: #a855f7; border: 2px solid #c084fc; width: 8px; height: 8px; }
   .tl-node-other { background: #6b7280; border: 2px solid #9ca3af; width: 8px; height: 8px; }
-  .tl-vline { position: absolute; width: 2px; top: 0; bottom: 0; transform: translateX(-50%); }
-  .tl-vline-ci { background: rgba(220,57,76,0.3); }
-  .tl-vline-other { background: rgba(107,114,128,0.2); }
+  .tl-vline { position: absolute; width: 2px; top: 0; bottom: 0; transform: translateX(-50%); opacity: 0.4; }
+  .tl-connector {
+    position: absolute; top: 40%; z-index: 1; border-radius: 0 0 4px 4px;
+    border-bottom: 2px solid; border-left: 2px solid; border-right: 2px solid;
+    height: 30%; opacity: 0.5;
+  }
+  .tl-connector-merge {
+    top: 20%; border-radius: 4px 4px 0 0;
+    border-top: 2px solid; border-left: 2px solid; border-right: 2px solid;
+    border-bottom: none; height: 30%; opacity: 0.5;
+  }
   .tl-date { font-size: 0.8rem; font-weight: 700; color: #d1d5db; padding: 8px 0 4px; border-bottom: 1px solid #374151; margin-bottom: 2px; }
   .tl-row { display: flex; min-height: 28px; align-items: center; }
   .tl-row:hover { background: rgba(255,255,255,0.02); }
@@ -46,14 +60,28 @@
   <div class="tl-row">
     {# DAG column #}
     <div class="tl-dag" style="width: {{ item.graph_width }}px;">
+      {# Vertical rail lines — colored per rail #}
       {% for line in item.lines %}
-      <div class="tl-vline tl-vline-ci" style="left: {{ line.x }}px;"></div>
+      <div class="tl-vline" style="left: {{ line.x }}px; background: {{ line.color }};"></div>
       {% endfor %}
-      <div class="tl-node {% if e.is_merge %}tl-node-merge{% elif e.event_type == 'ci' %}tl-node-ci{% elif e.event_type == 'w' %}tl-node-w{% elif e.event_type == 't' %}tl-node-t{% elif e.event_type == 'f' %}tl-node-f{% else %}tl-node-other{% endif %}"
-           style="left: {{ item.node_x }}px;"></div>
+      {# Horizontal connectors — fork (branch-out) and merge (branch-in) #}
       {% for conn in item.connectors %}
-      <div style="position:absolute; top:40%; height:30%; left:{{ conn.left }}px; width:{{ conn.width }}px; border-bottom:2px solid rgba(220,57,76,0.35); border-left:2px solid rgba(220,57,76,0.35); border-right:2px solid rgba(220,57,76,0.35); border-radius:0 0 4px 4px; z-index:1;"></div>
+      <div class="{% if conn.type == 'merge' %}tl-connector-merge{% else %}tl-connector{% endif %}"
+           style="left:{{ conn.left }}px; width:{{ conn.width }}px; border-color:{{ conn.color }};"></div>
       {% endfor %}
+      {# Node — style varies: merge diamond, leaf open circle, normal filled circle #}
+      {% if e.event_type == 'ci' %}
+      <div class="tl-node {% if item.is_merge %}tl-node-merge{% elif item.is_leaf %}tl-node-ci tl-node-leaf{% else %}tl-node-ci{% endif %}"
+           style="left: {{ item.node_x }}px; {% if item.is_merge %}background: {{ item.node_color }}; border-color: {{ item.node_color }};{% elif item.is_leaf %}border-color: {{ item.node_color }};{% else %}background: {{ item.node_color }}; border-color: {{ item.node_color }};{% endif %}"></div>
+      {% elif e.event_type == 'w' %}
+      <div class="tl-node tl-node-w" style="left: {{ item.node_x }}px;"></div>
+      {% elif e.event_type == 't' %}
+      <div class="tl-node tl-node-t" style="left: {{ item.node_x }}px;"></div>
+      {% elif e.event_type == 'f' %}
+      <div class="tl-node tl-node-f" style="left: {{ item.node_x }}px;"></div>
+      {% else %}
+      <div class="tl-node tl-node-other" style="left: {{ item.node_x }}px;"></div>
+      {% endif %}
     </div>
 
     {# Time #}

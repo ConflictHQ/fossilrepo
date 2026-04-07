@@ -1,5 +1,6 @@
 import contextlib
 import re
+from datetime import datetime
 
 import markdown as md
 from django.contrib.auth.decorators import login_required
@@ -1568,6 +1569,35 @@ def code_blame(request, slug, filepath):
     if cli.is_available():
         blame_lines = cli.blame(fossil_repo.full_path, filepath)
 
+    # Compute age-based coloring for blame annotations
+    if blame_lines:
+        dates = []
+        for line in blame_lines:
+            try:
+                d = datetime.strptime(line["date"], "%Y-%m-%d")
+                dates.append(d)
+                line["_parsed_date"] = d
+            except (ValueError, KeyError):
+                line["_parsed_date"] = None
+
+        if dates:
+            min_date = min(dates)
+            max_date = max(dates)
+            date_range = (max_date - min_date).days or 1
+
+            for line in blame_lines:
+                age = (line["_parsed_date"] - min_date).days / date_range if line.get("_parsed_date") else 0.5
+                # Interpolate from gray-500 (#6b7280) to brand (#DC394C)
+                r = int(107 + age * (220 - 107))
+                g = int(114 + age * (57 - 114))
+                b = int(128 + age * (76 - 128))
+                line["age_color"] = f"rgb({r},{g},{b})"
+                line["age_bg"] = f"rgba({r},{g},{b},0.08)"
+        else:
+            for line in blame_lines:
+                line["age_color"] = "rgb(107,114,128)"
+                line["age_bg"] = "transparent"
+
     parts = filepath.split("/")
     file_breadcrumbs = [{"name": p, "path": "/".join(parts[: i + 1])} for i, p in enumerate(parts)]
 
@@ -1740,32 +1770,65 @@ def _build_file_tree(files, current_dir=""):
     return entries
 
 
+_RAIL_COLORS = [
+    "#ef4444",  # 0: red
+    "#3b82f6",  # 1: blue
+    "#22c55e",  # 2: green
+    "#f59e0b",  # 3: amber
+    "#8b5cf6",  # 4: purple
+    "#06b6d4",  # 5: cyan
+    "#ec4899",  # 6: pink
+    "#f97316",  # 7: orange
+]
+
+
+def _rail_color(rail: int) -> str:
+    return _RAIL_COLORS[rail % len(_RAIL_COLORS)]
+
+
 def _compute_dag_graph(entries):
     """Compute DAG graph positions for timeline entries.
 
     Tracks active rails through each row and draws fork/merge connectors
-    where a child is on a different rail than its parent.
+    where a child is on a different rail than its parent. Detects forks
+    (first commit on a rail whose parent is on a different rail), merges
+    (commits with multiple parents), and leaf tips (no child on the same rail).
     """
+    if not entries:
+        return []
+
     rail_pitch = 16
     rail_offset = 20
     max_rail = max((e.rail for e in entries if e.rail >= 0), default=0)
     graph_width = rail_offset + (max_rail + 2) * rail_pitch
 
     # Build rid-to-index and rid-to-rail lookups
-    rid_to_idx = {}
-    rid_to_rail = {}
+    rid_to_idx: dict[int, int] = {}
+    rid_to_rail: dict[int, int] = {}
     for i, entry in enumerate(entries):
         rid_to_idx[entry.rid] = i
         if entry.event_type == "ci":
             rid_to_rail[entry.rid] = max(entry.rail, 0)
 
-    # For each row, compute:
-    # 1. Which vertical rails are active (have a line passing through)
-    # 2. Whether there's a fork/merge connector to draw
+    # Track which rids have a child on the same rail (for leaf detection).
+    # Also track which rails have had a previous entry (for fork detection:
+    # first entry on a rail whose parent is on a different rail = fork).
+    has_child_on_rail: set[int] = set()  # parent rids that have a same-rail child
+    rail_first_seen: dict[int, int] = {}  # rail -> index of first entry on that rail
 
-    # Precompute: for each checkin, the range of rows its line spans
-    # (from the entry's row to its parent's row)
-    active_spans = []  # (rail, start_idx, end_idx)
+    for i, entry in enumerate(entries):
+        if entry.event_type != "ci":
+            continue
+        rail = max(entry.rail, 0)
+        if rail not in rail_first_seen:
+            rail_first_seen[rail] = i
+        # Mark the primary parent as having a child on this rail
+        if entry.parent_rid in rid_to_rail and rid_to_rail[entry.parent_rid] == rail:
+            has_child_on_rail.add(entry.parent_rid)
+
+    # Precompute: for each checkin, the range of rows its vertical line spans
+    # (from the entry's row down to its parent's row, since entries are newest-first)
+    active_spans: list[tuple[int, int, int]] = []  # (rail, start_idx, end_idx)
     for i, entry in enumerate(entries):
         if entry.event_type == "ci" and entry.parent_rid in rid_to_idx:
             parent_idx = rid_to_idx[entry.parent_rid]
@@ -1773,23 +1836,58 @@ def _compute_dag_graph(entries):
                 rail = max(entry.rail, 0)
                 active_spans.append((rail, i, parent_idx))
 
-    # Precompute connectors: for each row, collect all horizontal connections
-    # A connector appears when a child on one rail connects to a parent on a different rail
-    # We draw the connector at BOTH the child row (fork out) and on every row where
-    # a branch line needs to cross from one rail to another
+    # Precompute fork and merge connectors per row.
+    # Fork: first entry on a rail whose primary parent is on a different rail.
+    # Merge: entry with merge_parent_rids on different rails.
     row_connectors: dict[int, list[dict]] = {}
-    for entry in entries:
-        if entry.event_type != "ci" or entry.parent_rid not in rid_to_idx:
+    row_fork_from: dict[int, int | None] = {}
+    row_merge_to: dict[int, int | None] = {}
+
+    for i, entry in enumerate(entries):
+        if entry.event_type != "ci":
             continue
-        parent_idx = rid_to_idx[entry.parent_rid]
         child_rail = max(entry.rail, 0)
-        parent_rail = rid_to_rail.get(entry.parent_rid, 0)
-        if child_rail != parent_rail:
-            child_x = rail_offset + child_rail * rail_pitch
-            parent_x = rail_offset + parent_rail * rail_pitch
-            conn = {"left": min(child_x, parent_x), "width": abs(child_x - parent_x)}
-            # Draw at the parent's row (where branch meets trunk)
-            row_connectors.setdefault(parent_idx, []).append(conn)
+
+        # Fork detection: this entry's primary parent is on a different rail,
+        # and this is the first entry we've seen on this rail.
+        if entry.parent_rid in rid_to_rail:
+            parent_rail = rid_to_rail[entry.parent_rid]
+            if child_rail != parent_rail and rail_first_seen.get(child_rail) == i:
+                row_fork_from[i] = parent_rail
+                # Draw the fork connector at this row (where the branch starts)
+                left_rail = min(child_rail, parent_rail)
+                right_rail = max(child_rail, parent_rail)
+                left_x = rail_offset + left_rail * rail_pitch
+                right_x = rail_offset + right_rail * rail_pitch
+                conn = {
+                    "left": left_x,
+                    "width": right_x - left_x,
+                    "type": "fork",
+                    "from_rail": parent_rail,
+                    "to_rail": child_rail,
+                    "color": _rail_color(child_rail),
+                }
+                row_connectors.setdefault(i, []).append(conn)
+
+        # Merge detection: non-primary parents on different rails
+        for merge_rid in entry.merge_parent_rids:
+            if merge_rid in rid_to_rail:
+                merge_rail = rid_to_rail[merge_rid]
+                if merge_rail != child_rail:
+                    row_merge_to[i] = child_rail
+                    left_rail = min(child_rail, merge_rail)
+                    right_rail = max(child_rail, merge_rail)
+                    left_x = rail_offset + left_rail * rail_pitch
+                    right_x = rail_offset + right_rail * rail_pitch
+                    conn = {
+                        "left": left_x,
+                        "width": right_x - left_x,
+                        "type": "merge",
+                        "from_rail": merge_rail,
+                        "to_rail": child_rail,
+                        "color": _rail_color(merge_rail),
+                    }
+                    row_connectors.setdefault(i, []).append(conn)
 
     result = []
     for i, entry in enumerate(entries):
@@ -1802,17 +1900,287 @@ def _compute_dag_graph(entries):
             if span_start <= i <= span_end:
                 active_rails.add(span_rail)
 
-        lines = [{"x": rail_offset + r * rail_pitch} for r in sorted(active_rails)]
+        lines = [{"x": rail_offset + r * rail_pitch, "color": _rail_color(r)} for r in sorted(active_rails)]
         connectors = row_connectors.get(i, [])
+
+        # A leaf is a checkin that has no child on the same rail within this page
+        is_leaf = entry.event_type == "ci" and entry.rid not in has_child_on_rail
+        fork_from = row_fork_from.get(i)
+        merge_to = row_merge_to.get(i)
 
         result.append(
             {
                 "entry": entry,
                 "node_x": node_x,
+                "node_color": _rail_color(rail),
                 "lines": lines,
                 "connectors": connectors,
                 "graph_width": graph_width,
+                "fork_from": fork_from,
+                "merge_to": merge_to,
+                "is_merge": entry.is_merge,
+                "is_leaf": is_leaf,
             }
         )
 
     return result
+
+
+# --- Releases ---
+
+
+def _get_project_and_repo(slug, request=None, require="read"):
+    """Return (project, fossil_repo) without opening the .fossil file.
+
+    Used by release views that only need Django ORM access, not Fossil SQLite queries.
+    """
+    from projects.access import require_project_admin, require_project_read, require_project_write
+
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+
+    if request:
+        if require == "admin":
+            require_project_admin(request, project)
+        elif require == "write":
+            require_project_write(request, project)
+        else:
+            require_project_read(request, project)
+
+    fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
+    return project, fossil_repo
+
+
+def release_list(request, slug):
+    from projects.access import can_write_project
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "read")
+
+    from fossil.releases import Release
+
+    releases = Release.objects.filter(repository=fossil_repo)
+
+    has_write = can_write_project(request.user, project)
+    if not has_write:
+        releases = releases.filter(is_draft=False)
+
+    return render(
+        request,
+        "fossil/release_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "releases": releases,
+            "has_write": has_write,
+            "active_tab": "releases",
+        },
+    )
+
+
+def release_detail(request, slug, tag_name):
+    from projects.access import can_admin_project, can_write_project
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "read")
+
+    from fossil.releases import Release
+
+    release = get_object_or_404(Release, repository=fossil_repo, tag_name=tag_name, deleted_at__isnull=True)
+
+    # Drafts are only visible to writers
+    if release.is_draft:
+        from projects.access import require_project_write
+
+        require_project_write(request, project)
+
+    body_html = ""
+    if release.body:
+        body_html = mark_safe(md.markdown(release.body, extensions=["footnotes", "tables", "fenced_code"]))
+
+    assets = release.assets.filter(deleted_at__isnull=True)
+    has_write = can_write_project(request.user, project)
+    has_admin = can_admin_project(request.user, project)
+
+    return render(
+        request,
+        "fossil/release_detail.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "release": release,
+            "body_html": body_html,
+            "assets": assets,
+            "has_write": has_write,
+            "has_admin": has_admin,
+            "active_tab": "releases",
+        },
+    )
+
+
+@login_required
+def release_create(request, slug):
+    from django.contrib import messages
+    from django.utils import timezone
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "write")
+
+    # Fetch recent checkins for the optional dropdown
+    recent_checkins = []
+    with contextlib.suppress(Exception):
+        reader = FossilReader(fossil_repo.full_path)
+        with reader:
+            recent_checkins = reader.get_timeline(limit=20, event_type="ci")
+
+    if request.method == "POST":
+        from fossil.releases import Release
+
+        tag_name = request.POST.get("tag_name", "").strip()
+        name = request.POST.get("name", "").strip()
+        body = request.POST.get("body", "")
+        is_prerelease = request.POST.get("is_prerelease") == "on"
+        is_draft = request.POST.get("is_draft") == "on"
+        checkin_uuid = request.POST.get("checkin_uuid", "").strip()
+
+        if tag_name and name:
+            published_at = None if is_draft else timezone.now()
+            release = Release.objects.create(
+                repository=fossil_repo,
+                tag_name=tag_name,
+                name=name,
+                body=body,
+                is_prerelease=is_prerelease,
+                is_draft=is_draft,
+                published_at=published_at,
+                checkin_uuid=checkin_uuid,
+                created_by=request.user,
+            )
+            messages.success(request, f'Release "{release.tag_name}" created.')
+            return redirect("fossil:release_detail", slug=slug, tag_name=release.tag_name)
+
+    return render(
+        request,
+        "fossil/release_form.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "recent_checkins": recent_checkins,
+            "form_title": "Create Release",
+            "submit_label": "Create Release",
+            "active_tab": "releases",
+        },
+    )
+
+
+@login_required
+def release_edit(request, slug, tag_name):
+    from django.contrib import messages
+    from django.utils import timezone
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "write")
+
+    from fossil.releases import Release
+
+    release = get_object_or_404(Release, repository=fossil_repo, tag_name=tag_name, deleted_at__isnull=True)
+
+    # Fetch recent checkins for the optional dropdown
+    recent_checkins = []
+    with contextlib.suppress(Exception):
+        reader = FossilReader(fossil_repo.full_path)
+        with reader:
+            recent_checkins = reader.get_timeline(limit=20, event_type="ci")
+
+    if request.method == "POST":
+        new_tag_name = request.POST.get("tag_name", "").strip()
+        name = request.POST.get("name", "").strip()
+        body = request.POST.get("body", "")
+        is_prerelease = request.POST.get("is_prerelease") == "on"
+        is_draft = request.POST.get("is_draft") == "on"
+        checkin_uuid = request.POST.get("checkin_uuid", "").strip()
+
+        if new_tag_name and name:
+            was_draft = release.is_draft
+            release.tag_name = new_tag_name
+            release.name = name
+            release.body = body
+            release.is_prerelease = is_prerelease
+            release.is_draft = is_draft
+            release.checkin_uuid = checkin_uuid
+            release.updated_by = request.user
+            # Set published_at when transitioning from draft to published
+            if was_draft and not is_draft and not release.published_at:
+                release.published_at = timezone.now()
+            release.save()
+            messages.success(request, f'Release "{release.tag_name}" updated.')
+            return redirect("fossil:release_detail", slug=slug, tag_name=release.tag_name)
+
+    return render(
+        request,
+        "fossil/release_form.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "release": release,
+            "recent_checkins": recent_checkins,
+            "form_title": f"Edit Release: {release.tag_name}",
+            "submit_label": "Update Release",
+            "active_tab": "releases",
+        },
+    )
+
+
+@login_required
+def release_delete(request, slug, tag_name):
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.releases import Release
+
+    release = get_object_or_404(Release, repository=fossil_repo, tag_name=tag_name, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        release.soft_delete(user=request.user)
+        messages.success(request, f'Release "{release.tag_name}" deleted.')
+        return redirect("fossil:releases", slug=slug)
+
+    return redirect("fossil:release_detail", slug=slug, tag_name=tag_name)
+
+
+@login_required
+def release_asset_upload(request, slug, tag_name):
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "write")
+
+    from fossil.releases import Release, ReleaseAsset
+
+    release = get_object_or_404(Release, repository=fossil_repo, tag_name=tag_name, deleted_at__isnull=True)
+
+    if request.method == "POST" and request.FILES.get("file"):
+        uploaded = request.FILES["file"]
+        asset = ReleaseAsset.objects.create(
+            release=release,
+            name=uploaded.name,
+            file=uploaded,
+            file_size_bytes=uploaded.size,
+            content_type=uploaded.content_type or "",
+            created_by=request.user,
+        )
+        messages.success(request, f'Asset "{asset.name}" uploaded.')
+
+    return redirect("fossil:release_detail", slug=slug, tag_name=tag_name)
+
+
+def release_asset_download(request, slug, tag_name, asset_id):
+    from django.db import models as db_models
+    from django.http import FileResponse
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "read")
+
+    from fossil.releases import Release, ReleaseAsset
+
+    release = get_object_or_404(Release, repository=fossil_repo, tag_name=tag_name, deleted_at__isnull=True)
+    asset = get_object_or_404(ReleaseAsset, pk=asset_id, release=release, deleted_at__isnull=True)
+
+    # Increment download count atomically
+    ReleaseAsset.objects.filter(pk=asset.pk).update(download_count=db_models.F("download_count") + 1)
+
+    return FileResponse(asset.file.open("rb"), as_attachment=True, filename=asset.name)
