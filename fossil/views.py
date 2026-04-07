@@ -1135,8 +1135,13 @@ def fossil_xfer(request, slug):
 
     GET  — informational page with clone URL.
     POST — pipe the request body through ``fossil http`` in CGI mode.
+
+    Access control:
+    - Public repos: anonymous clone/pull allowed (no --localauth).
+    - Authenticated users with write access: full push/pull (--localauth).
+    - Private/internal repos: require at least read permission.
     """
-    from projects.access import require_project_read, require_project_write
+    from projects.access import can_read_project, can_write_project
 
     from .cli import FossilCLI
 
@@ -1144,8 +1149,13 @@ def fossil_xfer(request, slug):
     fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
 
     if request.method == "GET":
-        require_project_read(request, project)
+        if not can_read_project(request.user, project):
+            from django.core.exceptions import PermissionDenied
+
+            raise PermissionDenied
         clone_url = request.build_absolute_uri()
+        is_public = project.visibility == "public"
+        auth_note = "" if is_public else "<p>Authentication is required.</p>"
         html = (
             f"<html><head><title>{project.name} — Fossil Sync</title></head>"
             f"<body>"
@@ -1153,25 +1163,32 @@ def fossil_xfer(request, slug):
             f"<p>This is the Fossil sync endpoint for <strong>{project.name}</strong>.</p>"
             f"<p>Clone with:</p>"
             f"<pre>fossil clone {clone_url} {project.slug}.fossil</pre>"
-            f"<p>Authentication is required.</p>"
+            f"{auth_note}"
             f"</body></html>"
         )
         return HttpResponse(html)
 
     if request.method == "POST":
-        # All POST sync operations (push/pull/clone) require write access for
-        # now.  We can loosen pull to read-only once we can distinguish the
-        # operation from the request payload.
-        require_project_write(request, project)
-
         if not fossil_repo.exists_on_disk:
             raise Http404("Repository file not found on disk.")
 
+        has_write = can_write_project(request.user, project)
+        has_read = can_read_project(request.user, project)
+
+        if not has_read:
+            from django.core.exceptions import PermissionDenied
+
+            raise PermissionDenied
+
+        # With --localauth, fossil grants full push access (for authenticated
+        # writers).  Without it, fossil only allows pull/clone (for anonymous
+        # or read-only users on public repos).
         cli = FossilCLI()
         body, content_type = cli.http_proxy(
             fossil_repo.full_path,
             request.body,
             request.content_type,
+            localauth=has_write,
         )
         return HttpResponse(body, content_type=content_type)
 

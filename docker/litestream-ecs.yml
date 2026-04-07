@@ -1,0 +1,8 @@
+# Litestream ECS config — uses IAM task role for S3 auth (no keys needed)
+dbs:
+  - path: /data/repos/*.fossil
+    replicas:
+      - type: s3
+        bucket: ${AWS_STORAGE_BUCKET_NAME}
+        path: litestream
+        region: ${AWS_DEFAULT_REGION}
