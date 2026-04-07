@@ -25,6 +25,7 @@ urlpatterns = [
     path("search/", views.search, name="search"),
     path("stats/", views.repo_stats, name="stats"),
     path("code/raw/<path:filepath>", views.code_raw, name="code_raw"),
+    path("code/blame/<path:filepath>", views.code_blame, name="code_blame"),
     path("code/history/<path:filepath>", views.file_history, name="file_history"),
     path("docs/", views.fossil_docs, name="docs"),
     path("docs/<path:doc_path>", views.fossil_doc_page, name="doc_page"),

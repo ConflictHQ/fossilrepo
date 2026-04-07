@@ -64,6 +64,7 @@
         <a href="?mode=rendered" class="px-2 py-1 rounded {% if view_mode == 'rendered' %}bg-brand text-white{% else %}text-gray-500 hover:text-white{% endif %}">Rendered</a>
       </div>
       {% endif %}
+      <a href="{% url 'fossil:code_blame' slug=project.slug filepath=filepath %}" class="px-2 py-1 text-xs text-gray-500 hover:text-brand-light rounded hover:bg-gray-700">Blame</a>
       <a href="{% url 'fossil:file_history' slug=project.slug filepath=filepath %}" class="px-2 py-1 text-xs text-gray-500 hover:text-brand-light rounded hover:bg-gray-700">History</a>
       <a href="{% url 'fossil:code_raw' slug=project.slug filepath=filepath %}" class="px-2 py-1 text-xs text-gray-500 hover:text-brand-light rounded hover:bg-gray-700">Raw</a>
       {% if not is_binary %}

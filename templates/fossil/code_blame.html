@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Blame: {{ filepath }} — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block extra_head %}
+<style>
+  .blame-table { border-collapse: collapse; width: 100%; font-size: 0.75rem; font-family: ui-monospace, monospace; }
+  .blame-table td { padding: 0; vertical-align: top; line-height: 1.5rem; }
+  .blame-meta { width: 1%; white-space: nowrap; padding: 0 8px !important; color: #6b7280; border-right: 1px solid #374151; }
+  .blame-meta a { color: inherit; text-decoration: none; }
+  .blame-meta a:hover { color: #DC394C; }
+  .blame-num { width: 1%; white-space: nowrap; padding: 0 10px !important; text-align: right; color: #4b5563; border-right: 1px solid #374151; }
+  .blame-code { white-space: pre; padding: 0 16px !important; font-size: 0.8125rem; }
+  .blame-row:hover { background: rgba(220, 57, 76, 0.04); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+  <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+    <div class="flex items-center gap-1 text-sm font-mono">
+      <a href="{% url 'fossil:code' slug=project.slug %}" class="text-brand-light hover:text-brand">{{ project.slug }}</a>
+      {% for crumb in file_breadcrumbs %}
+      <span class="text-gray-600">/</span>
+      {% if forloop.last %}
+      <span class="text-gray-200">{{ crumb.name }}</span>
+      {% else %}
+      <a href="{% url 'fossil:code_dir' slug=project.slug dirpath=crumb.path %}" class="text-brand-light hover:text-brand">{{ crumb.name }}</a>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="{% url 'fossil:code_file' slug=project.slug filepath=filepath %}" class="px-2 py-1 text-xs text-gray-500 hover:text-brand-light rounded hover:bg-gray-700">Source</a>
+      <span class="px-2 py-1 text-xs bg-brand text-white rounded">Blame</span>
+      <a href="{% url 'fossil:file_history' slug=project.slug filepath=filepath %}" class="px-2 py-1 text-xs text-gray-500 hover:text-brand-light rounded hover:bg-gray-700">History</a>
+      <span class="text-xs text-gray-500">{{ line_count }} line{{ line_count|pluralize }}</span>
+    </div>
+  </div>
+  <div class="overflow-x-auto">
+    {% if blame_lines %}
+    <table class="blame-table">
+      <tbody>
+        {% for bl in blame_lines %}
+        <tr class="blame-row">
+          <td class="blame-meta">
+            <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=bl.uuid %}">{{ bl.uuid|truncatechars:8 }}</a>
+          </td>
+          <td class="blame-meta">
+            <a href="{% url 'fossil:user_activity' slug=project.slug username=bl.user %}">{{ bl.user }}</a>
+          </td>
+          <td class="blame-num">{{ forloop.counter }}</td>
+          <td class="blame-code">{{ bl.text }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="p-4 text-sm text-gray-500">Blame not available (fossil binary required).</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
