@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Generate API Token — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-4">
+  <a href="{% url 'fossil:api_tokens' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Tokens</a>
+</div>
+
+{% if raw_token %}
+<div class="mx-auto max-w-3xl">
+  <div class="rounded-lg bg-green-900/20 border border-green-800 p-6 mb-6">
+    <h2 class="text-lg font-bold text-green-300 mb-2">Token Generated</h2>
+    <p class="text-sm text-gray-300 mb-4">Copy this token now. It will not be shown again.</p>
+    <div class="flex items-center gap-2" x-data="{ copied: false }">
+      <input type="text" readonly value="{{ raw_token }}"
+             class="flex-1 rounded-md border-gray-700 bg-gray-900 text-gray-100 text-sm px-3 py-2 font-mono"
+             id="token-value">
+      <button @click="navigator.clipboard.writeText(document.getElementById('token-value').value); copied = true; setTimeout(() => copied = false, 2000)"
+              :class="copied ? 'bg-green-700 text-green-100' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'"
+              class="rounded-md px-3 py-2 text-sm font-medium transition-colors">
+        <span x-show="!copied">Copy</span>
+        <span x-show="copied">Copied</span>
+      </button>
+    </div>
+  </div>
+  <a href="{% url 'fossil:api_tokens' slug=project.slug %}"
+     class="inline-flex items-center rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+    Done
+  </a>
+</div>
+{% else %}
+<div class="mx-auto max-w-3xl">
+  <h2 class="text-xl font-bold text-gray-100 mb-4">Generate API Token</h2>
+
+  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+    {% csrf_token %}
+
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Name <span class="text-red-400">*</span></label>
+      <input type="text" name="name" required placeholder="e.g., GitHub Actions CI"
+             class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+      <p class="mt-1 text-xs text-gray-500">A descriptive name to identify this token.</p>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Permissions</label>
+      <input type="text" name="permissions" value="status:write" placeholder="status:write"
+             class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono">
+      <p class="mt-1 text-xs text-gray-500">Comma-separated permissions. Available: <code class="text-gray-400">status:write</code></p>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-300 mb-1">Expiration</label>
+      <input type="datetime-local" name="expires_at"
+             class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+      <p class="mt-1 text-xs text-gray-500">Optional. Leave blank for no expiration.</p>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-2">
+      <a href="{% url 'fossil:api_tokens' slug=project.slug %}"
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Cancel
+      </a>
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+        Generate Token
+      </button>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

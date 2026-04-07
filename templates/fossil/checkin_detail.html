@@ -71,6 +71,40 @@
         {% endif %}
       </div>
     </div>
+    {% if status_checks %}
+    <div class="px-6 py-3 border-t border-gray-700 bg-gray-800/50">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-medium text-gray-400">CI Status</span>
+        <img src="{% url 'fossil:status_badge' slug=project.slug checkin_uuid=checkin.uuid %}" alt="CI Status" class="h-5">
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% for check in status_checks %}
+        <a {% if check.target_url %}href="{{ check.target_url }}" target="_blank" rel="noopener"{% endif %}
+           class="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs
+                  {% if check.state == 'success' %}border-green-800 bg-green-900/30 text-green-300
+                  {% elif check.state == 'failure' %}border-red-800 bg-red-900/30 text-red-300
+                  {% elif check.state == 'error' %}border-red-800 bg-red-900/30 text-red-300
+                  {% else %}border-yellow-800 bg-yellow-900/30 text-yellow-300{% endif %}"
+           {% if check.description %}title="{{ check.description }}"{% endif %}>
+          {% if check.state == 'success' %}
+          <svg class="h-3.5 w-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+          </svg>
+          {% elif check.state == 'failure' or check.state == 'error' %}
+          <svg class="h-3.5 w-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          {% else %}
+          <svg class="h-3.5 w-3.5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="6"/>
+          </svg>
+          {% endif %}
+          {{ check.context }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
     <div class="px-6 py-3 border-t border-gray-700 bg-gray-800/50 flex items-center gap-6 flex-wrap text-xs">
       <div class="flex items-center gap-2">
         <span class="text-gray-500">Commit</span>

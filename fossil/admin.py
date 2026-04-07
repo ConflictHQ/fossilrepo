@@ -2,6 +2,9 @@ from django.contrib import admin
 
 from core.admin import BaseCoreAdmin
 
+from .api_tokens import APIToken
+from .branch_protection import BranchProtection
+from .ci import StatusCheck
 from .forum import ForumPost
 from .models import FossilRepository, FossilSnapshot
 from .notifications import Notification, ProjectWatch
@@ -128,3 +131,27 @@ class WebhookDeliveryAdmin(admin.ModelAdmin):
     list_display = ("webhook", "event_type", "response_status", "success", "delivered_at", "duration_ms")
     list_filter = ("success", "event_type")
     raw_id_fields = ("webhook",)
+
+
+@admin.register(StatusCheck)
+class StatusCheckAdmin(BaseCoreAdmin):
+    list_display = ("context", "state", "checkin_uuid", "repository", "created_at")
+    list_filter = ("state",)
+    search_fields = ("context", "checkin_uuid")
+    raw_id_fields = ("repository",)
+
+
+@admin.register(APIToken)
+class APITokenAdmin(BaseCoreAdmin):
+    list_display = ("name", "token_prefix", "repository", "permissions", "last_used_at", "expires_at", "created_at")
+    search_fields = ("name", "token_prefix")
+    raw_id_fields = ("repository",)
+    readonly_fields = ("token_hash", "token_prefix")
+
+
+@admin.register(BranchProtection)
+class BranchProtectionAdmin(BaseCoreAdmin):
+    list_display = ("branch_pattern", "repository", "require_status_checks", "restrict_push", "created_at")
+    list_filter = ("require_status_checks", "restrict_push")
+    search_fields = ("branch_pattern",)
+    raw_id_fields = ("repository",)

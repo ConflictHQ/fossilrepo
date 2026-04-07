@@ -238,9 +238,16 @@ def status_page(request):
     return HttpResponse(html)
 
 
+def _explore_view(request):
+    from projects.views import explore
+
+    return explore(request)
+
+
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
     path("status/", status_page, name="status"),
+    path("explore/", _explore_view, name="explore"),
     path("dashboard/", include("core.urls")),
     path("auth/", include("accounts.urls")),
     path("settings/", include("organization.urls")),

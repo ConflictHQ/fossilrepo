@@ -13,6 +13,7 @@
   </div>
   <div class="flex gap-3">
     {% if user.is_authenticated %}
+    {% include "projects/partials/star_button.html" %}
     <form method="post" action="{% url 'fossil:toggle_watch' slug=project.slug %}">
       {% csrf_token %}
       {% if is_watching %}

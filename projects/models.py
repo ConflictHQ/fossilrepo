@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from core.models import ActiveManager, BaseCoreModel, Tracking
@@ -39,6 +40,25 @@ class Project(BaseCoreModel):
 
     class Meta:
         ordering = ["name"]
+
+    @property
+    def star_count(self):
+        return self.stars.count()
+
+
+class ProjectStar(models.Model):
+    """Tracks which users have starred a project."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="starred_projects")
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="stars")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "project")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} starred {self.project}"
 
 
 class ProjectTeam(Tracking):

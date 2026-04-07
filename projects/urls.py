@@ -14,6 +14,7 @@ urlpatterns = [
     path("groups/<slug:slug>/edit/", views.group_edit, name="group_edit"),
     path("groups/<slug:slug>/delete/", views.group_delete, name="group_delete"),
     # Projects
+    path("<slug:slug>/star/", views.toggle_star, name="toggle_star"),
     path("<slug:slug>/", views.project_detail, name="detail"),
     path("<slug:slug>/edit/", views.project_update, name="update"),
     path("<slug:slug>/delete/", views.project_delete, name="delete"),

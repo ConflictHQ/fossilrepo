@@ -67,6 +67,9 @@ class FossilSnapshot(Tracking):
 
 
 # Import related models so they're discoverable by Django
+from fossil.api_tokens import APIToken  # noqa: E402, F401
+from fossil.branch_protection import BranchProtection  # noqa: E402, F401
+from fossil.ci import StatusCheck  # noqa: E402, F401
 from fossil.forum import ForumPost  # noqa: E402, F401
 from fossil.notifications import Notification, ProjectWatch  # noqa: E402, F401
 from fossil.releases import Release, ReleaseAsset  # noqa: E402, F401

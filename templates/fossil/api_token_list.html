@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}API Tokens — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-lg font-semibold text-gray-200">API Tokens</h2>
+    <p class="text-sm text-gray-500 mt-1">Tokens for CI/CD systems and automation. Used with Bearer authentication.</p>
+  </div>
+  <a href="{% url 'fossil:api_token_create' slug=project.slug %}"
+     class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+    Generate Token
+  </a>
+</div>
+
+{% if tokens %}
+<div class="space-y-3">
+  {% for token in tokens %}
+  <div class="rounded-lg bg-gray-800 border border-gray-700">
+    <div class="px-5 py-4">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-3 mb-1">
+            <span class="text-sm font-medium text-gray-100">{{ token.name }}</span>
+            <code class="text-xs font-mono text-gray-500">{{ token.token_prefix }}...</code>
+          </div>
+          <div class="flex items-center gap-3 text-xs text-gray-500 mt-1 flex-wrap">
+            <span>Permissions: {{ token.permissions }}</span>
+            <span>Created {{ token.created_at|timesince }} ago</span>
+            {% if token.last_used_at %}
+            <span>Last used {{ token.last_used_at|timesince }} ago</span>
+            {% else %}
+            <span>Never used</span>
+            {% endif %}
+            {% if token.expires_at %}
+            <span>Expires {{ token.expires_at|date:"Y-m-d" }}</span>
+            {% else %}
+            <span>No expiration</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <form method="post" action="{% url 'fossil:api_token_delete' slug=project.slug token_id=token.pk %}"
+                class="inline" onsubmit="return confirm('Revoke this token? Any systems using it will lose access.')">
+            {% csrf_token %}
+            <button type="submit" class="text-xs text-red-400 hover:text-red-300">Revoke</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-8 text-center">
+  <p class="text-sm text-gray-500">No API tokens generated yet.</p>
+  <a href="{% url 'fossil:api_token_create' slug=project.slug %}"
+     class="mt-3 inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+    Generate the first token
+  </a>
+</div>
+{% endif %}
+
+<div class="mt-6 rounded-lg bg-gray-800/50 border border-gray-700 p-4">
+  <h3 class="text-sm font-semibold text-gray-300 mb-2">Usage</h3>
+  <p class="text-xs text-gray-500 mb-2">Use the token with the CI Status API:</p>
+  <pre class="text-xs font-mono text-gray-400 bg-gray-900 rounded p-3 overflow-x-auto">curl -X POST {{ request.scheme }}://{{ request.get_host }}/projects/{{ project.slug }}/fossil/api/status \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"checkin": "abc123", "context": "ci/tests", "state": "success"}'</pre>
+</div>
+{% endblock %}

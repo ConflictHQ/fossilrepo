@@ -204,6 +204,53 @@ class FossilCLI:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=self._env)
         return result.returncode == 0
 
+    def technote_create(self, repo_path: Path, title: str, body: str, timestamp: str | None = None, user: str = "") -> bool:
+        """Create a new technote.
+
+        Uses: fossil wiki create --technote <timestamp> <title> -R <repo>
+        with the body piped via stdin.
+        """
+        if not timestamp:
+            from datetime import UTC, datetime
+
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S")
+
+        cmd = [self.binary, "wiki", "create", title, "--technote", timestamp, "-R", str(repo_path)]
+        if user:
+            cmd.extend(["--technote-user", user])
+        result = subprocess.run(cmd, input=body, capture_output=True, text=True, timeout=30, env=self._env)
+        return result.returncode == 0
+
+    def technote_edit(self, repo_path: Path, technote_id: str, body: str, user: str = "") -> bool:
+        """Edit an existing technote body.
+
+        Uses: fossil wiki commit <comment> --technote <technote_id> -R <repo>
+        with the new body piped via stdin.
+        """
+        cmd = [self.binary, "wiki", "commit", "update", "--technote", technote_id, "-R", str(repo_path)]
+        if user:
+            cmd.extend(["--technote-user", user])
+        result = subprocess.run(cmd, input=body, capture_output=True, text=True, timeout=30, env=self._env)
+        return result.returncode == 0
+
+    def uv_add(self, repo_path: Path, name: str, filepath: Path) -> bool:
+        """Add an unversioned file: fossil uv add <filepath> --as <name> -R <repo>."""
+        cmd = [self.binary, "uv", "add", str(filepath), "--as", name, "-R", str(repo_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=self._env)
+        return result.returncode == 0
+
+    def uv_cat(self, repo_path: Path, name: str) -> bytes:
+        """Get unversioned file content: fossil uv cat <name> -R <repo>.
+
+        Returns raw bytes. Raises FileNotFoundError if the file doesn't exist
+        or the command fails.
+        """
+        cmd = [self.binary, "uv", "cat", name, "-R", str(repo_path)]
+        result = subprocess.run(cmd, capture_output=True, timeout=60, env=self._env)
+        if result.returncode != 0:
+            raise FileNotFoundError(f"Unversioned file not found: {name}")
+        return result.stdout
+
     def git_export(self, repo_path: Path, mirror_dir: Path, autopush_url: str = "", auth_token: str = "") -> dict:
         """Export Fossil repo to a Git mirror directory. Incremental.
 

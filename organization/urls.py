@@ -20,6 +20,8 @@ urlpatterns = [
     path("roles/", views.role_list, name="role_list"),
     path("roles/initialize/", views.role_initialize, name="role_initialize"),
     path("roles/<slug:slug>/", views.role_detail, name="role_detail"),
+    # Audit log
+    path("audit/", views.audit_log, name="audit_log"),
     # Teams
     path("teams/", views.team_list, name="team_list"),
     path("teams/create/", views.team_create, name="team_create"),
