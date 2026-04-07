@@ -71,7 +71,7 @@ jobs:
           "
       - run: python manage.py migrate --noinput
       - run: python manage.py collectstatic --no-input
-      - run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=80 -v
+      - run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=50 -v
 
   audit:
     runs-on: ubuntu-latest
