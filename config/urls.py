@@ -4,8 +4,39 @@ from datetime import UTC, datetime
 from django.conf import settings
 from django.contrib import admin
 from django.http import HttpResponse, JsonResponse
+from django.shortcuts import redirect as _redirect
 from django.urls import include, path
 from django.views.generic import RedirectView
+
+
+def _oauth_github_callback(request):
+    """Global GitHub OAuth callback. Extracts slug from state param and delegates."""
+    state = request.GET.get("state", "")
+    slug = state.split(":")[0] if ":" in state else ""
+    if not slug:
+        return _redirect("/dashboard/")
+    from fossil.oauth import github_exchange_token
+
+    result = github_exchange_token(request, slug)
+    if result.get("token"):
+        request.session["github_oauth_token"] = result["token"]
+        request.session["github_oauth_user"] = result.get("username", "")
+    return _redirect(f"/projects/{slug}/fossil/sync/git/")
+
+
+def _oauth_gitlab_callback(request):
+    """Global GitLab OAuth callback. Extracts slug from state param and delegates."""
+    state = request.GET.get("state", "")
+    slug = state.split(":")[0] if ":" in state else ""
+    if not slug:
+        return _redirect("/dashboard/")
+    from fossil.oauth import gitlab_exchange_token
+
+    result = gitlab_exchange_token(request, slug)
+    if result.get("token"):
+        request.session["gitlab_oauth_token"] = result["token"]
+    return _redirect(f"/projects/{slug}/fossil/sync/git/")
+
 
 admin.site.site_header = settings.ADMIN_SITE_HEADER
 admin.site.site_title = settings.ADMIN_SITE_TITLE
@@ -195,6 +226,8 @@ urlpatterns = [
     path("projects/<slug:slug>/fossil/", include("fossil.urls")),
     path("kb/", include("pages.urls")),
     path("items/", include("items.urls")),
+    path("oauth/callback/github/", _oauth_github_callback, name="oauth_github_callback_global"),
+    path("oauth/callback/gitlab/", _oauth_gitlab_callback, name="oauth_gitlab_callback_global"),
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health"),
 ]
