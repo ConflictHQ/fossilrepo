@@ -250,15 +250,15 @@ class FossilCLI:
             return {"success": False, "public_key": "", "fingerprint": "", "error": str(e)}
         return {"success": False, "public_key": "", "fingerprint": ""}
 
-    def http_proxy(self, repo_path: Path, request_body: bytes, content_type: str = "") -> tuple[bytes, str]:
+    def http_proxy(self, repo_path: Path, request_body: bytes, content_type: str = "", localauth: bool = True) -> tuple[bytes, str]:
         """Proxy a single Fossil HTTP sync request via CGI mode.
 
-        Runs ``fossil http <repo_path> --localauth`` with the request piped to
-        stdin.  Fossil writes a full HTTP response (headers + body) to stdout;
+        Runs ``fossil http <repo_path>`` with the request piped to stdin.
+        Fossil writes a full HTTP response (headers + body) to stdout;
         we split the two apart and return (response_body, response_content_type).
 
-        ``--localauth`` grants full permissions because Django handles auth
-        before this method is ever called.
+        When *localauth* is True, ``--localauth`` grants full push permissions.
+        When False, only anonymous pull/clone is allowed (for public repos).
         """
         import os
 
@@ -275,7 +275,9 @@ class FossilCLI:
             "SERVER_PROTOCOL": "HTTP/1.1",
         }
 
-        cmd = [self.binary, "http", str(repo_path), "--localauth"]
+        cmd = [self.binary, "http", str(repo_path)]
+        if localauth:
+            cmd.append("--localauth")
 
         try:
             result = subprocess.run(
