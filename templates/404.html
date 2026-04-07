@@ -1,16 +1,33 @@
-{% extends "base.html" %}
-{% block title %}Page Not Found — Fossilrepo{% endblock %}
-
-{% block content %}
-<div class="flex flex-col items-center justify-center py-20">
-  <div class="text-6xl font-bold text-brand mb-4">404</div>
-  <h1 class="text-2xl font-bold text-gray-100 mb-2">Page Not Found</h1>
-  <p class="text-gray-400 mb-6 text-center max-w-md">
-    The page you're looking for doesn't exist or has been moved.
-  </p>
-  <div class="flex gap-3">
-    <a href="/" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">Go to Dashboard</a>
-    <button onclick="history.back()" class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 ring-1 ring-inset ring-gray-600 hover:bg-gray-600">Go Back</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Not Found — FossilRepo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>:root { --brand: #DC394C; }</style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center">
+  <div class="text-center px-6">
+    <div class="mb-6">
+      <svg class="h-12 w-12 mx-auto text-[var(--brand)] opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10" stroke-opacity="0.6"/>
+        <circle cx="12" cy="12" r="4" fill="currentColor" fill-opacity="0.3"/>
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke-opacity="0.4"/>
+      </svg>
+      <div class="mt-2 text-sm font-bold tracking-tight">
+        <span class="text-gray-100">fossil</span><span class="text-[var(--brand)]">repo</span>
+      </div>
+    </div>
+    <div class="text-7xl font-bold text-[var(--brand)] mb-4">404</div>
+    <h1 class="text-2xl font-bold text-gray-100 mb-2">Page Not Found</h1>
+    <p class="text-gray-400 mb-8 max-w-md mx-auto">
+      The page you're looking for doesn't exist or has been moved.
+    </p>
+    <div class="flex gap-3 justify-center">
+      <a href="/" class="rounded-md bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition">Go Home</a>
+      <button onclick="history.back()" class="rounded-md bg-gray-800 px-5 py-2.5 text-sm font-semibold text-gray-300 ring-1 ring-gray-700 hover:bg-gray-700 transition">Go Back</button>
+    </div>
   </div>
-</div>
-{% endblock %}
+</body>
+</html>

@@ -7,7 +7,11 @@ services:
       - "2222:2222"
     env_file: .env.example
     environment:
-      DJANGO_DEBUG: "true"
+      DJANGO_DEBUG: "false"
+      DJANGO_SECRET_KEY: "local-dev-only-not-for-production-use-change-in-prod"
+      SECURE_SSL_REDIRECT: "false"
+      SESSION_COOKIE_SECURE: "false"
+      CSRF_COOKIE_SECURE: "false"
       POSTGRES_HOST: postgres
       REDIS_URL: redis://redis:6379/1
       CELERY_BROKER: redis://redis:6379/0
