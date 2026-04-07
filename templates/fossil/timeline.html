@@ -6,8 +6,8 @@
 <h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
 {% include "fossil/_project_nav.html" %}
 
-<div class="flex items-center justify-between mb-4">
-  <div class="flex items-center gap-2 text-xs text-gray-500">
+<div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+  <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500">
     <span>Filter:</span>
     <a href="{% url 'fossil:timeline' slug=project.slug %}"
        class="rounded-full px-2.5 py-1 {% if not event_type %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">All</a>

@@ -21,7 +21,7 @@ def get_user_role(user, project: Project) -> str | None:
 
     Returns "admin", "write", "read", or None.
     """
-    if not user or not user.is_authenticated:
+    if not user or not user.is_authenticated or not user.is_active:
         return None
 
     if user.is_superuser:
@@ -53,9 +53,9 @@ def can_read_project(user, project: Project) -> bool:
     if project.visibility == "public":
         return True
     if project.visibility == "internal":
-        return user and user.is_authenticated
+        return user and user.is_authenticated and user.is_active
     # Private
-    if not user or not user.is_authenticated:
+    if not user or not user.is_authenticated or not user.is_active:
         return False
     if user.is_superuser:
         return True
@@ -64,7 +64,7 @@ def can_read_project(user, project: Project) -> bool:
 
 def can_write_project(user, project: Project) -> bool:
     """Can this user write to the project (create tickets, edit wiki, etc.)?"""
-    if not user or not user.is_authenticated:
+    if not user or not user.is_authenticated or not user.is_active:
         return False
     if user.is_superuser:
         return True
@@ -74,7 +74,7 @@ def can_write_project(user, project: Project) -> bool:
 
 def can_admin_project(user, project: Project) -> bool:
     """Can this user administer the project (manage teams, settings, sync)?"""
-    if not user or not user.is_authenticated:
+    if not user or not user.is_authenticated or not user.is_active:
         return False
     if user.is_superuser:
         return True

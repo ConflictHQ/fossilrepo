@@ -29,13 +29,18 @@
     border-bottom: none; height: 30%; opacity: 0.5;
   }
   .tl-date { font-size: 0.8rem; font-weight: 700; color: #d1d5db; padding: 8px 0 4px; border-bottom: 1px solid #374151; margin-bottom: 2px; }
-  .tl-row { display: flex; min-height: 28px; align-items: center; }
+  .tl-row { display: flex; min-height: 28px; align-items: center; flex-wrap: wrap; }
   .tl-row:hover { background: rgba(255,255,255,0.02); }
   .tl-time { width: 42px; flex-shrink: 0; text-align: right; font-size: 0.75rem; color: #6b7280; font-variant-numeric: tabular-nums; }
   .tl-msg { flex: 1; min-width: 0; font-size: 0.8125rem; color: #e5e5e5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tl-msg a { color: #e5e5e5; text-decoration: none; }
   .tl-msg a:hover { color: #e8677a; }
-  .tl-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-left: 12px; }
+  .tl-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-left: 12px; flex-wrap: wrap; }
+  @media (max-width: 639px) {
+    .tl-meta { display: none; }
+    .tl-dag { display: none; }
+    .tl-row { padding: 4px 0; }
+  }
   .tl-hash { font-family: ui-monospace, monospace; font-size: 0.7rem; color: #DC394C; text-decoration: none; }
   .tl-hash:hover { color: #e8677a; text-decoration: underline; }
   .tl-user { font-size: 0.7rem; color: #9ca3af; text-decoration: none; }

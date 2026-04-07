@@ -61,6 +61,21 @@ def release_asset(release, admin_user, tmp_path, settings):
     )
 
 
+@pytest.fixture
+def draft_release_asset(draft_release, admin_user, tmp_path, settings):
+    settings.STORAGES = _TEST_STORAGES
+    settings.MEDIA_ROOT = str(tmp_path / "media")
+    uploaded = SimpleUploadedFile("beta-build.tar.gz", b"draft-content", content_type="application/gzip")
+    return ReleaseAsset.objects.create(
+        release=draft_release,
+        name="beta-build.tar.gz",
+        file=uploaded,
+        file_size_bytes=len(b"draft-content"),
+        content_type="application/gzip",
+        created_by=admin_user,
+    )
+
+
 @pytest.mark.django_db
 class TestReleaseModel:
     def test_create_release(self, release):
@@ -327,4 +342,30 @@ class TestReleaseAssetDownloadView:
 
     def test_download_denied_on_private_for_no_perm(self, no_perm_client, sample_project, release, release_asset):
         response = no_perm_client.get(f"/projects/{sample_project.slug}/fossil/releases/{release.tag_name}/assets/{release_asset.pk}/")
+        assert response.status_code == 403
+
+    def test_draft_asset_download_denied_for_non_writer(self, no_perm_client, sample_project, draft_release, draft_release_asset):
+        """Non-writers cannot download assets from draft releases even on public projects."""
+        sample_project.visibility = "public"
+        sample_project.save()
+        response = no_perm_client.get(
+            f"/projects/{sample_project.slug}/fossil/releases/{draft_release.tag_name}/assets/{draft_release_asset.pk}/"
+        )
+        assert response.status_code == 403
+
+    def test_draft_asset_download_allowed_for_writer(self, admin_client, sample_project, draft_release, draft_release_asset):
+        """Writers can download assets from draft releases."""
+        response = admin_client.get(
+            f"/projects/{sample_project.slug}/fossil/releases/{draft_release.tag_name}/assets/{draft_release_asset.pk}/"
+        )
+        assert response.status_code == 200
+
+
+@pytest.mark.django_db
+class TestDraftSourceArchiveAccess:
+    def test_draft_source_archive_denied_for_non_writer(self, no_perm_client, sample_project, draft_release):
+        """Non-writers cannot download source archives for draft releases."""
+        sample_project.visibility = "public"
+        sample_project.save()
+        response = no_perm_client.get(f"/projects/{sample_project.slug}/fossil/releases/{draft_release.tag_name}/source.tar.gz")
         assert response.status_code == 403

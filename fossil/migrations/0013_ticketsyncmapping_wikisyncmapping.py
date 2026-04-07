@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("fossil", "0012_alter_ticketclaim_unique_together"),
     ]

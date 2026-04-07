@@ -306,10 +306,16 @@ class TestFossilRepositoryModel:
         repo = FossilRepository.objects.get(project=sample_project)
         assert repo.full_path.name == repo.filename
 
-    def test_exists_on_disk_false(self, sample_project):
+    def test_exists_on_disk(self, sample_project):
         repo = FossilRepository.objects.get(project=sample_project)
-        # The /data/repos dir doesn't exist in test env
-        assert repo.exists_on_disk is False
+        # Signal auto-inits the .fossil file if fossil binary is available
+        from fossil.cli import FossilCLI
+
+        cli = FossilCLI()
+        if cli.is_available():
+            assert repo.exists_on_disk is True
+        else:
+            assert repo.exists_on_disk is False
 
 
 # --- View tests ---

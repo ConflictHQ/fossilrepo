@@ -390,7 +390,7 @@ def sync_tickets_to_github(mirror_id: int):
     """
     from django.utils import timezone
 
-    from fossil.github_api import GitHubClient, content_hash, format_ticket_body, fossil_status_to_github, parse_github_repo
+    from fossil.github_api import GitHubClient, format_ticket_body, fossil_status_to_github, parse_github_repo
     from fossil.reader import FossilReader
     from fossil.sync_models import GitMirror, SyncLog, TicketSyncMapping
 

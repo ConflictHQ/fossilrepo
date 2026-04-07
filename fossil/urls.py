@@ -100,8 +100,8 @@ urlpatterns = [
     path("sync/git/<int:mirror_id>/run/", views.git_mirror_run, name="git_mirror_run"),
     path("sync/git/connect/github/", views.oauth_github_start, name="oauth_github"),
     path("sync/git/connect/gitlab/", views.oauth_gitlab_start, name="oauth_gitlab"),
-    path("sync/git/callback/github/", views.oauth_github_callback, name="oauth_github_callback"),
-    path("sync/git/callback/gitlab/", views.oauth_gitlab_callback, name="oauth_gitlab_callback"),
+    # Per-project OAuth callbacks removed — global /oauth/callback/ handlers
+    # enforce nonce/state validation. Keeping these would bypass that check.
     path("code/raw/<path:filepath>", views.code_raw, name="code_raw"),
     path("code/blame/<path:filepath>", views.code_blame, name="code_blame"),
     path("code/history/<path:filepath>", views.file_history, name="file_history"),

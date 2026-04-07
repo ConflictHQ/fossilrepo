@@ -21,7 +21,7 @@
              class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Type</label>
         <select name="type" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
@@ -52,7 +52,7 @@
     {% if custom_fields %}
     <div class="border-t border-gray-700 pt-4 mt-4">
       <h3 class="text-sm font-semibold text-gray-300 mb-3">Custom Fields</h3>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {% for cf in custom_fields %}
         <div{% if cf.field_type == "textarea" %} class="col-span-2"{% endif %}>
           <label class="block text-sm font-medium text-gray-300 mb-1">

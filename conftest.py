@@ -6,6 +6,25 @@ from pages.models import Page
 from projects.models import Project, ProjectTeam
 
 
+@pytest.fixture(autouse=True)
+def _fossil_data_dir(tmp_path, settings):
+    """Point FOSSIL_DATA_DIR to a temp directory so tests don't need /data/repos."""
+    data_dir = tmp_path / "fossil-repos"
+    data_dir.mkdir()
+    # Override the constance default via Django's CONSTANCE_CONFIG setting
+    settings.CONSTANCE_CONFIG = {
+        **settings.CONSTANCE_CONFIG,
+        "FOSSIL_DATA_DIR": (str(data_dir), "Directory where .fossil repository files are stored"),
+    }
+    # Also set via constance DB backend if already cached
+    try:
+        from constance import config
+
+        config.FOSSIL_DATA_DIR = str(data_dir)
+    except Exception:
+        pass
+
+
 @pytest.fixture
 def admin_user(db):
     user = User.objects.create_superuser(username="admin", email="admin@test.com", password="testpass123")

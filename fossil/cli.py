@@ -1,6 +1,7 @@
 """Thin wrapper around the fossil binary for write operations."""
 
 import logging
+import os
 import subprocess
 from pathlib import Path
 
@@ -321,13 +322,30 @@ class FossilCLI:
 
         env = dict(self._env)
 
+        temp_paths = []
         if autopush_url:
             cmd.extend(["--autopush", autopush_url])
             if auth_token:
                 env["GIT_TERMINAL_PROMPT"] = "0"
-                env["GIT_CONFIG_COUNT"] = "1"
-                env["GIT_CONFIG_KEY_0"] = "credential.helper"
-                env["GIT_CONFIG_VALUE_0"] = f"!echo password={auth_token}"
+                # Use a temporary askpass script instead of a shell credential
+                # helper to avoid command injection via token metacharacters.
+                # The token is stored in a separate file so it never appears
+                # in shell syntax.
+                import stat
+                import tempfile
+
+                token_fd, token_path = tempfile.mkstemp(suffix=".tok")
+                with os.fdopen(token_fd, "w") as f:
+                    f.write(auth_token)
+                os.chmod(token_path, stat.S_IRUSR)
+                temp_paths.append(token_path)
+
+                askpass_fd, askpass_path = tempfile.mkstemp(suffix=".sh")
+                with os.fdopen(askpass_fd, "w") as f:
+                    f.write(f"#!/bin/sh\ncat '{token_path}'\n")
+                os.chmod(askpass_path, stat.S_IRWXU)
+                temp_paths.append(askpass_path)
+                env["GIT_ASKPASS"] = askpass_path
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env)
@@ -337,6 +355,9 @@ class FossilCLI:
             return {"success": result.returncode == 0, "message": output}
         except subprocess.TimeoutExpired:
             return {"success": False, "message": "Export timed out after 5 minutes"}
+        finally:
+            for p in temp_paths:
+                os.unlink(p)
 
     def generate_ssh_key(self, key_path: Path, comment: str = "fossilrepo") -> dict:
         """Generate an SSH key pair for Git authentication.
@@ -390,9 +411,11 @@ class FossilCLI:
             "PATH_INFO": "/xfer",
             "SCRIPT_NAME": "",
             "HTTP_HOST": "localhost",
-            "GATEWAY_INTERFACE": "CGI/1.1",
             "SERVER_PROTOCOL": "HTTP/1.1",
         }
+        # Do NOT set GATEWAY_INTERFACE — it causes fossil to auto-enter CGI
+        # mode, treating the "http" subcommand as a repository path.
+        env.pop("GATEWAY_INTERFACE", None)
 
         cmd = [self.binary, "http", str(repo_path)]
         if localauth:

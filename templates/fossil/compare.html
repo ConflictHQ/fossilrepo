@@ -15,9 +15,11 @@
   .diff-line-header td { color: #6b7280; }
   .diff-gutter { width: 1%; user-select: none; color: #4b5563; text-align: right; padding: 0 6px; border-right: 1px solid #374151; white-space: nowrap; }
   /* Split diff view */
-  .split-diff { display: grid; grid-template-columns: 1fr 1fr; }
+  .split-diff { display: grid; grid-template-columns: 1fr; }
+  @media (min-width: 768px) { .split-diff { grid-template-columns: 1fr 1fr; } }
   .split-diff-side { overflow-x: auto; }
-  .split-diff-side:first-child { border-right: 1px solid #374151; }
+  @media (min-width: 768px) { .split-diff-side:first-child { border-right: 1px solid #374151; } }
+  @media (max-width: 767px) { .split-diff-side:first-child { border-bottom: 1px solid #374151; } }
   .split-diff-side .diff-table td:last-child { width: 100%; }
   .split-line-add { background: rgba(34, 197, 94, 0.1); }
   .split-line-add td:last-child { color: #86efac; }
@@ -37,7 +39,7 @@
 
 <div class="mb-6">
   <h2 class="text-lg font-semibold text-gray-200 mb-3">Compare Checkins</h2>
-  <form method="get" class="flex items-end gap-3">
+  <form method="get" class="flex flex-col sm:flex-row sm:items-end gap-3">
     <div class="flex-1">
       <label class="block text-xs text-gray-500 mb-1">From (older)</label>
       <input type="text" name="from" value="{{ from_uuid }}" placeholder="Checkin hash..."
@@ -55,7 +57,7 @@
 </div>
 
 {% if from_detail and to_detail %}
-<div class="grid grid-cols-2 gap-4 mb-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
   <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
     <div class="text-xs text-gray-500 mb-1">From</div>
     <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=from_detail.uuid %}" class="text-sm text-brand-light hover:text-brand">{{ from_detail.comment|truncatechars:60 }}</a>

@@ -11,7 +11,7 @@
 </div>
 
 <!-- Filter by model type -->
-<div class="flex gap-2 mb-6">
+<div class="flex flex-wrap gap-2 mb-6">
   <a href="{% url 'organization:audit_log' %}"
      class="rounded-md px-3 py-2 text-sm font-medium {% if not model_filter %}bg-brand text-white{% else %}bg-gray-700 text-gray-300 ring-1 ring-inset ring-gray-600 hover:bg-gray-600{% endif %}">
     All
@@ -25,7 +25,7 @@
 </div>
 
 <!-- Audit entries table -->
-<div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
+<div class="overflow-x-auto rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
   <table class="min-w-full divide-y divide-gray-700">
     <thead class="bg-gray-900">
       <tr>

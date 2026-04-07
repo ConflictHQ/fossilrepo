@@ -20,7 +20,7 @@
       </div>
     </div>
   </div>
-  <div class="flex items-center gap-2 mt-4 sm:mt-0">
+  <div class="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
     <a href="{% url 'accounts:profile_edit' %}"
        class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-600">
       Edit Profile
@@ -76,10 +76,10 @@
   {% if ssh_keys %}
   <div class="divide-y divide-gray-700">
     {% for key in ssh_keys %}
-    <div class="p-4 flex items-center justify-between">
-      <div>
+    <div class="p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
         <div class="text-sm font-medium text-gray-200">{{ key.title }}</div>
-        <div class="text-xs text-gray-500 font-mono mt-1">{{ key.fingerprint }}</div>
+        <div class="text-xs text-gray-500 font-mono mt-1 truncate">{{ key.fingerprint }}</div>
         <div class="text-xs text-gray-500 mt-1">
           {{ key.key_type|upper }} &middot; Added {{ key.created_at|timesince }} ago
           {% if key.last_used_at %}&middot; Last used {{ key.last_used_at|timesince }} ago{% endif %}
@@ -134,11 +134,11 @@
   {% if tokens %}
   <div class="divide-y divide-gray-700">
     {% for token in tokens %}
-    <div class="p-4 flex items-center justify-between">
-      <div>
+    <div class="p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
         <div class="text-sm font-medium text-gray-200">{{ token.name }}</div>
-        <div class="text-xs text-gray-500 font-mono mt-1">{{ token.token_prefix }}...</div>
-        <div class="text-xs text-gray-500 mt-1">
+        <div class="text-xs text-gray-500 font-mono mt-1 truncate">{{ token.token_prefix }}...</div>
+        <div class="text-xs text-gray-500 mt-1 break-words">
           Scopes: {{ token.scopes }} &middot; Created {{ token.created_at|timesince }} ago
           {% if token.last_used_at %}&middot; Last used {{ token.last_used_at|timesince }} ago{% endif %}
           {% if token.expires_at %}&middot; Expires {{ token.expires_at|date:"M j, Y" }}{% endif %}

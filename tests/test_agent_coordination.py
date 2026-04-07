@@ -695,7 +695,7 @@ class TestCodeReviewDetail:
 @pytest.mark.django_db
 class TestCodeReviewComment:
     def test_add_comment(self, admin_client, sample_project, fossil_repo_obj, admin_user):
-        """Adding a comment to a review returns 201."""
+        """Adding a comment to a review returns 201. Author is derived from auth, not body."""
         review = CodeReview.objects.create(repository=fossil_repo_obj, title="Fix", diff="d", created_by=admin_user)
 
         response = admin_client.post(
@@ -705,7 +705,7 @@ class TestCodeReviewComment:
                     "body": "Consider using a guard clause here",
                     "file_path": "src/auth.py",
                     "line_number": 42,
-                    "author": "human-reviewer",
+                    "author": "human-reviewer",  # ignored — author comes from auth context
                 }
             ),
             content_type="application/json",
@@ -716,7 +716,7 @@ class TestCodeReviewComment:
         assert data["body"] == "Consider using a guard clause here"
         assert data["file_path"] == "src/auth.py"
         assert data["line_number"] == 42
-        assert data["author"] == "human-reviewer"
+        assert data["author"] == "admin"  # session user's username, not caller-supplied
 
         # Verify DB
         assert ReviewComment.objects.filter(review=review).count() == 1

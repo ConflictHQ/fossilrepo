@@ -1,5 +1,7 @@
+import logging
 import re
 
+import requests
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -11,6 +13,8 @@ from django_ratelimit.decorators import ratelimit
 
 from .forms import LoginForm
 from .models import PersonalAccessToken, UserProfile
+
+logger = logging.getLogger(__name__)
 
 # Allowed SSH key type prefixes
 _SSH_KEY_PREFIXES = ("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-", "ssh-dss")
@@ -49,12 +53,52 @@ def _sanitize_ssh_key(public_key: str) -> tuple[str | None, str]:
     return key, ""
 
 
+def _verify_turnstile(token: str, remote_ip: str) -> bool:
+    """Verify a Cloudflare Turnstile response token. Returns True if valid."""
+    from constance import config
+
+    if not config.TURNSTILE_SECRET_KEY:
+        return False
+    try:
+        resp = requests.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data={"secret": config.TURNSTILE_SECRET_KEY, "response": token, "remoteip": remote_ip},
+            timeout=5,
+        )
+        return resp.status_code == 200 and resp.json().get("success", False)
+    except Exception:
+        logger.exception("Turnstile verification failed")
+        return False
+
+
 @ratelimit(key="ip", rate="10/m", block=True)
 def login_view(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
 
+    from constance import config
+
+    turnstile_enabled = config.TURNSTILE_ENABLED and config.TURNSTILE_SITE_KEY
+    turnstile_error = False
+
     if request.method == "POST":
+        # Verify Turnstile before processing login
+        if turnstile_enabled:
+            turnstile_token = request.POST.get("cf-turnstile-response", "")
+            if not turnstile_token or not _verify_turnstile(turnstile_token, request.META.get("REMOTE_ADDR", "")):
+                turnstile_error = True
+                form = LoginForm()
+                return render(
+                    request,
+                    "accounts/login.html",
+                    {
+                        "form": form,
+                        "turnstile_enabled": True,
+                        "turnstile_site_key": config.TURNSTILE_SITE_KEY,
+                        "turnstile_error": True,
+                    },
+                )
+
         form = LoginForm(request, data=request.POST)
         if form.is_valid():
             login(request, form.get_user())
@@ -65,7 +109,12 @@ def login_view(request):
     else:
         form = LoginForm()
 
-    return render(request, "accounts/login.html", {"form": form})
+    ctx = {"form": form}
+    if turnstile_enabled:
+        ctx["turnstile_enabled"] = True
+        ctx["turnstile_site_key"] = config.TURNSTILE_SITE_KEY
+        ctx["turnstile_error"] = turnstile_error
+    return render(request, "accounts/login.html", ctx)
 
 
 @require_POST

@@ -3,11 +3,15 @@
 Supports:
 1. Project-scoped APIToken (tied to a FossilRepository) — permissions enforced
 2. User-scoped PersonalAccessToken (tied to a Django User) — scopes enforced
-3. Session auth fallback (for browser testing)
+3. Session auth fallback — CSRF enforced on mutating requests
 """
 
 from django.http import JsonResponse
+from django.middleware.csrf import CsrfViewMiddleware
 from django.utils import timezone
+
+# Reusable CSRF checker for session-auth API callers.
+_csrf_middleware = CsrfViewMiddleware(lambda req: None)
 
 
 def authenticate_request(request, repository=None, required_scope="read"):
@@ -23,8 +27,15 @@ def authenticate_request(request, repository=None, required_scope="read"):
     """
     auth = request.META.get("HTTP_AUTHORIZATION", "")
     if not auth.startswith("Bearer "):
-        # Fall back to session auth — session users have full access
+        # Fall back to session auth — CSRF enforced on mutating requests
+        # because API views use @csrf_exempt for token-based callers.
         if request.user.is_authenticated:
+            if not request.user.is_active:
+                return None, None, JsonResponse({"error": "Account is deactivated"}, status=403)
+            if required_scope in ("write", "admin") and request.method not in ("GET", "HEAD", "OPTIONS"):
+                csrf_error = _csrf_middleware.process_view(request, None, (), {})
+                if csrf_error is not None:
+                    return None, None, JsonResponse({"error": "CSRF validation failed"}, status=403)
             return request.user, None, None
         return None, None, JsonResponse({"error": "Authentication required"}, status=401)
 
@@ -59,6 +70,8 @@ def authenticate_request(request, repository=None, required_scope="read"):
         # Enforce PAT scopes
         if not _token_has_scope(pat.scopes, required_scope):
             return None, None, JsonResponse({"error": f"Token lacks required scope: {required_scope}"}, status=403)
+        if not pat.user.is_active:
+            return None, None, JsonResponse({"error": "Account is deactivated"}, status=403)
         pat.last_used_at = timezone.now()
         pat.save(update_fields=["last_used_at"])
         return pat.user, pat, None

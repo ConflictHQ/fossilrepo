@@ -1837,10 +1837,30 @@ def fossil_xfer(request, slug):
     - Public repos: anonymous clone/pull allowed (no --localauth).
     - Authenticated users with write access: full push/pull (--localauth).
     - Private/internal repos: require at least read permission.
+
+    Supports HTTP Basic Auth for fossil CLI clients (push/pull/clone).
     """
+    import base64
+
+    from django.contrib.auth import authenticate
+
     from projects.access import can_read_project, can_write_project
 
     from .cli import FossilCLI
+
+    # Fossil CLI sends HTTP Basic Auth — Django's session middleware ignores it,
+    # so we authenticate manually from the Authorization header.
+    if not request.user.is_authenticated:
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        if auth_header.startswith("Basic "):
+            try:
+                decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+                username, password = decoded.split(":", 1)
+                user = authenticate(request, username=username, password=password)
+                if user and user.is_active:
+                    request.user = user
+            except (ValueError, UnicodeDecodeError):
+                pass
 
     project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
     fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
@@ -3228,6 +3248,12 @@ def release_asset_download(request, slug, tag_name, asset_id):
     from fossil.releases import Release, ReleaseAsset
 
     release = get_object_or_404(Release, repository=fossil_repo, tag_name=tag_name, deleted_at__isnull=True)
+
+    if release.is_draft:
+        from projects.access import require_project_write
+
+        require_project_write(request, project)
+
     asset = get_object_or_404(ReleaseAsset, pk=asset_id, release=release, deleted_at__isnull=True)
 
     # Increment download count atomically
@@ -3245,6 +3271,11 @@ def release_source_archive(request, slug, tag_name, fmt):
     from fossil.releases import Release
 
     release = get_object_or_404(Release, repository=fossil_repo, tag_name=tag_name, deleted_at__isnull=True)
+
+    if release.is_draft:
+        from projects.access import require_project_write
+
+        require_project_write(request, project)
 
     if not release.checkin_uuid:
         raise Http404("No checkin linked to this release.")
@@ -3352,6 +3383,12 @@ def status_check_api(request, slug):
             return JsonResponse({"error": "context must be 200 characters or fewer"}, status=400)
         if len(description) > 500:
             return JsonResponse({"error": "description must be 500 characters or fewer"}, status=400)
+        if target_url:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(target_url)
+            if parsed.scheme not in ("http", "https"):
+                return JsonResponse({"error": "target_url must use http or https scheme"}, status=400)
 
         check, created = StatusCheck.objects.update_or_create(
             repository=fossil_repo,

@@ -27,7 +27,7 @@
       Search
     </button>
   </form>
-  <div class="flex gap-2">
+  <div class="flex flex-wrap gap-2">
     <a href="{% url 'explore' %}?sort=stars{% if search %}&search={{ search }}{% endif %}"
        class="rounded-md px-3 py-2 text-sm font-medium {% if sort == 'stars' %}bg-brand text-white{% else %}bg-gray-700 text-gray-300 ring-1 ring-inset ring-gray-600 hover:bg-gray-600{% endif %}">
       Stars

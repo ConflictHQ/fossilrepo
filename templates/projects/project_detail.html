@@ -74,7 +74,7 @@
           <div class="flex-1 min-w-0">
             <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=commit.uuid %}"
                class="text-sm text-gray-200 hover:text-brand-light">{{ commit.comment|truncatechars:80 }}</a>
-            <div class="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
+            <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500">
               <span>{{ commit.user|display_user }}</span>
               <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=commit.uuid %}"
                  class="font-mono text-brand-light hover:text-brand">{{ commit.uuid|truncatechars:10 }}</a>

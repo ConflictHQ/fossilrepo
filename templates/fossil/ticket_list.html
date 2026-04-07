@@ -6,7 +6,7 @@
 {% include "fossil/_project_nav.html" %}
 
 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-  <div class="flex items-center gap-2 text-xs text-gray-500">
+  <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500">
     <span>Status:</span>
     <a href="{% url 'fossil:tickets' slug=project.slug %}"
        class="rounded-full px-2.5 py-1 {% if not status_filter %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">All</a>
@@ -17,7 +17,7 @@
     <a href="{% url 'fossil:tickets' slug=project.slug %}?status=Closed"
        class="rounded-full px-2.5 py-1 {% if status_filter == 'Closed' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Closed</a>
   </div>
-  <div class="flex items-center gap-3">
+  <div class="flex flex-wrap items-center gap-3">
     <a href="{% url 'fossil:tickets_csv' slug=project.slug %}" class="text-xs text-gray-500 hover:text-brand-light">Export CSV</a>
     {% if perms.projects.change_project %}
     <a href="{% url 'fossil:ticket_create' slug=project.slug %}" class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">New Ticket</a>
@@ -42,8 +42,8 @@
 
 {% include "fossil/partials/ticket_table.html" %}
 
-<div class="mt-4 flex items-center justify-between text-sm">
-  <div class="flex items-center gap-3">
+<div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+  <div class="flex flex-wrap items-center gap-3">
     <span class="text-gray-500">{{ total }} ticket{{ total|pluralize }}</span>
     <div class="flex items-center gap-1 text-xs">
       <span class="text-gray-600">Show:</span>

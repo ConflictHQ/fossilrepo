@@ -142,6 +142,9 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", True)
     SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # --- i18n ---
 
@@ -245,6 +248,10 @@ CONSTANCE_CONFIG = {
     "GITHUB_OAUTH_CLIENT_SECRET": ("", "GitHub OAuth App Client Secret"),
     "GITLAB_OAUTH_CLIENT_ID": ("", "GitLab OAuth App Client ID"),
     "GITLAB_OAUTH_CLIENT_SECRET": ("", "GitLab OAuth App Client Secret"),
+    # Cloudflare Turnstile (optional bot protection on login)
+    "TURNSTILE_ENABLED": (False, "Enable Cloudflare Turnstile on the login page"),
+    "TURNSTILE_SITE_KEY": ("", "Cloudflare Turnstile site key (public)"),
+    "TURNSTILE_SECRET_KEY": ("", "Cloudflare Turnstile secret key (server-side verification)"),
 }
 CONSTANCE_CONFIG_FIELDSETS = {
     "General": ("SITE_NAME",),
@@ -252,6 +259,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
     "Git Sync": ("GIT_SYNC_MODE", "GIT_SYNC_SCHEDULE", "GIT_MIRROR_DIR", "GIT_SSH_KEY_DIR"),
     "GitHub OAuth": ("GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET"),
     "GitLab OAuth": ("GITLAB_OAUTH_CLIENT_ID", "GITLAB_OAUTH_CLIENT_SECRET"),
+    "Cloudflare Turnstile": ("TURNSTILE_ENABLED", "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"),
 }
 
 # --- Sentry ---

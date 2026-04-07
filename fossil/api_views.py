@@ -719,6 +719,33 @@ def _get_workspace(repo, workspace_name):
     return workspace
 
 
+def _check_workspace_ownership(workspace, request, token, data=None):
+    """Verify the caller owns this workspace.
+
+    Token-based callers (agents) must provide an agent_id matching the workspace.
+    Session-auth users (human operators) are allowed through as human oversight.
+    Returns an error JsonResponse if denied, or None if allowed.
+    """
+    if token is None:
+        # Session-auth user — human oversight, allowed
+        return None
+    if not workspace.agent_id:
+        # Workspace has no agent_id — any writer can operate
+        return None
+    # Token-based caller must supply matching agent_id
+    if data is None:
+        try:
+            data = json.loads(request.body) if request.body else {}
+        except (json.JSONDecodeError, ValueError):
+            data = {}
+    caller_agent_id = (data.get("agent_id") or "").strip()
+    if not caller_agent_id or caller_agent_id != workspace.agent_id:
+        return JsonResponse(
+            {"error": "Only the owning agent can modify this workspace"},
+            status=403,
+        )
+
+
 @csrf_exempt
 def api_workspace_list(request, slug):
     """List agent workspaces for a repository.
@@ -939,6 +966,10 @@ def api_workspace_commit(request, slug, workspace_name):
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({"error": "Invalid JSON body"}, status=400)
 
+    ownership_err = _check_workspace_ownership(workspace, request, token, data)
+    if ownership_err is not None:
+        return ownership_err
+
     message = (data.get("message") or "").strip()
     if not message:
         return JsonResponse({"error": "Commit message is required"}, status=400)
@@ -1035,6 +1066,10 @@ def api_workspace_merge(request, slug, workspace_name):
         data = json.loads(request.body) if request.body else {}
     except (json.JSONDecodeError, ValueError):
         data = {}
+
+    ownership_err = _check_workspace_ownership(workspace, request, token, data)
+    if ownership_err is not None:
+        return ownership_err
 
     target_branch = (data.get("target_branch") or "trunk").strip()
 
@@ -1175,6 +1210,10 @@ def api_workspace_abandon(request, slug, workspace_name):
 
     if workspace.status != "active":
         return JsonResponse({"error": f"Workspace is already {workspace.status}"}, status=409)
+
+    ownership_err = _check_workspace_ownership(workspace, request, token)
+    if ownership_err is not None:
+        return ownership_err
 
     from fossil.cli import FossilCLI
 
@@ -1898,7 +1937,8 @@ def api_review_approve(request, slug, review_id):
     if review.status == "merged":
         return JsonResponse({"error": "Review is already merged"}, status=409)
 
-    # Prevent self-approval: token-based callers (agents) cannot approve their own review.
+    # Prevent self-approval: token-based callers (agents) must identify themselves
+    # and cannot approve a review created by the same agent.
     # Session-auth users (human reviewers) are allowed since they represent human oversight.
     if token is not None and review.agent_id:
         try:
@@ -1906,7 +1946,12 @@ def api_review_approve(request, slug, review_id):
         except (json.JSONDecodeError, ValueError):
             data = {}
         approver_agent_id = (data.get("agent_id") or "").strip()
-        if approver_agent_id and approver_agent_id == review.agent_id:
+        if not approver_agent_id:
+            return JsonResponse(
+                {"error": "agent_id is required for token-based review approval"},
+                status=400,
+            )
+        if approver_agent_id == review.agent_id:
             return JsonResponse({"error": "Cannot approve your own review"}, status=403)
 
     review.status = "approved"

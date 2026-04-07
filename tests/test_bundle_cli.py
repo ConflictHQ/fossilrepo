@@ -23,7 +23,10 @@ class TestBundleExport:
 
     def test_export_repo_not_on_disk(self, runner, sample_project):
         """Export when the .fossil file does not exist on disk."""
-        result = runner.invoke(cli, ["bundle", "export", sample_project.slug, "/tmp/out.bundle"])
+        from fossil.models import FossilRepository
+
+        with patch.object(type(FossilRepository.objects.get(project=sample_project)), "exists_on_disk", new_callable=lambda: property(lambda self: False)):
+            result = runner.invoke(cli, ["bundle", "export", sample_project.slug, "/tmp/out.bundle"])
         assert result.exit_code == 0
         assert "not found on disk" in result.output
 

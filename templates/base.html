@@ -47,6 +47,9 @@
     }
   </style>
   <style>
+    /* Hide scrollbar on horizontal-scroll navs (tabs, filter pills) */
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
     /* Focus visible outlines for keyboard navigation */
     a:focus-visible, button:focus-visible, [role="button"]:focus-visible {
       outline: 2px solid #DC394C;
