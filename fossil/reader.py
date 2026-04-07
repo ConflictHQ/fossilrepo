@@ -913,6 +913,31 @@ class FossilReader:
         except sqlite3.OperationalError:
             return None
 
+    def get_ticket_comments(self, uuid: str) -> list[dict]:
+        """Get all comments/changes for a ticket."""
+        comments = []
+        try:
+            row = self.conn.execute("SELECT tkt_id FROM ticket WHERE tkt_uuid LIKE ?", (uuid + "%",)).fetchone()
+            if not row:
+                return []
+            rows = self.conn.execute(
+                "SELECT tkt_mtime, login, username, icomment, mimetype FROM ticketchng WHERE tkt_id=? ORDER BY tkt_mtime ASC",
+                (row["tkt_id"],),
+            ).fetchall()
+            for r in rows:
+                if r["icomment"]:
+                    comments.append(
+                        {
+                            "timestamp": _julian_to_datetime(r["tkt_mtime"]) if r["tkt_mtime"] else None,
+                            "user": r["username"] or r["login"] or "",
+                            "comment": r["icomment"],
+                            "mimetype": r["mimetype"] or "text/plain",
+                        }
+                    )
+        except sqlite3.OperationalError:
+            pass
+        return comments
+
     # --- Wiki ---
 
     def get_wiki_pages(self) -> list[WikiPage]:
