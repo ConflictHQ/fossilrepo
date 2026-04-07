@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Compare — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block extra_head %}
+<style>
+  .diff-table { border-collapse: collapse; width: 100%; font-size: 0.75rem; font-family: ui-monospace, monospace; }
+  .diff-table td { padding: 0 8px; white-space: pre; vertical-align: top; line-height: 1.4rem; }
+  .diff-line-add { background: rgba(34, 197, 94, 0.1); }
+  .diff-line-add td:last-child { color: #86efac; }
+  .diff-line-del { background: rgba(239, 68, 68, 0.1); }
+  .diff-line-del td:last-child { color: #fca5a5; }
+  .diff-line-hunk { background: rgba(96, 165, 250, 0.08); }
+  .diff-line-hunk td { color: #93c5fd; }
+  .diff-line-header td { color: #6b7280; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-6">
+  <h2 class="text-lg font-semibold text-gray-200 mb-3">Compare Checkins</h2>
+  <form method="get" class="flex items-end gap-3">
+    <div class="flex-1">
+      <label class="block text-xs text-gray-500 mb-1">From (older)</label>
+      <input type="text" name="from" value="{{ from_uuid }}" placeholder="Checkin hash..."
+             class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 text-sm px-3 py-2 font-mono focus:border-brand focus:ring-brand">
+    </div>
+    <div class="flex-1">
+      <label class="block text-xs text-gray-500 mb-1">To (newer)</label>
+      <input type="text" name="to" value="{{ to_uuid }}" placeholder="Checkin hash..."
+             class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 text-sm px-3 py-2 font-mono focus:border-brand focus:ring-brand">
+    </div>
+    <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">Compare</button>
+  </form>
+</div>
+
+{% if from_detail and to_detail %}
+<div class="grid grid-cols-2 gap-4 mb-6">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <div class="text-xs text-gray-500 mb-1">From</div>
+    <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=from_detail.uuid %}" class="text-sm text-brand-light hover:text-brand">{{ from_detail.comment|truncatechars:60 }}</a>
+    <div class="mt-1 text-xs text-gray-500">{{ from_detail.user }} &middot; {{ from_detail.timestamp|date:"Y-m-d H:i" }}</div>
+  </div>
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <div class="text-xs text-gray-500 mb-1">To</div>
+    <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=to_detail.uuid %}" class="text-sm text-brand-light hover:text-brand">{{ to_detail.comment|truncatechars:60 }}</a>
+    <div class="mt-1 text-xs text-gray-500">{{ to_detail.user }} &middot; {{ to_detail.timestamp|date:"Y-m-d H:i" }}</div>
+  </div>
+</div>
+
+{% if file_diffs %}
+<div class="space-y-4">
+  {% for fd in file_diffs %}
+  <div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden">
+    <div class="px-4 py-2.5 border-b border-gray-700 bg-gray-900/50">
+      <span class="text-sm font-mono text-gray-300">{{ fd.name }}</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="diff-table">
+        <tbody>
+          {% for dl in fd.diff_lines %}<tr class="diff-line-{{ dl.type }}"><td>{{ dl.text }}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-gray-500 text-center py-8">No differences found between these checkins.</p>
+{% endif %}
+
+{% elif from_uuid and to_uuid %}
+<p class="text-sm text-gray-500 text-center py-8">One or both checkins not found.</p>
+{% endif %}
+{% endblock %}

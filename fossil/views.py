@@ -1,3 +1,4 @@
+import contextlib
 import re
 
 import markdown as md
@@ -885,6 +886,87 @@ def technote_list(request, slug):
         request,
         "fossil/technote_list.html",
         {"project": project, "notes": notes, "active_tab": "wiki"},
+    )
+
+
+# --- Compare Checkins ---
+
+
+@login_required
+def compare_checkins(request, slug):
+    """Compare two checkins side by side."""
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    from_uuid = request.GET.get("from", "")
+    to_uuid = request.GET.get("to", "")
+
+    from_detail = None
+    to_detail = None
+    file_diffs = []
+
+    if from_uuid and to_uuid:
+        with reader:
+            from_detail = reader.get_checkin_detail(from_uuid)
+            to_detail = reader.get_checkin_detail(to_uuid)
+
+            if from_detail and to_detail:
+                # Get all files from both checkins and compute diffs
+                from_files = {f["name"]: f for f in from_detail.files_changed}
+                to_files = {f["name"]: f for f in to_detail.files_changed}
+                all_files = sorted(set(list(from_files.keys()) + list(to_files.keys())))
+
+                import difflib
+
+                for fname in all_files[:20]:  # Limit to 20 files for performance
+                    old_text = ""
+                    new_text = ""
+                    f_from = from_files.get(fname, {})
+                    f_to = to_files.get(fname, {})
+
+                    if f_from.get("uuid"):
+                        with contextlib.suppress(Exception):
+                            old_text = reader.get_file_content(f_from["uuid"]).decode("utf-8", errors="replace")
+                    if f_to.get("uuid"):
+                        with contextlib.suppress(Exception):
+                            new_text = reader.get_file_content(f_to["uuid"]).decode("utf-8", errors="replace")
+
+                    if old_text != new_text:
+                        diff = difflib.unified_diff(
+                            old_text.splitlines(keepends=True),
+                            new_text.splitlines(keepends=True),
+                            fromfile=f"a/{fname}",
+                            tofile=f"b/{fname}",
+                            n=3,
+                        )
+                        diff_lines = []
+                        for line in diff:
+                            line_type = "context"
+                            if line.startswith("+++") or line.startswith("---"):
+                                line_type = "header"
+                            elif line.startswith("@@"):
+                                line_type = "hunk"
+                            elif line.startswith("+"):
+                                line_type = "add"
+                            elif line.startswith("-"):
+                                line_type = "del"
+                            diff_lines.append({"text": line, "type": line_type})
+
+                        if diff_lines:
+                            file_diffs.append({"name": fname, "diff_lines": diff_lines})
+
+    return render(
+        request,
+        "fossil/compare.html",
+        {
+            "project": project,
+            "from_uuid": from_uuid,
+            "to_uuid": to_uuid,
+            "from_detail": from_detail,
+            "to_detail": to_detail,
+            "file_diffs": file_diffs,
+            "active_tab": "timeline",
+        },
     )
 
 
