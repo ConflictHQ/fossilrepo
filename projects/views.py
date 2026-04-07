@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -21,10 +22,13 @@ def project_list(request):
     if search:
         projects = projects.filter(name__icontains=search)
 
-    if request.headers.get("HX-Request"):
-        return render(request, "projects/partials/project_table.html", {"projects": projects})
+    paginator = Paginator(projects, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    return render(request, "projects/project_list.html", {"projects": projects, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(request, "projects/partials/project_table.html", {"projects": page_obj, "page_obj": page_obj, "search": search})
+
+    return render(request, "projects/project_list.html", {"projects": page_obj, "page_obj": page_obj, "search": search})
 
 
 @login_required
@@ -252,10 +256,17 @@ def group_list(request):
     P.PROJECT_GROUP_VIEW.check(request.user)
     groups = ProjectGroup.objects.all().prefetch_related("projects")
 
-    if request.headers.get("HX-Request"):
-        return render(request, "projects/partials/group_table.html", {"groups": groups})
+    search = request.GET.get("search", "").strip()
+    if search:
+        groups = groups.filter(name__icontains=search)
 
-    return render(request, "projects/group_list.html", {"groups": groups})
+    paginator = Paginator(groups, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
+    if request.headers.get("HX-Request"):
+        return render(request, "projects/partials/group_table.html", {"groups": page_obj, "page_obj": page_obj, "search": search})
+
+    return render(request, "projects/group_list.html", {"groups": page_obj, "page_obj": page_obj, "search": search})
 
 
 @login_required

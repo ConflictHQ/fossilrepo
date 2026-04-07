@@ -67,4 +67,7 @@
     </tbody>
   </table>
 </div>
+{% with extra_params="&model="|add:model_filter %}
+{% include "includes/_pagination_manual.html" %}
+{% endwith %}
 {% endblock %}
