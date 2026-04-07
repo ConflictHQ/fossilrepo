@@ -26,3 +26,5 @@ static/css/output.css
 node_modules/
 runtime/
 assets/
+fossilrepo.fossil
+.fslckout
