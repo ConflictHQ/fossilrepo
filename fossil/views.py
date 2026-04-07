@@ -4,7 +4,7 @@ import re
 import markdown as md
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 
 from projects.models import Project
@@ -1051,6 +1051,12 @@ def git_mirror_config(request, slug):
             git_url = request.POST.get("git_remote_url", "").strip()
             auth_method = request.POST.get("auth_method", "token")
             auth_credential = request.POST.get("auth_credential", "").strip()
+            # Use OAuth token from session if available and no manual credential provided
+            if not auth_credential:
+                if auth_method == "oauth_github" and request.session.get("github_oauth_token"):
+                    auth_credential = request.session.pop("github_oauth_token")
+                elif auth_method == "oauth_gitlab" and request.session.get("gitlab_oauth_token"):
+                    auth_credential = request.session.pop("gitlab_oauth_token")
             sync_mode = request.POST.get("sync_mode", "scheduled")
             sync_schedule = request.POST.get("sync_schedule", "*/15 * * * *").strip()
             git_branch = request.POST.get("git_branch", "main").strip()
@@ -1102,12 +1108,86 @@ def git_mirror_run(request, slug, mirror_id):
     if request.method == "POST":
         from fossil.tasks import run_git_sync
 
-        run_git_sync.delay(mirror_id)
-        from django.contrib import messages
+        try:
+            run_git_sync.delay(mirror_id)
+            from django.contrib import messages
 
-        messages.info(request, "Git sync triggered. Check back shortly for results.")
+            messages.info(request, "Git sync triggered in background.")
+        except Exception:
+            # Celery not available — run synchronously
+            run_git_sync(mirror_id)
+            from django.contrib import messages
+
+            messages.success(request, "Git sync completed.")
 
     from django.shortcuts import redirect
+
+    return redirect("fossil:git_mirror", slug=slug)
+
+
+# --- OAuth ---
+
+
+@login_required
+def oauth_github_start(request, slug):
+    """Start GitHub OAuth flow."""
+    from fossil.oauth import github_authorize_url
+
+    url = github_authorize_url(request, slug)
+    if not url:
+        from django.contrib import messages
+
+        messages.error(request, "GitHub OAuth not configured. Set GITHUB_OAUTH_CLIENT_ID in admin settings.")
+        return redirect("fossil:git_mirror", slug=slug)
+    return redirect(url)
+
+
+@login_required
+def oauth_gitlab_start(request, slug):
+    """Start GitLab OAuth flow."""
+    from fossil.oauth import gitlab_authorize_url
+
+    url = gitlab_authorize_url(request, slug)
+    if not url:
+        from django.contrib import messages
+
+        messages.error(request, "GitLab OAuth not configured. Set GITLAB_OAUTH_CLIENT_ID in admin settings.")
+        return redirect("fossil:git_mirror", slug=slug)
+    return redirect(url)
+
+
+@login_required
+def oauth_github_callback(request, slug):
+    """Handle GitHub OAuth callback."""
+    from fossil.oauth import github_exchange_token
+
+    result = github_exchange_token(request, slug)
+    from django.contrib import messages
+
+    if result["token"]:
+        # Store token in session for the mirror config form to pick up
+        request.session["github_oauth_token"] = result["token"]
+        request.session["github_oauth_user"] = result.get("username", "")
+        messages.success(request, f"Connected to GitHub as {result.get('username', 'unknown')}. Now configure your mirror.")
+    else:
+        messages.error(request, f"GitHub OAuth failed: {result.get('error', 'Unknown error')}")
+
+    return redirect("fossil:git_mirror", slug=slug)
+
+
+@login_required
+def oauth_gitlab_callback(request, slug):
+    """Handle GitLab OAuth callback."""
+    from fossil.oauth import gitlab_exchange_token
+
+    result = gitlab_exchange_token(request, slug)
+    from django.contrib import messages
+
+    if result["token"]:
+        request.session["gitlab_oauth_token"] = result["token"]
+        messages.success(request, "Connected to GitLab. Now configure your mirror.")
+    else:
+        messages.error(request, f"GitLab OAuth failed: {result.get('error', 'Unknown error')}")
 
     return redirect("fossil:git_mirror", slug=slug)
 
