@@ -1,0 +1,95 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '*.md'
+
+env:
+  AWS_REGION: us-west-2
+  ECR_REPO: dev-fossilrepo-app
+  ECS_CLUSTER: dev-fossilrepo
+  ECS_SERVICE: dev-fossilrepo-app
+  TASK_FAMILY: dev-fossilrepo-app
+
+jobs:
+  # ── Gate: CI must pass before deploying ──────────────────────────────────
+  ci:
+    uses: ./.github/workflows/ci.yaml
+
+  # ── Build + Push + Deploy ────────────────────────────────────────────────
+  deploy:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - name: Build and push image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPO:latest \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO:latest
+
+      - name: Deploy to ECS
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Get current task definition
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition $TASK_FAMILY \
+            --query 'taskDefinition' \
+            --output json)
+
+          # Update image in container definitions, strip read-only fields
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq \
+            --arg IMAGE "$ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG" \
+            '.containerDefinitions[0].image = $IMAGE |
+             del(.taskDefinitionArn, .revision, .status,
+                 .requiresAttributes, .compatibilities,
+                 .registeredAt, .registeredBy, .deregisteredAt)')
+
+          # Register new task definition
+          NEW_TASK_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          # Update service with new task definition
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --task-definition "$NEW_TASK_ARN" \
+            --force-new-deployment
+
+          echo "Deployed $NEW_TASK_ARN to $ECS_SERVICE"
+
+      - name: Wait for deployment to stabilize
+        run: |
+          echo "Waiting for ECS service to reach steady state..."
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE
+          echo "Deployment stable."
