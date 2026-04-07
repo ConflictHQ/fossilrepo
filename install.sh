@@ -1521,9 +1521,20 @@ clone_repo() {
         git config --global --add safe.directory "$OPT_PREFIX" 2>/dev/null || true
         git -C "$OPT_PREFIX" pull --ff-only || true
     elif [[ -d "$OPT_PREFIX" ]]; then
-        log_warn "${OPT_PREFIX} exists but is not a git repo. Backing up and cloning fresh..."
-        mv "$OPT_PREFIX" "${OPT_PREFIX}.bak.$(date +%s)"
-        git clone "$repo_url" "$OPT_PREFIX"
+        # Safety: never move a directory that contains user data
+        if [[ -d "${OPT_PREFIX}/.venv" ]] || [[ -f "${OPT_PREFIX}/.env" ]]; then
+            log_warn "${OPT_PREFIX} exists (previous install). Cloning into subfolder..."
+            local src_dir="${OPT_PREFIX}/src"
+            rm -rf "$src_dir"
+            git clone "$repo_url" "$src_dir"
+            # Move source files up, preserving .env and .venv
+            find "$src_dir" -maxdepth 1 -not -name src -not -name . -exec mv -n {} "$OPT_PREFIX/" \;
+            rm -rf "$src_dir"
+        else
+            log_warn "${OPT_PREFIX} exists but is not a git repo or fossilrepo install. Backing up..."
+            mv "$OPT_PREFIX" "${OPT_PREFIX}.bak.$(date +%s)"
+            git clone "$repo_url" "$OPT_PREFIX"
+        fi
     else
         log_info "Cloning fossilrepo to ${OPT_PREFIX}..."
         git clone "$repo_url" "$OPT_PREFIX"
@@ -2065,9 +2076,14 @@ read -p 'Are you sure? Type YES to confirm: ' confirm
     if [[ "$OPT_MODE" == "docker" ]]; then
         uninstall_content+="
 
-echo 'Stopping Docker services...'
+echo 'Stopping Docker services (preserving volumes)...'
 cd '${OPT_PREFIX}'
-docker compose down -v 2>/dev/null || true
+docker compose down 2>/dev/null || true
+
+echo ''
+echo '  NOTE: Docker volumes have been preserved.'
+echo '  To remove them (DELETES ALL DATA): docker volume prune'
+echo ''
 
 echo 'Removing systemd service...'
 systemctl stop fossilrepo.service 2>/dev/null || true
@@ -2075,10 +2091,15 @@ systemctl disable fossilrepo.service 2>/dev/null || true
 rm -f /etc/systemd/system/fossilrepo.service
 systemctl daemon-reload
 
-echo 'Removing install directory...'
+echo 'Removing application code (preserving .env backup)...'
+cp -f '${OPT_PREFIX}/.env' '/tmp/fossilrepo-env.bak' 2>/dev/null || true
+cp -f '${OPT_PREFIX}/.credentials' '/tmp/fossilrepo-creds.bak' 2>/dev/null || true
 rm -rf '${OPT_PREFIX}'
+echo '  Backup of .env saved to /tmp/fossilrepo-env.bak'
 
-echo 'Done. Docker images may still be cached -- run \"docker system prune\" to reclaim space.'"
+echo 'Done. Docker volumes and images may still be cached.'
+echo '  To remove volumes (DELETES DATA): docker volume prune'
+echo '  To remove images: docker system prune'"
     else
         uninstall_content+="
 
@@ -2103,26 +2124,44 @@ rm -f /etc/systemd/system/fossilrepo-litestream.service
 rm -f /etc/systemd/system/caddy.service
 systemctl daemon-reload
 
-echo 'Removing PostgreSQL database and user...'
-sudo -u postgres psql -c \"DROP DATABASE IF EXISTS ${OPT_DB_NAME};\" 2>/dev/null || true
-sudo -u postgres psql -c \"DROP USER IF EXISTS ${OPT_DB_USER};\" 2>/dev/null || true
-
 echo 'Removing Caddy config...'
 rm -f /etc/caddy/Caddyfile
 
 echo 'Removing logrotate config...'
 rm -f /etc/logrotate.d/fossilrepo
 
-echo 'Removing data directories...'
-rm -rf '${DATA_DIR}/repos'
-rm -rf '${DATA_DIR}/trash'
-rm -rf '${DATA_DIR}/ssh'
-rm -rf '${DATA_DIR}/git-mirrors'
-rm -rf '${DATA_DIR}/ssh-keys'
+echo 'Removing log files...'
 rm -rf '${LOG_DIR}'
 
-echo 'Removing install directory...'
+echo ''
+echo '================================================================'
+echo '  DATA PRESERVATION NOTICE'
+echo '================================================================'
+echo ''
+echo '  The following data has been PRESERVED (not deleted):'
+echo ''
+echo '  Fossil repositories:  ${DATA_DIR}/repos/'
+echo '  PostgreSQL database:  ${OPT_DB_NAME} (user: ${OPT_DB_USER})'
+echo '  Git mirrors:          ${DATA_DIR}/git-mirrors/'
+echo '  SSH keys:             ${DATA_DIR}/ssh/'
+echo ''
+echo '  To remove the database:'
+echo '    sudo -u postgres psql -c \"DROP DATABASE IF EXISTS ${OPT_DB_NAME};\"'
+echo '    sudo -u postgres psql -c \"DROP USER IF EXISTS ${OPT_DB_USER};\"'
+echo ''
+echo '  To remove repo data (IRREVERSIBLE):'
+echo '    rm -rf ${DATA_DIR}/repos'
+echo '    rm -rf ${DATA_DIR}/git-mirrors'
+echo '    rm -rf ${DATA_DIR}/ssh'
+echo ''
+echo '  These are left intact so you can back them up or migrate.'
+echo '================================================================'
+
+echo 'Removing application code (preserving .env backup)...'
+cp -f '${OPT_PREFIX}/.env' '/tmp/fossilrepo-env.bak' 2>/dev/null || true
+cp -f '${OPT_PREFIX}/.credentials' '/tmp/fossilrepo-creds.bak' 2>/dev/null || true
 rm -rf '${OPT_PREFIX}'
+echo '  Backup of .env saved to /tmp/fossilrepo-env.bak'
 
 echo 'Removing system user...'
 userdel -r fossilrepo 2>/dev/null || true
