@@ -21,6 +21,8 @@ urlpatterns = [
     path("forum/<str:thread_uuid>/", views.forum_thread, name="forum_thread"),
     path("user/<str:username>/", views.user_activity, name="user_activity"),
     path("branches/", views.branch_list, name="branches"),
+    path("search/", views.search, name="search"),
+    path("code/history/<path:filepath>", views.file_history, name="file_history"),
     path("docs/", views.fossil_docs, name="docs"),
     path("docs/<path:doc_path>", views.fossil_doc_page, name="doc_page"),
 ]

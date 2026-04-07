@@ -293,6 +293,25 @@ def code_browser(request, slug, dirpath=""):
     # Build directory listing for the current path
     tree = _build_file_tree(files, current_dir=dirpath)
 
+    # Check for README in current directory
+    readme_html = ""
+    prefix = (dirpath.strip("/") + "/") if dirpath else ""
+    for readme_name in ["README.md", "README", "README.txt", "README.wiki"]:
+        full_name = prefix + readme_name
+        for f in files:
+            if f.name == full_name:
+                with reader:
+                    content_bytes = reader.get_file_content(f.uuid)
+                try:
+                    readme_content = content_bytes.decode("utf-8")
+                    doc_base = prefix if prefix else ""
+                    readme_html = mark_safe(_render_fossil_content(readme_content, project_slug=slug, base_path=doc_base))
+                except (UnicodeDecodeError, Exception):
+                    pass
+                break
+        if readme_html:
+            break
+
     # Build breadcrumbs
     breadcrumbs = []
     if dirpath:
@@ -315,6 +334,7 @@ def code_browser(request, slug, dirpath=""):
             "checkin_uuid": checkin_uuid,
             "metadata": metadata,
             "latest_commit": latest_commit[0] if latest_commit else None,
+            "readme_html": readme_html,
             "active_tab": "code",
         },
     )
@@ -840,6 +860,55 @@ def user_activity(request, slug, username):
             "username": username,
             "activity": activity,
             "active_tab": "timeline",
+        },
+    )
+
+
+# --- Search ---
+
+
+@login_required
+def search(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    query = request.GET.get("q", "").strip()
+    results = None
+    if query:
+        with reader:
+            results = reader.search(query, limit=20)
+
+    return render(
+        request,
+        "fossil/search.html",
+        {
+            "project": project,
+            "query": query,
+            "results": results,
+            "active_tab": "code",
+        },
+    )
+
+
+# --- File History ---
+
+
+@login_required
+def file_history(request, slug, filepath):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        history = reader.get_file_history(filepath)
+
+    return render(
+        request,
+        "fossil/file_history.html",
+        {
+            "project": project,
+            "filepath": filepath,
+            "history": history,
+            "active_tab": "code",
         },
     )
 

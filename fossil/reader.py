@@ -655,6 +655,88 @@ class FossilReader:
 
         return data
 
+    def get_file_history(self, filename: str, limit: int = 50) -> list[dict]:
+        """Get commit history for a specific file."""
+        history = []
+        try:
+            rows = self.conn.execute(
+                """
+                SELECT blob.uuid, event.mtime, event.user, event.comment
+                FROM mlink ml
+                JOIN filename fn ON ml.fnid = fn.fnid
+                JOIN event ON ml.mid = event.objid
+                JOIN blob ON event.objid = blob.rid
+                WHERE fn.name = ? AND event.type = 'ci'
+                ORDER BY event.mtime DESC
+                LIMIT ?
+                """,
+                (filename, limit),
+            ).fetchall()
+            for r in rows:
+                history.append(
+                    {
+                        "uuid": r["uuid"],
+                        "timestamp": _julian_to_datetime(r["mtime"]),
+                        "user": r["user"] or "",
+                        "comment": r["comment"] or "",
+                    }
+                )
+        except sqlite3.OperationalError:
+            pass
+        return history
+
+    def search(self, query: str, limit: int = 50) -> dict:
+        """Search across checkins, tickets, and wiki pages."""
+        results = {"checkins": [], "tickets": [], "wiki": []}
+        q = f"%{query}%"
+        try:
+            # Search checkin comments
+            rows = self.conn.execute(
+                "SELECT blob.uuid, event.mtime, event.user, event.comment FROM event "
+                "JOIN blob ON event.objid=blob.rid WHERE event.type='ci' AND event.comment LIKE ? "
+                "ORDER BY event.mtime DESC LIMIT ?",
+                (q, limit),
+            ).fetchall()
+            for r in rows:
+                results["checkins"].append(
+                    {
+                        "uuid": r["uuid"],
+                        "timestamp": _julian_to_datetime(r["mtime"]),
+                        "user": r["user"] or "",
+                        "comment": r["comment"] or "",
+                    }
+                )
+        except sqlite3.OperationalError:
+            pass
+        try:
+            # Search ticket titles
+            rows = self.conn.execute(
+                "SELECT tkt_uuid, title, status, tkt_ctime FROM ticket WHERE title LIKE ? ORDER BY tkt_ctime DESC LIMIT ?",
+                (q, limit),
+            ).fetchall()
+            for r in rows:
+                results["tickets"].append(
+                    {
+                        "uuid": r["tkt_uuid"],
+                        "title": r["title"] or "",
+                        "status": r["status"] or "",
+                        "created": _julian_to_datetime(r["tkt_ctime"]) if r["tkt_ctime"] else None,
+                    }
+                )
+        except sqlite3.OperationalError:
+            pass
+        try:
+            # Search wiki page names
+            rows = self.conn.execute(
+                "SELECT DISTINCT substr(tagname, 6) as name FROM tag WHERE tagname LIKE ? ORDER BY name LIMIT ?",
+                (f"wiki-%{query}%", limit),
+            ).fetchall()
+            for r in rows:
+                results["wiki"].append({"name": r["name"]})
+        except sqlite3.OperationalError:
+            pass
+        return results
+
     # --- Tickets ---
 
     def get_tickets(self, status: str | None = None, limit: int = 50) -> list[TicketEntry]:
