@@ -7,7 +7,6 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils.safestring import mark_safe
 
-from core.permissions import P
 from projects.models import Project
 
 from .models import FossilRepository
@@ -286,9 +285,24 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
     return html
 
 
-def _get_repo_and_reader(slug):
-    """Return (project, fossil_repo, reader) or raise 404."""
+def _get_repo_and_reader(slug, request=None, require="read"):
+    """Return (project, fossil_repo, reader) or raise 404/403.
+
+    require: "read", "write", or "admin"
+    """
+    from projects.access import require_project_admin, require_project_read, require_project_write
+
     project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+
+    # Access check
+    if request:
+        if require == "admin":
+            require_project_admin(request, project)
+        elif require == "write":
+            require_project_write(request, project)
+        else:
+            require_project_read(request, project)
+
     fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
     if not fossil_repo.exists_on_disk:
         raise Http404("Repository file not found on disk")
@@ -299,10 +313,8 @@ def _get_repo_and_reader(slug):
 # --- Code Browser ---
 
 
-@login_required
 def code_browser(request, slug, dirpath=""):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         checkin_uuid = reader.get_latest_checkin_uuid()
@@ -360,10 +372,8 @@ def code_browser(request, slug, dirpath=""):
     )
 
 
-@login_required
 def code_file(request, slug, filepath):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         checkin_uuid = reader.get_latest_checkin_uuid()
@@ -436,10 +446,8 @@ def code_file(request, slug, filepath):
 # --- Checkin Detail ---
 
 
-@login_required
 def checkin_detail(request, slug, checkin_uuid):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         checkin = reader.get_checkin_detail(checkin_uuid)
@@ -543,10 +551,8 @@ def checkin_detail(request, slug, checkin_uuid):
 # --- Timeline ---
 
 
-@login_required
 def timeline(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     event_type = request.GET.get("type", "")
     page = int(request.GET.get("page", "1"))
@@ -579,10 +585,8 @@ def timeline(request, slug):
 # --- Tickets ---
 
 
-@login_required
 def ticket_list(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     status_filter = request.GET.get("status", "")
     search = request.GET.get("search", "").strip()
@@ -629,10 +633,8 @@ def ticket_list(request, slug):
     )
 
 
-@login_required
 def ticket_detail(request, slug, ticket_uuid):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         ticket = reader.get_ticket_detail(ticket_uuid)
@@ -669,10 +671,8 @@ def ticket_detail(request, slug, ticket_uuid):
 # --- Wiki ---
 
 
-@login_required
 def wiki_list(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         pages = reader.get_wiki_pages()
@@ -696,10 +696,8 @@ def wiki_list(request, slug):
     )
 
 
-@login_required
 def wiki_page(request, slug, page_name):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         page = reader.get_wiki_page(page_name)
@@ -727,10 +725,8 @@ def wiki_page(request, slug, page_name):
 # --- Forum ---
 
 
-@login_required
 def forum_list(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         posts = reader.get_forum_posts()
@@ -747,10 +743,8 @@ def forum_list(request, slug):
     )
 
 
-@login_required
 def forum_thread(request, slug, thread_uuid):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         posts = reader.get_forum_thread(thread_uuid)
@@ -782,8 +776,7 @@ def forum_thread(request, slug, thread_uuid):
 
 @login_required
 def wiki_create(request, slug):
-    P.PROJECT_CHANGE.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
 
     if request.method == "POST":
         page_name = request.POST.get("name", "").strip()
@@ -809,8 +802,7 @@ def wiki_create(request, slug):
 
 @login_required
 def wiki_edit(request, slug, page_name):
-    P.PROJECT_CHANGE.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
 
     with reader:
         page = reader.get_wiki_page(page_name)
@@ -844,8 +836,7 @@ def wiki_edit(request, slug, page_name):
 
 @login_required
 def ticket_create(request, slug):
-    P.PROJECT_CHANGE.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -873,8 +864,7 @@ def ticket_create(request, slug):
 
 @login_required
 def ticket_edit(request, slug, ticket_uuid):
-    P.PROJECT_CHANGE.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
 
     with reader:
         ticket = reader.get_ticket_detail(ticket_uuid)
@@ -909,8 +899,7 @@ def ticket_edit(request, slug, ticket_uuid):
 
 @login_required
 def ticket_comment(request, slug, ticket_uuid):
-    P.PROJECT_CHANGE.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
 
     if request.method == "POST":
         comment = request.POST.get("comment", "").strip()
@@ -931,10 +920,8 @@ def ticket_comment(request, slug, ticket_uuid):
 # --- User Activity ---
 
 
-@login_required
 def user_activity(request, slug, username):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         activity = reader.get_user_activity(username)
@@ -963,8 +950,7 @@ def user_activity(request, slug, username):
 @login_required
 def sync_pull(request, slug):
     """Sync configuration and pull from upstream remote."""
-    P.PROJECT_CHANGE.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
 
     from fossil.cli import FossilCLI
 
@@ -1048,10 +1034,8 @@ def sync_pull(request, slug):
 # --- Technotes ---
 
 
-@login_required
 def technote_list(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         notes = reader.get_technotes()
@@ -1066,11 +1050,9 @@ def technote_list(request, slug):
 # --- Compare Checkins ---
 
 
-@login_required
 def compare_checkins(request, slug):
     """Compare two checkins side by side."""
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     from_uuid = request.GET.get("from", "")
     to_uuid = request.GET.get("to", "")
@@ -1147,10 +1129,8 @@ def compare_checkins(request, slug):
 # --- Search ---
 
 
-@login_required
 def search(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     query = request.GET.get("q", "").strip()
     results = None
@@ -1173,11 +1153,9 @@ def search(request, slug):
 # --- RSS Feed ---
 
 
-@login_required
 def timeline_rss(request, slug):
     """RSS feed of recent timeline entries."""
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         entries = reader.get_timeline(limit=30, event_type="ci")
@@ -1211,11 +1189,9 @@ def timeline_rss(request, slug):
 # --- CSV Export ---
 
 
-@login_required
 def tickets_csv(request, slug):
     """Export all tickets as CSV."""
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         tickets = reader.get_tickets(limit=5000)
@@ -1239,10 +1215,8 @@ def tickets_csv(request, slug):
 # --- File History ---
 
 
-@login_required
 def file_history(request, slug, filepath):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         history = reader.get_file_history(filepath)
@@ -1262,10 +1236,8 @@ def file_history(request, slug, filepath):
 # --- Branches ---
 
 
-@login_required
 def branch_list(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         branches = reader.get_branches()
@@ -1285,10 +1257,8 @@ def branch_list(request, slug):
 # --- Tags ---
 
 
-@login_required
 def tag_list(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         tags = reader.get_tags()
@@ -1305,8 +1275,7 @@ def tag_list(request, slug):
 
 @login_required
 def code_raw(request, slug, filepath):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         checkin_uuid = reader.get_latest_checkin_uuid()
@@ -1331,10 +1300,8 @@ def code_raw(request, slug, filepath):
 # --- File Blame ---
 
 
-@login_required
 def code_blame(request, slug, filepath):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     from fossil.cli import FossilCLI
 
@@ -1363,10 +1330,8 @@ def code_blame(request, slug, filepath):
 # --- Repository Statistics ---
 
 
-@login_required
 def repo_stats(request, slug):
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         stats = reader.get_repo_statistics()
@@ -1393,19 +1358,15 @@ def repo_stats(request, slug):
 FOSSIL_SCM_SLUG = "fossil-scm"
 
 
-@login_required
 def fossil_docs(request, slug):
     """Curated Fossil documentation index page."""
-    P.PROJECT_VIEW.check(request.user)
     project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
     return render(request, "fossil/docs_index.html", {"project": project, "fossil_scm_slug": slug, "active_tab": "wiki"})
 
 
-@login_required
 def fossil_doc_page(request, slug, doc_path):
     """Render a documentation file from the Fossil repo source tree."""
-    P.PROJECT_VIEW.check(request.user)
-    project, fossil_repo, reader = _get_repo_and_reader(slug)
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
     with reader:
         checkin_uuid = reader.get_latest_checkin_uuid()
