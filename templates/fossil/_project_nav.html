@@ -44,5 +44,9 @@
      class="px-4 py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'settings' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
     Settings
   </a>
+  <a href="{% url 'fossil:explorer' slug=project.slug %}"
+     class="px-4 py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'explorer' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+    Explorer
+  </a>
   {% endif %}
 </nav>

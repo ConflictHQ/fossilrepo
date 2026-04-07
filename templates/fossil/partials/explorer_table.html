@@ -1,0 +1,111 @@
+<div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden">
+  <!-- Header -->
+  <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+    <div>
+      <h3 class="text-base font-mono font-semibold text-gray-100">{{ table_name }}</h3>
+      <p class="text-xs text-gray-500 mt-0.5">{{ total|default:"0" }} row{{ total|pluralize }} &middot; {{ columns|length }} column{{ columns|length|pluralize }}</p>
+    </div>
+    <a href="{% url 'fossil:explorer_query' slug=project.slug %}?sql=SELECT+*+FROM+{{ table_name }}+LIMIT+25"
+       class="text-xs text-brand-light hover:text-brand">
+      Query this table
+    </a>
+  </div>
+
+  <!-- Column definitions -->
+  <div class="px-4 py-3 border-b border-gray-700">
+    <h4 class="text-xs font-medium text-gray-400 uppercase mb-2">Columns</h4>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-xs">
+        <thead>
+          <tr class="text-gray-500">
+            <th class="text-left pr-4 pb-1 font-medium">#</th>
+            <th class="text-left pr-4 pb-1 font-medium">Name</th>
+            <th class="text-left pr-4 pb-1 font-medium">Type</th>
+            <th class="text-left pr-4 pb-1 font-medium">Not Null</th>
+            <th class="text-left pb-1 font-medium">PK</th>
+          </tr>
+        </thead>
+        <tbody class="font-mono">
+          {% for col in columns %}
+          <tr class="{% if col.pk %}text-yellow-400{% else %}text-gray-300{% endif %}">
+            <td class="pr-4 py-0.5 text-gray-600">{{ col.cid }}</td>
+            <td class="pr-4 py-0.5 font-medium">{{ col.name }}</td>
+            <td class="pr-4 py-0.5 text-gray-400">{{ col.type }}</td>
+            <td class="pr-4 py-0.5 text-gray-500">{% if col.notnull %}YES{% else %}{% endif %}</td>
+            <td class="py-0.5">{% if col.pk %}<span class="text-yellow-500 font-bold">PK</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Sample data -->
+  <div class="px-4 py-3">
+    <h4 class="text-xs font-medium text-gray-400 uppercase mb-2">
+      Data
+      {% if total > 0 %}
+      <span class="text-gray-600 font-normal normal-case">
+        (rows {{ page|add:"-1"|default:"0" }}{% widthratio per_page 1 1 %} - showing page {{ page }})
+      </span>
+      {% endif %}
+    </h4>
+
+    {% if rows %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-700 text-xs">
+        <thead>
+          <tr>
+            {% for name in col_names %}
+            <th class="px-3 py-2 text-left font-medium text-gray-400 whitespace-nowrap">{{ name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-700 font-mono">
+          {% for row in rows %}
+          <tr class="hover:bg-gray-700/50">
+            {% for cell in row %}
+            <td class="px-3 py-1.5 text-gray-300 whitespace-nowrap max-w-xs truncate">{{ cell|default:"NULL" }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if has_prev or has_next %}
+    <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
+      {% if has_prev %}
+      <button
+        hx-get="{% url 'fossil:explorer_table' slug=project.slug table_name=table_name %}?page={{ page|add:"-1" }}"
+        hx-target="#table-detail"
+        hx-swap="innerHTML"
+        class="text-xs text-brand-light hover:text-brand">
+        Previous
+      </button>
+      {% else %}
+      <span></span>
+      {% endif %}
+
+      <span class="text-xs text-gray-500">Page {{ page }}</span>
+
+      {% if has_next %}
+      <button
+        hx-get="{% url 'fossil:explorer_table' slug=project.slug table_name=table_name %}?page={{ page|add:"1" }}"
+        hx-target="#table-detail"
+        hx-swap="innerHTML"
+        class="text-xs text-brand-light hover:text-brand">
+        Next
+      </button>
+      {% else %}
+      <span></span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <p class="text-sm text-gray-500 text-center py-4">Table is empty.</p>
+    {% endif %}
+  </div>
+</div>

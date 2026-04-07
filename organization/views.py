@@ -11,6 +11,7 @@ from core.permissions import P
 from .forms import (
     MemberAddForm,
     OrganizationSettingsForm,
+    OrgRoleForm,
     TeamForm,
     TeamMemberAddForm,
     UserCreateForm,
@@ -394,6 +395,74 @@ def role_detail(request, slug):
         request,
         "organization/role_detail.html",
         {"role": role, "grouped_permissions": grouped, "role_members": role_members},
+    )
+
+
+@login_required
+def role_create(request):
+    P.ORGANIZATION_CHANGE.check(request.user)
+
+    if request.method == "POST":
+        form = OrgRoleForm(request.POST)
+        if form.is_valid():
+            role = form.save(commit=False)
+            role.created_by = request.user
+            role.save()
+            form.save_m2m()
+            role.permissions.set(form.cleaned_data["permissions"])
+            messages.success(request, f'Role "{role.name}" created.')
+            return redirect("organization:role_detail", slug=role.slug)
+    else:
+        form = OrgRoleForm()
+
+    return render(request, "organization/role_form.html", {"form": form, "title": "New Role"})
+
+
+@login_required
+def role_edit(request, slug):
+    P.ORGANIZATION_CHANGE.check(request.user)
+    role = get_object_or_404(OrgRole, slug=slug, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        form = OrgRoleForm(request.POST, instance=role)
+        if form.is_valid():
+            role = form.save(commit=False)
+            role.updated_by = request.user
+            role.save()
+            role.permissions.set(form.cleaned_data["permissions"])
+            messages.success(request, f'Role "{role.name}" updated.')
+            return redirect("organization:role_detail", slug=role.slug)
+    else:
+        form = OrgRoleForm(instance=role)
+
+    return render(request, "organization/role_form.html", {"form": form, "role": role, "title": f"Edit {role.name}"})
+
+
+@login_required
+def role_delete(request, slug):
+    P.ORGANIZATION_CHANGE.check(request.user)
+    role = get_object_or_404(OrgRole, slug=slug, deleted_at__isnull=True)
+    active_members = OrganizationMember.objects.filter(role=role, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        if active_members.exists():
+            messages.error(
+                request, f'Cannot delete role "{role.name}" -- it has {active_members.count()} active member(s). Reassign them first.'
+            )
+            return redirect("organization:role_detail", slug=role.slug)
+
+        role.soft_delete(user=request.user)
+        messages.success(request, f'Role "{role.name}" deleted.')
+
+        if request.headers.get("HX-Request"):
+            return HttpResponse(status=200, headers={"HX-Redirect": "/settings/roles/"})
+
+        return redirect("organization:role_list")
+
+    return render(
+        request,
+        "organization/role_confirm_delete.html",
+        {"role": role, "active_members": active_members},
     )
 
 

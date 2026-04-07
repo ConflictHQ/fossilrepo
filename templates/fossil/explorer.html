@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Explorer — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-xl font-bold text-gray-100">SQLite Schema Explorer</h2>
+    <p class="text-sm text-gray-500 mt-1">
+      Explore the .fossil SQLite database structure. {{ tables|length }} table{{ tables|length|pluralize }} found.
+    </p>
+  </div>
+  <a href="{% url 'fossil:explorer_query' slug=project.slug %}"
+     class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md bg-brand text-white hover:bg-brand-hover">
+    Run Query
+  </a>
+</div>
+
+<!-- Schema Relationship Visualization -->
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-4 mb-6" x-data="{ showViz: true }">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-medium text-gray-300">Schema Map</h3>
+    <button @click="showViz = !showViz" class="text-xs text-gray-500 hover:text-gray-300">
+      <span x-text="showViz ? 'Hide' : 'Show'"></span>
+    </button>
+  </div>
+  <div x-show="showViz" x-transition>
+    <!-- Category legend -->
+    <div class="flex flex-wrap gap-3 mb-4 text-xs">
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+        <span class="text-gray-400">VCS Core</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+        <span class="text-gray-400">Tags / Branches</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+        <span class="text-gray-400">Tickets</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+        <span class="text-gray-400">Wiki</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+        <span class="text-gray-400">Forum</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-gray-500"></span>
+        <span class="text-gray-400">Other</span>
+      </span>
+    </div>
+
+    <!-- SVG relationship diagram -->
+    <div class="overflow-x-auto">
+      <svg id="schema-viz" class="w-full" style="min-height: 280px;"></svg>
+    </div>
+  </div>
+</div>
+
+<!-- Table grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-6" x-data="{ selected: '' }">
+  {% for table in tables %}
+  <button
+    @click="selected = selected === '{{ table.name }}' ? '' : '{{ table.name }}'"
+    hx-get="{% url 'fossil:explorer_table' slug=project.slug table_name=table.name %}"
+    hx-target="#table-detail"
+    hx-swap="innerHTML"
+    class="text-left rounded-lg border p-3 transition-colors cursor-pointer
+           {% if table.category == 'blue' %}border-blue-800/50 hover:border-blue-600{% elif table.category == 'indigo' %}border-indigo-800/50 hover:border-indigo-600{% elif table.category == 'green' %}border-green-800/50 hover:border-green-600{% elif table.category == 'purple' %}border-purple-800/50 hover:border-purple-600{% elif table.category == 'orange' %}border-orange-800/50 hover:border-orange-600{% else %}border-gray-700 hover:border-gray-500{% endif %}"
+    :class="selected === '{{ table.name }}' ? 'bg-gray-700 ring-1 ring-brand' : 'bg-gray-800'">
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-mono font-medium
+                   {% if table.category == 'blue' %}text-blue-300{% elif table.category == 'indigo' %}text-indigo-300{% elif table.category == 'green' %}text-green-300{% elif table.category == 'purple' %}text-purple-300{% elif table.category == 'orange' %}text-orange-300{% else %}text-gray-300{% endif %}">
+        {{ table.name }}
+      </span>
+      <span class="text-xs text-gray-500 font-mono">{{ table.count }}</span>
+    </div>
+  </button>
+  {% endfor %}
+</div>
+
+<!-- Table detail panel (populated by HTMX) -->
+<div id="table-detail"></div>
+
+<script>
+(function() {
+  var tables = {{ tables_json|safe }};
+  var rels = {{ relationships_json|safe }};
+
+  var categoryColor = {
+    blue: '#3b82f6', indigo: '#6366f1', green: '#22c55e',
+    purple: '#a855f7', orange: '#f97316', gray: '#6b7280'
+  };
+
+  var svg = document.getElementById('schema-viz');
+  if (!svg || tables.length === 0) return;
+
+  // Layout: arrange tables in a grid, center the important ones.
+  var cols = Math.min(tables.length, 8);
+  var cellW = 130, cellH = 50, padX = 20, padY = 30;
+  var totalW = cols * cellW + (cols - 1) * padX;
+  var rows = Math.ceil(tables.length / cols);
+  var totalH = rows * cellH + (rows - 1) * padY;
+
+  svg.setAttribute('viewBox', '0 0 ' + (totalW + 40) + ' ' + (totalH + 40));
+  svg.style.minHeight = Math.max(200, totalH + 40) + 'px';
+
+  // Position each table.
+  var positions = {};
+  tables.forEach(function(t, i) {
+    var col = i % cols;
+    var row = Math.floor(i / cols);
+    var x = 20 + col * (cellW + padX);
+    var y = 20 + row * (cellH + padY);
+    positions[t.name] = { x: x + cellW / 2, y: y + cellH / 2 };
+
+    // Draw table box.
+    var color = categoryColor[t.category] || categoryColor.gray;
+    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', cellW);
+    rect.setAttribute('height', cellH);
+    rect.setAttribute('rx', 6);
+    rect.setAttribute('fill', '#1f2937');
+    rect.setAttribute('stroke', color);
+    rect.setAttribute('stroke-width', 1.5);
+    rect.setAttribute('stroke-opacity', 0.6);
+    svg.appendChild(rect);
+
+    // Table name.
+    var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', x + cellW / 2);
+    text.setAttribute('y', y + 22);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('fill', color);
+    text.setAttribute('font-size', 11);
+    text.setAttribute('font-family', 'ui-monospace, monospace');
+    text.setAttribute('font-weight', 600);
+    text.textContent = t.name;
+    svg.appendChild(text);
+
+    // Row count.
+    var cnt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    cnt.setAttribute('x', x + cellW / 2);
+    cnt.setAttribute('y', y + 38);
+    cnt.setAttribute('text-anchor', 'middle');
+    cnt.setAttribute('fill', '#6b7280');
+    cnt.setAttribute('font-size', 9);
+    cnt.setAttribute('font-family', 'ui-monospace, monospace');
+    cnt.textContent = t.count.toLocaleString() + ' rows';
+    svg.appendChild(cnt);
+  });
+
+  // Draw relationship lines.
+  rels.forEach(function(r) {
+    var from = positions[r[0]];
+    var to = positions[r[1]];
+    if (!from || !to) return;
+
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', from.x);
+    line.setAttribute('y1', from.y);
+    line.setAttribute('x2', to.x);
+    line.setAttribute('y2', to.y);
+    line.setAttribute('stroke', '#4b5563');
+    line.setAttribute('stroke-width', 1);
+    line.setAttribute('stroke-opacity', 0.5);
+    line.setAttribute('stroke-dasharray', '4,3');
+    svg.insertBefore(line, svg.firstChild);
+
+    // Midpoint label.
+    var mx = (from.x + to.x) / 2;
+    var my = (from.y + to.y) / 2;
+    var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', mx);
+    label.setAttribute('y', my - 4);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('fill', '#6b7280');
+    label.setAttribute('font-size', 8);
+    label.setAttribute('font-family', 'ui-monospace, monospace');
+    label.textContent = r[2];
+    svg.insertBefore(label, svg.firstChild);
+  });
+})();
+</script>
+{% endblock %}

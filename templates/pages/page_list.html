@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Knowledge Base — Fossilrepo{% endblock %}
+{% block title %}Fossilrepo KB — Fossilrepo{% endblock %}
 
 {% block content %}
 <div class="md:flex md:items-center md:justify-between mb-6">
-  <h1 class="text-2xl font-bold text-gray-100">Knowledge Base</h1>
+  <h1 class="text-2xl font-bold text-gray-100">Fossilrepo KB</h1>
   {% if perms.pages.add_page %}
   <a href="{% url 'pages:create' %}"
      class="mt-4 md:mt-0 inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">

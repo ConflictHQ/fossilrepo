@@ -3971,3 +3971,230 @@ def shun_artifact(request, slug):
         messages.error(request, f"Failed to shun artifact: {result['message']}")
 
     return redirect("fossil:shun_list", slug=slug)
+
+
+# --- SQLite Explorer ---
+
+# Known relationships between Fossil tables (SQLite FKs are not enforced in .fossil files).
+FOSSIL_RELATIONSHIPS = [
+    ("event", "blob", "objid -> rid"),
+    ("mlink", "blob", "mid -> rid, fid -> rid"),
+    ("plink", "blob", "cid -> rid, pid -> rid"),
+    ("tagxref", "tag", "tagid -> tagid"),
+    ("tagxref", "blob", "srcid -> rid, origid -> rid"),
+    ("delta", "blob", "rid -> rid, srcid -> rid"),
+    ("leaf", "blob", "rid -> rid"),
+    ("phantom", "blob", "rid -> rid"),
+    ("ticketchng", "blob", "tkt_rid -> rid"),
+    ("forumpost", "blob", "fpid -> rid"),
+]
+
+# Category colors for the schema visualization.
+FOSSIL_TABLE_CATEGORIES = {
+    # VCS core
+    "blob": "blue",
+    "delta": "blue",
+    "event": "blue",
+    "mlink": "blue",
+    "plink": "blue",
+    "leaf": "blue",
+    "phantom": "blue",
+    "rcvfrom": "blue",
+    "filename": "blue",
+    "repo_cksum": "blue",
+    "config": "blue",
+    # Tagging / branching
+    "tag": "indigo",
+    "tagxref": "indigo",
+    # Tickets
+    "ticket": "green",
+    "ticketchng": "green",
+    # Wiki
+    "backlink": "purple",
+    # Forum
+    "forumpost": "orange",
+    "forumthread": "orange",
+    # Other
+    "unversioned": "gray",
+    "shun": "gray",
+    "private": "gray",
+    "concealed": "gray",
+    "accesslog": "gray",
+    "user": "gray",
+}
+
+# Regex for validating table names (alphanumerics + underscore, must start with letter or underscore).
+_TABLE_NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+@login_required
+def repo_explorer(request, slug):
+    """Main schema explorer page -- admin only."""
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, require="admin")
+
+    with reader:
+        conn = reader.conn
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        table_names = [row[0] for row in cursor.fetchall()]
+
+        tables = []
+        for name in table_names:
+            cursor.execute(f"SELECT count(*) FROM [{name}]")  # noqa: S608
+            count = cursor.fetchone()[0]
+            category = FOSSIL_TABLE_CATEGORIES.get(name, "gray")
+            tables.append({"name": name, "count": count, "category": category})
+
+    # Build relationships that involve tables actually present in this repo.
+    present = {t["name"] for t in tables}
+    relationships = [r for r in FOSSIL_RELATIONSHIPS if r[0] in present and r[1] in present]
+
+    import json
+
+    return render(
+        request,
+        "fossil/explorer.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "tables": tables,
+            "relationships": relationships,
+            "relationships_json": json.dumps(relationships),
+            "tables_json": json.dumps(tables),
+            "active_tab": "explorer",
+        },
+    )
+
+
+@login_required
+def repo_explorer_table(request, slug, table_name):
+    """Return table detail as an HTMX partial -- admin only."""
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, require="admin")
+
+    if not _TABLE_NAME_RE.match(table_name):
+        raise Http404("Invalid table name")
+
+    with reader:
+        conn = reader.conn
+        cursor = conn.cursor()
+
+        # Verify the table exists.
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+        if not cursor.fetchone():
+            raise Http404("Table not found")
+
+        # Column metadata.
+        cursor.execute(f"PRAGMA table_info([{table_name}])")
+        columns = [{"cid": row[0], "name": row[1], "type": row[2] or "BLOB", "notnull": row[3], "pk": row[5]} for row in cursor.fetchall()]
+
+        # Paginated rows.
+        try:
+            page = max(1, int(request.GET.get("page", 1)))
+        except (ValueError, TypeError):
+            page = 1
+        per_page = 25
+        offset = (page - 1) * per_page
+
+        cursor.execute(f"SELECT * FROM [{table_name}] LIMIT ? OFFSET ?", (per_page, offset))  # noqa: S608
+        col_names = [desc[0] for desc in cursor.description] if cursor.description else []
+        raw_rows = cursor.fetchall()
+
+        # Truncate long binary/text values for display.
+        rows = []
+        for raw in raw_rows:
+            display = []
+            for cell in raw:
+                if isinstance(cell, bytes):
+                    display.append(f"<{len(cell)} bytes>")
+                elif isinstance(cell, str) and len(cell) > 200:
+                    display.append(cell[:200] + "...")
+                else:
+                    display.append(cell)
+            rows.append(display)
+
+        cursor.execute(f"SELECT count(*) FROM [{table_name}]")  # noqa: S608
+        total = cursor.fetchone()[0]
+
+    return render(
+        request,
+        "fossil/partials/explorer_table.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "table_name": table_name,
+            "columns": columns,
+            "col_names": col_names,
+            "rows": rows,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "has_next": offset + per_page < total,
+            "has_prev": page > 1,
+        },
+    )
+
+
+@login_required
+def repo_explorer_query(request, slug):
+    """Run a custom read-only SQL query against the .fossil file -- admin only."""
+    from fossil.ticket_reports import TicketReport
+
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, require="admin")
+
+    sql = request.GET.get("sql", "").strip()
+    results = None
+    columns = []
+    error = ""
+
+    if sql:
+        validation_error = TicketReport.validate_sql(sql)
+        if validation_error:
+            error = validation_error
+        else:
+            try:
+                with reader:
+                    cursor = reader.conn.cursor()
+                    cursor.execute(sql)
+                    columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                    raw = cursor.fetchmany(500)
+                    # Truncate long values for display.
+                    results = []
+                    for raw_row in raw:
+                        display = []
+                        for cell in raw_row:
+                            if isinstance(cell, bytes):
+                                display.append(f"<{len(cell)} bytes>")
+                            elif isinstance(cell, str) and len(cell) > 200:
+                                display.append(cell[:200] + "...")
+                            else:
+                                display.append(cell)
+                        results.append(display)
+            except Exception as e:
+                error = str(e)
+
+    # Provide table names for the helper sidebar.
+    table_names = []
+    if not sql or error:
+        try:
+            with reader:
+                cursor = reader.conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+                table_names = [row[0] for row in cursor.fetchall()]
+        except Exception:
+            pass
+
+    return render(
+        request,
+        "fossil/explorer_query.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "sql": sql,
+            "columns": columns,
+            "results": results,
+            "error": error,
+            "table_names": table_names,
+            "active_tab": "explorer",
+        },
+    )

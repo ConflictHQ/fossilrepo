@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <a href="{% url 'organization:role_list' %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Roles</a>
+</div>
+
+<div class="mx-auto max-w-3xl">
+  <h1 class="text-2xl font-bold text-gray-100 mb-6">{{ title }}</h1>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <div class="rounded-lg bg-gray-800 p-6 shadow border border-gray-700 space-y-6">
+      <div>
+        <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-300">
+          Name <span class="text-red-400">*</span>
+        </label>
+        <div class="mt-1">{{ form.name }}</div>
+        {% if form.name.errors %}
+        <p class="mt-1 text-sm text-red-400">{{ form.name.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div>
+        <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-300">
+          Description
+        </label>
+        <div class="mt-1">{{ form.description }}</div>
+        {% if form.description.errors %}
+        <p class="mt-1 text-sm text-red-400">{{ form.description.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div>
+        <div class="flex items-center gap-3">
+          {{ form.is_default }}
+          <label for="{{ form.is_default.id_for_label }}" class="text-sm font-medium text-gray-300">
+            Default role
+          </label>
+        </div>
+        <p class="mt-1 text-sm text-gray-500">Assigned to new users automatically.</p>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="text-lg font-semibold text-gray-100 mb-4">Permissions</h2>
+      {% if form.permissions.errors %}
+      <p class="mb-2 text-sm text-red-400">{{ form.permissions.errors.0 }}</p>
+      {% endif %}
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2" x-data="{ selectAll(groupId) {
+        document.querySelectorAll('#perm-group-' + groupId + ' input[type=checkbox]').forEach(cb => cb.checked = true);
+      }, deselectAll(groupId) {
+        document.querySelectorAll('#perm-group-' + groupId + ' input[type=checkbox]').forEach(cb => cb.checked = false);
+      }}">
+        {% for category, perms in form.grouped_permissions.items %}
+        <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-sm"
+             id="perm-group-{{ forloop.counter }}">
+          <div class="bg-gray-900 px-4 py-3 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-gray-200">{{ category }}</h3>
+            <div class="flex gap-2">
+              <button type="button" @click="selectAll({{ forloop.counter }})"
+                      class="text-xs text-brand-light hover:text-brand">All</button>
+              <span class="text-gray-600">|</span>
+              <button type="button" @click="deselectAll({{ forloop.counter }})"
+                      class="text-xs text-gray-400 hover:text-gray-200">None</button>
+            </div>
+          </div>
+          <div class="px-4 py-3 grid grid-cols-1 gap-2">
+            {% for item in perms %}
+            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-gray-100">
+              <input type="checkbox" name="permissions" value="{{ item.perm.pk }}"
+                     {% if item.checked %}checked{% endif %}
+                     class="rounded border-gray-600 text-brand focus:ring-brand bg-gray-700">
+              <span>{{ item.perm.name }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-4">
+      <a href="{% url 'organization:role_list' %}"
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Cancel
+      </a>
+      <button type="submit"
+              class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+        {% if role %}Update{% else %}Create{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

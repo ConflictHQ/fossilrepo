@@ -398,3 +398,262 @@ class TestUserDetailRole:
         assert response.status_code == 200
         content = response.content.decode()
         assert "No role assigned" in content
+
+
+# --- role_create view ---
+
+
+@pytest.mark.django_db
+class TestRoleCreateView:
+    def test_create_get_shows_form(self, admin_client, org):
+        response = admin_client.get(reverse("organization:role_create"))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "New Role" in content
+        assert "Permissions" in content
+
+    def test_create_saves_role(self, admin_client, org):
+        perm = Permission.objects.filter(content_type__app_label="organization", codename="view_organization").first()
+        response = admin_client.post(
+            reverse("organization:role_create"),
+            {"name": "Custom Role", "description": "A custom role", "permissions": [perm.pk]},
+        )
+        assert response.status_code == 302
+        role = OrgRole.objects.get(slug="custom-role")
+        assert role.name == "Custom Role"
+        assert role.description == "A custom role"
+        assert perm in role.permissions.all()
+
+    def test_create_without_permissions(self, admin_client, org):
+        response = admin_client.post(
+            reverse("organization:role_create"),
+            {"name": "Empty Role", "description": "No permissions"},
+        )
+        assert response.status_code == 302
+        role = OrgRole.objects.get(slug="empty-role")
+        assert role.permissions.count() == 0
+
+    def test_create_with_is_default(self, admin_client, org):
+        response = admin_client.post(
+            reverse("organization:role_create"),
+            {"name": "Default Custom", "description": "Default", "is_default": "on"},
+        )
+        assert response.status_code == 302
+        role = OrgRole.objects.get(slug="default-custom")
+        assert role.is_default is True
+
+    def test_create_denied_for_viewer(self, viewer_client, org):
+        response = viewer_client.get(reverse("organization:role_create"))
+        assert response.status_code == 403
+
+    def test_create_denied_for_no_perm(self, no_perm_client, org):
+        response = no_perm_client.get(reverse("organization:role_create"))
+        assert response.status_code == 403
+
+    def test_create_denied_for_anon(self, client, org):
+        response = client.get(reverse("organization:role_create"))
+        assert response.status_code == 302  # redirect to login
+
+    def test_create_allowed_for_org_admin(self, org_admin_client, org):
+        response = org_admin_client.post(
+            reverse("organization:role_create"),
+            {"name": "OrgAdmin Role", "description": "Created by org admin"},
+        )
+        assert response.status_code == 302
+        assert OrgRole.objects.filter(slug="orgadmin-role").exists()
+
+    def test_create_sets_created_by(self, admin_client, org, admin_user):
+        response = admin_client.post(
+            reverse("organization:role_create"),
+            {"name": "Tracked Role", "description": "test"},
+        )
+        assert response.status_code == 302
+        role = OrgRole.objects.get(slug="tracked-role")
+        assert role.created_by == admin_user
+
+    def test_create_invalid_missing_name(self, admin_client, org):
+        response = admin_client.post(
+            reverse("organization:role_create"),
+            {"description": "Missing name"},
+        )
+        assert response.status_code == 200  # re-renders form
+        assert OrgRole.objects.count() == 0
+
+
+# --- role_edit view ---
+
+
+@pytest.mark.django_db
+class TestRoleEditView:
+    def test_edit_get_shows_form(self, admin_client, org, viewer_role):
+        response = admin_client.get(reverse("organization:role_edit", kwargs={"slug": "viewer"}))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Edit Viewer" in content
+        assert "Permissions" in content
+
+    def test_edit_updates_role(self, admin_client, org, viewer_role):
+        response = admin_client.post(
+            reverse("organization:role_edit", kwargs={"slug": "viewer"}),
+            {"name": "Viewer Updated", "description": "Updated description"},
+        )
+        assert response.status_code == 302
+        viewer_role.refresh_from_db()
+        assert viewer_role.name == "Viewer Updated"
+        assert viewer_role.description == "Updated description"
+
+    def test_edit_updates_permissions(self, admin_client, org, viewer_role):
+        add_perm = Permission.objects.get(content_type__app_label="organization", codename="add_organization")
+        response = admin_client.post(
+            reverse("organization:role_edit", kwargs={"slug": "viewer"}),
+            {"name": "Viewer", "description": "Updated", "permissions": [add_perm.pk]},
+        )
+        assert response.status_code == 302
+        viewer_role.refresh_from_db()
+        assert list(viewer_role.permissions.values_list("pk", flat=True)) == [add_perm.pk]
+
+    def test_edit_clears_permissions(self, admin_client, org, viewer_role):
+        assert viewer_role.permissions.count() > 0
+        response = admin_client.post(
+            reverse("organization:role_edit", kwargs={"slug": "viewer"}),
+            {"name": "Viewer", "description": "No perms now"},
+        )
+        assert response.status_code == 302
+        viewer_role.refresh_from_db()
+        assert viewer_role.permissions.count() == 0
+
+    def test_edit_pre_populates_permissions(self, admin_client, org, viewer_role):
+        response = admin_client.get(reverse("organization:role_edit", kwargs={"slug": "viewer"}))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "checked" in content
+
+    def test_edit_sets_updated_by(self, admin_client, org, viewer_role, admin_user):
+        response = admin_client.post(
+            reverse("organization:role_edit", kwargs={"slug": "viewer"}),
+            {"name": "Viewer", "description": "Audit check"},
+        )
+        assert response.status_code == 302
+        viewer_role.refresh_from_db()
+        assert viewer_role.updated_by == admin_user
+
+    def test_edit_denied_for_viewer(self, viewer_client, org, viewer_role):
+        response = viewer_client.get(reverse("organization:role_edit", kwargs={"slug": "viewer"}))
+        assert response.status_code == 403
+
+    def test_edit_denied_for_no_perm(self, no_perm_client, org, viewer_role):
+        response = no_perm_client.get(reverse("organization:role_edit", kwargs={"slug": "viewer"}))
+        assert response.status_code == 403
+
+    def test_edit_denied_for_anon(self, client, org, viewer_role):
+        response = client.get(reverse("organization:role_edit", kwargs={"slug": "viewer"}))
+        assert response.status_code == 302  # redirect to login
+
+    def test_edit_404_for_deleted_role(self, admin_client, org, viewer_role, admin_user):
+        viewer_role.soft_delete(user=admin_user)
+        response = admin_client.get(reverse("organization:role_edit", kwargs={"slug": "viewer"}))
+        assert response.status_code == 404
+
+    def test_edit_404_for_missing_role(self, admin_client, org):
+        response = admin_client.get(reverse("organization:role_edit", kwargs={"slug": "nonexistent"}))
+        assert response.status_code == 404
+
+
+# --- role_delete view ---
+
+
+@pytest.mark.django_db
+class TestRoleDeleteView:
+    def test_delete_get_shows_confirmation(self, admin_client, org, viewer_role):
+        response = admin_client.get(reverse("organization:role_delete", kwargs={"slug": "viewer"}))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Delete Role" in content
+        assert "Viewer" in content
+
+    def test_delete_soft_deletes_role(self, admin_client, org, viewer_role):
+        response = admin_client.post(reverse("organization:role_delete", kwargs={"slug": "viewer"}))
+        assert response.status_code == 302
+        viewer_role.refresh_from_db()
+        assert viewer_role.deleted_at is not None
+
+    def test_delete_blocked_when_members_assigned(self, admin_client, org, viewer_role, target_user):
+        membership = OrganizationMember.objects.get(member=target_user, organization=org)
+        membership.role = viewer_role
+        membership.save()
+
+        response = admin_client.post(reverse("organization:role_delete", kwargs={"slug": "viewer"}))
+        assert response.status_code == 302  # redirects back to detail
+        viewer_role.refresh_from_db()
+        assert viewer_role.deleted_at is None  # not deleted
+
+    def test_delete_shows_warning_for_members(self, admin_client, org, viewer_role, target_user):
+        membership = OrganizationMember.objects.get(member=target_user, organization=org)
+        membership.role = viewer_role
+        membership.save()
+
+        response = admin_client.get(reverse("organization:role_delete", kwargs={"slug": "viewer"}))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "active member" in content
+        assert "targetuser" in content
+
+    def test_delete_denied_for_viewer(self, viewer_client, org, viewer_role):
+        response = viewer_client.get(reverse("organization:role_delete", kwargs={"slug": "viewer"}))
+        assert response.status_code == 403
+
+    def test_delete_denied_for_no_perm(self, no_perm_client, org, viewer_role):
+        response = no_perm_client.get(reverse("organization:role_delete", kwargs={"slug": "viewer"}))
+        assert response.status_code == 403
+
+    def test_delete_denied_for_anon(self, client, org, viewer_role):
+        response = client.get(reverse("organization:role_delete", kwargs={"slug": "viewer"}))
+        assert response.status_code == 302  # redirect to login
+
+    def test_delete_404_for_deleted_role(self, admin_client, org, viewer_role, admin_user):
+        viewer_role.soft_delete(user=admin_user)
+        response = admin_client.get(reverse("organization:role_delete", kwargs={"slug": "viewer"}))
+        assert response.status_code == 404
+
+    def test_delete_htmx_returns_redirect_header(self, admin_client, org, developer_role):
+        response = admin_client.post(
+            reverse("organization:role_delete", kwargs={"slug": "developer"}),
+            HTTP_HX_REQUEST="true",
+        )
+        assert response.status_code == 200
+        assert response.headers.get("HX-Redirect") == "/settings/roles/"
+
+
+# --- role_list Create Role button ---
+
+
+@pytest.mark.django_db
+class TestRoleListCreateButton:
+    def test_create_button_shown_for_admin(self, admin_client, org, roles):
+        response = admin_client.get(reverse("organization:role_list"))
+        assert response.status_code == 200
+        assert "Create Role" in response.content.decode()
+
+    def test_create_button_hidden_for_viewer(self, viewer_client, org, roles):
+        response = viewer_client.get(reverse("organization:role_list"))
+        assert response.status_code == 200
+        assert "Create Role" not in response.content.decode()
+
+
+# --- role_detail Edit/Delete buttons ---
+
+
+@pytest.mark.django_db
+class TestRoleDetailButtons:
+    def test_edit_button_shown_for_admin(self, admin_client, org, viewer_role):
+        response = admin_client.get(reverse("organization:role_detail", kwargs={"slug": "viewer"}))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Edit" in content
+        assert "Delete" in content
+
+    def test_edit_button_hidden_for_viewer(self, viewer_client, org, viewer_role):
+        response = viewer_client.get(reverse("organization:role_detail", kwargs={"slug": "viewer"}))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Edit" not in content or "role_edit" not in content

@@ -1,5 +1,7 @@
+import contextlib
+
 from django import forms
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Permission, User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
@@ -163,3 +165,66 @@ class UserPasswordForm(forms.Form):
         if p1 and p2 and p1 != p2:
             self.add_error("new_password2", "Passwords do not match.")
         return cleaned_data
+
+
+# App labels whose permissions appear in the role permission picker
+ROLE_APP_LABELS = ["organization", "projects", "pages", "fossil"]
+
+ROLE_APP_DISPLAY = {
+    "organization": "Organization",
+    "projects": "Projects",
+    "pages": "Pages",
+    "fossil": "Fossil",
+}
+
+
+class OrgRoleForm(forms.ModelForm):
+    permissions = forms.ModelMultipleChoiceField(
+        queryset=Permission.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    class Meta:
+        model = OrgRole
+        fields = ["name", "description", "is_default"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": tw, "placeholder": "Role name"}),
+            "description": forms.Textarea(attrs={"class": tw, "rows": 3, "placeholder": "Description"}),
+            "is_default": forms.CheckboxInput(attrs={"class": "rounded border-gray-300 text-brand focus:ring-brand"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["permissions"].queryset = (
+            Permission.objects.filter(content_type__app_label__in=ROLE_APP_LABELS)
+            .select_related("content_type")
+            .order_by("content_type__app_label", "codename")
+        )
+
+        if self.instance.pk:
+            self.fields["permissions"].initial = self.instance.permissions.values_list("pk", flat=True)
+
+    def grouped_permissions(self):
+        """Return permissions grouped by app label for the template."""
+        grouped = {}
+        selected_ids = set()
+        if self.instance.pk:
+            selected_ids = set(self.instance.permissions.values_list("pk", flat=True))
+        elif self.data:
+            # Handle POST data (validation errors, re-render)
+            with contextlib.suppress(ValueError, TypeError):
+                selected_ids = set(int(v) for v in self.data.getlist("permissions"))
+
+        for perm in self.fields["permissions"].queryset:
+            app = perm.content_type.app_label
+            label = ROLE_APP_DISPLAY.get(app, app.title())
+            grouped.setdefault(label, [])
+            grouped[label].append({"perm": perm, "checked": perm.pk in selected_ids})
+        return grouped
+
+    def save(self, commit=True):
+        role = super().save(commit=commit)
+        if commit:
+            role.permissions.set(self.cleaned_data["permissions"])
+        return role
