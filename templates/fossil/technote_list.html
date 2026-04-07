@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Technotes — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<h2 class="text-lg font-semibold text-gray-200 mb-4">Technotes</h2>
+
+<div class="space-y-3">
+  {% for note in notes %}
+  <div class="rounded-lg bg-gray-800 border border-gray-700 px-5 py-4">
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-gray-200">{{ note.comment|truncatechars:200 }}</p>
+        <div class="mt-2 flex items-center gap-3 text-xs text-gray-500">
+          <a href="{% url 'fossil:user_activity' slug=project.slug username=note.user %}" class="hover:text-brand-light">{{ note.user }}</a>
+          <a href="{% url 'fossil:checkin_detail' slug=project.slug checkin_uuid=note.uuid %}" class="font-mono text-brand-light hover:text-brand">{{ note.uuid|truncatechars:10 }}</a>
+          <span>{{ note.timestamp|date:"Y-m-d H:i" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <p class="text-sm text-gray-500 py-8 text-center">No technotes.</p>
+  {% endfor %}
+</div>
+{% endblock %}

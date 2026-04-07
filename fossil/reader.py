@@ -330,9 +330,55 @@ class FossilReader:
             # Ticket-related event count
             row = self.conn.execute("SELECT count(*) FROM event WHERE user=? AND type='t'", (username,)).fetchone()
             result["ticket_count"] = row[0] if row else 0
+            # Daily activity heatmap (last 365 days)
+            result["daily_activity"] = {}
+            try:
+                rows = self.conn.execute(
+                    """
+                    SELECT date(event.mtime - 0.5) as day, count(*) as cnt
+                    FROM event
+                    WHERE event.user = ? AND event.type = 'ci'
+                      AND event.mtime > julianday('now') - 365
+                    GROUP BY day ORDER BY day
+                    """,
+                    (username,),
+                ).fetchall()
+                for r in rows:
+                    if r["day"]:
+                        result["daily_activity"][r["day"]] = r["cnt"]
+            except sqlite3.OperationalError:
+                pass
         except sqlite3.OperationalError:
             pass
         return result
+
+    def get_technotes(self, limit: int = 50) -> list[dict]:
+        """Get technotes (timestamped blog-like entries)."""
+        notes = []
+        try:
+            rows = self.conn.execute(
+                """
+                SELECT blob.uuid, event.mtime, event.user, event.comment
+                FROM event
+                JOIN blob ON event.objid = blob.rid
+                WHERE event.type = 'e'
+                ORDER BY event.mtime DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            for r in rows:
+                notes.append(
+                    {
+                        "uuid": r["uuid"],
+                        "timestamp": _julian_to_datetime(r["mtime"]),
+                        "user": r["user"] or "",
+                        "comment": r["comment"] or "",
+                    }
+                )
+        except sqlite3.OperationalError:
+            pass
+        return notes
 
     def get_commit_activity(self, weeks: int = 52) -> list[dict]:
         """Get weekly commit counts for the last N weeks. Returns [{week, count}]."""

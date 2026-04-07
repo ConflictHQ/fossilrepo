@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Server Error — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center py-20">
+  <div class="text-6xl font-bold text-brand mb-4">500</div>
+  <h1 class="text-2xl font-bold text-gray-100 mb-2">Something Went Wrong</h1>
+  <p class="text-gray-400 mb-6 text-center max-w-md">
+    An unexpected error occurred. The team has been notified.
+  </p>
+  <div class="flex gap-3">
+    <a href="/" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">Go to Dashboard</a>
+    <button onclick="history.back()" class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 ring-1 ring-inset ring-gray-600 hover:bg-gray-600">Go Back</button>
+  </div>
+</div>
+{% endblock %}

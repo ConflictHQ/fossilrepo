@@ -27,4 +27,28 @@
   </a>
 </div>
 {% endif %}
+
+<script>
+  // Keyboard navigation: j/k to move between timeline entries
+  (function() {
+    let current = -1;
+    const rows = document.querySelectorAll('.tl-row');
+    function highlight(idx) {
+      rows.forEach(r => r.style.background = '');
+      if (idx >= 0 && idx < rows.length) {
+        rows[idx].style.background = 'rgba(220,57,76,0.06)';
+        rows[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    document.addEventListener('keydown', function(e) {
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+      if (e.key === 'j') { current = Math.min(current + 1, rows.length - 1); highlight(current); }
+      else if (e.key === 'k') { current = Math.max(current - 1, 0); highlight(current); }
+      else if (e.key === 'Enter' && current >= 0) {
+        const link = rows[current].querySelector('a[href*="/checkin/"]');
+        if (link) window.location = link.href;
+      }
+    });
+  })();
+</script>
 {% endblock %}

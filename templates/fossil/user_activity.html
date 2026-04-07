@@ -5,6 +5,39 @@
 <h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
 {% include "fossil/_project_nav.html" %}
 
+{% if heatmap_json and heatmap_json != "{}" %}
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-4 mb-6">
+  <h3 class="text-sm font-medium text-gray-300 mb-3">Contribution Activity</h3>
+  <div class="overflow-x-auto">
+    <div id="heatmap" style="display:flex; gap:2px; flex-wrap:wrap;"></div>
+  </div>
+</div>
+<script>
+  (function() {
+    const data = {{ heatmap_json|safe }};
+    const container = document.getElementById('heatmap');
+    const today = new Date();
+    for (let i = 364; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      const count = data[key] || 0;
+      const el = document.createElement('div');
+      el.style.width = '10px';
+      el.style.height = '10px';
+      el.style.borderRadius = '2px';
+      el.title = key + ': ' + count + ' commit' + (count !== 1 ? 's' : '');
+      if (count === 0) el.style.background = '#1f2937';
+      else if (count <= 2) el.style.background = '#5b2130';
+      else if (count <= 5) el.style.background = '#8B3138';
+      else if (count <= 10) el.style.background = '#DC394C';
+      else el.style.background = '#e8677a';
+      container.appendChild(el);
+    }
+  })();
+</script>
+{% endif %}
+
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
   <!-- Main content -->
   <div class="lg:col-span-2">
