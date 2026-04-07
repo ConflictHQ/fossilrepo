@@ -38,12 +38,59 @@ def project_create(request):
             project.organization = org
             project.created_by = request.user
             project.save()
+
+            # Handle repo source: clone from URL if requested
+            repo_source = form.cleaned_data.get("repo_source", "empty")
+            clone_url = form.cleaned_data.get("clone_url", "").strip()
+
+            if repo_source == "fossil_url" and clone_url:
+                _clone_fossil_repo(request, project, clone_url)
+
             messages.success(request, f'Project "{project.name}" created.')
             return redirect("projects:detail", slug=project.slug)
     else:
         form = ProjectForm()
 
     return render(request, "projects/project_form.html", {"form": form, "title": "New Project"})
+
+
+def _clone_fossil_repo(request, project, clone_url):
+    """Clone a Fossil repo from a remote URL, replacing the empty file created by the signal."""
+    import subprocess
+
+    from fossil.cli import FossilCLI
+    from fossil.models import FossilRepository
+
+    fossil_repo = FossilRepository.objects.filter(project=project).first()
+    if not fossil_repo:
+        return
+
+    cli = FossilCLI()
+    if not cli.is_available():
+        messages.warning(request, "Fossil binary not available -- clone skipped.")
+        return
+
+    # Remove the empty file created by the signal so we can clone into that path
+    if fossil_repo.full_path.exists():
+        fossil_repo.full_path.unlink()
+
+    try:
+        result = subprocess.run(
+            [cli.binary, "clone", clone_url, str(fossil_repo.full_path)],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=cli._env,
+        )
+        if result.returncode == 0:
+            fossil_repo.remote_url = clone_url
+            fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size if fossil_repo.exists_on_disk else 0
+            fossil_repo.save(update_fields=["remote_url", "file_size_bytes", "updated_at", "version"])
+            messages.success(request, f"Repository cloned from {clone_url}")
+        else:
+            messages.warning(request, f"Clone failed: {result.stderr.strip()}")
+    except subprocess.TimeoutExpired:
+        messages.warning(request, "Clone timed out -- the repository may be large. Try pulling later.")
 
 
 @login_required

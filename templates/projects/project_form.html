@@ -13,6 +13,9 @@
     {% csrf_token %}
 
     {% for field in form %}
+      {% if field.name == "repo_source" or field.name == "clone_url" %}
+        {# Rendered manually below #}
+      {% else %}
     <div>
       <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-300">
         {{ field.label }}{% if field.field.required %} <span class="text-red-400">*</span>{% endif %}
@@ -22,7 +25,44 @@
       <p class="mt-1 text-sm text-red-400">{{ field.errors.0 }}</p>
       {% endif %}
     </div>
+      {% endif %}
     {% endfor %}
+
+    {% if not project %}
+    <!-- Repo Source (create only) -->
+    <div class="mt-6 pt-6 border-t border-gray-700" x-data="{ source: '{{ form.repo_source.value|default:"empty" }}' }">
+      <h3 class="text-sm font-medium text-gray-300 mb-3">Repository Source</h3>
+      <div class="space-y-3">
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="radio" name="repo_source" value="empty" x-model="source"
+                 class="text-brand focus:ring-brand">
+          <div>
+            <span class="text-sm text-gray-200">Create empty repository</span>
+            <p class="text-xs text-gray-500">Start fresh with a new .fossil file</p>
+          </div>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="radio" name="repo_source" value="fossil_url" x-model="source"
+                 class="text-brand focus:ring-brand">
+          <div>
+            <span class="text-sm text-gray-200">Clone from Fossil URL</span>
+            <p class="text-xs text-gray-500">Clone an existing Fossil repository</p>
+          </div>
+        </label>
+      </div>
+
+      <div x-show="source === 'fossil_url'" x-transition class="mt-4">
+        <label class="block text-sm font-medium text-gray-300 mb-1">Clone URL</label>
+        <input type="url" name="clone_url" placeholder="https://fossil-scm.org/home"
+               value="{{ form.clone_url.value|default:'' }}"
+               class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+        <p class="mt-1 text-xs text-gray-500">The Fossil repository URL (same as what you'd pass to <code>fossil clone</code>)</p>
+        {% if form.clone_url.errors %}
+        <p class="mt-1 text-sm text-red-400">{{ form.clone_url.errors.0 }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     <div class="flex justify-end gap-3 pt-4">
       <a href="{% url 'projects:list' %}"

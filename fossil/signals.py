@@ -28,17 +28,20 @@ def create_fossil_repo(sender, instance, created, **kwargs):
         created_by=instance.created_by,
     )
 
-    # Try to init the .fossil file on disk
-    try:
-        from fossil.cli import FossilCLI
+    # Try to init the .fossil file on disk (skip if file already exists, e.g. from a clone)
+    if not repo.full_path.exists():
+        try:
+            from fossil.cli import FossilCLI
 
-        cli = FossilCLI()
-        if cli.is_available():
-            cli.init(repo.full_path)
-            repo.file_size_bytes = repo.full_path.stat().st_size if repo.exists_on_disk else 0
-            repo.save(update_fields=["file_size_bytes", "updated_at", "version"])
-            logger.info("Created fossil repo: %s", repo.full_path)
-        else:
-            logger.warning("Fossil binary not available — repo record created but .fossil file not initialized")
-    except Exception:
-        logger.exception("Failed to init fossil repo: %s", filename)
+            cli = FossilCLI()
+            if cli.is_available():
+                cli.init(repo.full_path)
+                repo.file_size_bytes = repo.full_path.stat().st_size if repo.exists_on_disk else 0
+                repo.save(update_fields=["file_size_bytes", "updated_at", "version"])
+                logger.info("Created fossil repo: %s", repo.full_path)
+            else:
+                logger.warning("Fossil binary not available — repo record created but .fossil file not initialized")
+        except Exception:
+            logger.exception("Failed to init fossil repo: %s", filename)
+    else:
+        logger.info("Fossil file already exists, skipping init: %s", repo.full_path)
