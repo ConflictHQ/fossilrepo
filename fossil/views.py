@@ -1452,40 +1452,52 @@ def sync_pull(request, slug):
 
         return redirect("fossil:sync", slug=slug)
 
-    elif action == "push" and fossil_repo.remote_url:
-        if cli.is_available():
+    elif action in ("push", "sync_bidirectional") and fossil_repo.remote_url:
+        from django.contrib import messages
+
+        from projects.access import can_admin_project
+
+        # Enforce branch protection — non-admins blocked if any protected branch restricts push
+        push_blocked = False
+        if not can_admin_project(request.user, project):
+            from fossil.branch_protection import BranchProtection
+
+            has_restrictions = BranchProtection.objects.filter(repository=fossil_repo, restrict_push=True, deleted_at__isnull=True).exists()
+            if has_restrictions:
+                push_blocked = True
+                messages.error(
+                    request,
+                    "Push blocked: branch protection rules restrict push to admins only.",
+                )
+
+        if not push_blocked and cli.is_available():
             cli.ensure_default_user(fossil_repo.full_path)
-            result = cli.push(fossil_repo.full_path)
-            from django.contrib import messages
+            if action == "push":
+                result = cli.push(fossil_repo.full_path)
+                if result["success"]:
+                    from django.utils import timezone
 
-            if result["success"]:
-                from django.utils import timezone
-
-                fossil_repo.last_sync_at = timezone.now()
-                fossil_repo.save(update_fields=["last_sync_at", "updated_at", "version"])
-                if result.get("artifacts_sent", 0) > 0:
-                    messages.success(request, f"Pushed {result['artifacts_sent']} artifacts to remote.")
+                    fossil_repo.last_sync_at = timezone.now()
+                    fossil_repo.save(update_fields=["last_sync_at", "updated_at", "version"])
+                    if result.get("artifacts_sent", 0) > 0:
+                        messages.success(request, f"Pushed {result['artifacts_sent']} artifacts to remote.")
+                    else:
+                        messages.info(request, "Remote is already up to date.")
                 else:
-                    messages.info(request, "Remote is already up to date.")
+                    messages.error(request, f"Push failed: {result.get('message', 'Unknown error')}")
             else:
-                messages.error(request, f"Push failed: {result.get('message', 'Unknown error')}")
+                result = cli.sync(fossil_repo.full_path)
+                if result["success"]:
+                    from django.utils import timezone
 
-    elif action == "sync_bidirectional" and fossil_repo.remote_url:
-        if cli.is_available():
-            cli.ensure_default_user(fossil_repo.full_path)
-            result = cli.sync(fossil_repo.full_path)
-            from django.contrib import messages
-            from django.utils import timezone
-
-            if result["success"]:
-                fossil_repo.last_sync_at = timezone.now()
-                with reader:
-                    fossil_repo.checkin_count = reader.get_checkin_count()
-                    fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
-                fossil_repo.save(update_fields=["last_sync_at", "checkin_count", "file_size_bytes", "updated_at", "version"])
-                messages.success(request, "Bidirectional sync complete.")
-            else:
-                messages.error(request, f"Sync failed: {result.get('message', 'Unknown error')}")
+                    fossil_repo.last_sync_at = timezone.now()
+                    with reader:
+                        fossil_repo.checkin_count = reader.get_checkin_count()
+                        fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
+                    fossil_repo.save(update_fields=["last_sync_at", "checkin_count", "file_size_bytes", "updated_at", "version"])
+                    messages.success(request, "Bidirectional sync complete.")
+                else:
+                    messages.error(request, f"Sync failed: {result.get('message', 'Unknown error')}")
 
     elif action == "pull" and fossil_repo.remote_url:
         if cli.is_available():

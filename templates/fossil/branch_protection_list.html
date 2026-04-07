@@ -80,7 +80,7 @@
 {% include "includes/_pagination.html" %}
 </div>
 
-<div class="mt-6 rounded-md bg-yellow-900/20 border border-yellow-800/50 px-4 py-3">
-  <p class="text-xs text-yellow-300">Branch protection rules are currently advisory. Push enforcement via Fossil hooks is not yet implemented.</p>
+<div class="mt-6 rounded-md bg-gray-800/50 border border-gray-700 px-4 py-3">
+  <p class="text-xs text-gray-400">Branch protection is enforced on all push operations (HTTP sync, CLI push, SSH). Non-admin users are blocked from pushing when protection rules with "restrict push" are active. Admins bypass all restrictions.</p>
 </div>
 {% endblock %}
