@@ -14,9 +14,15 @@ class FossilCLI:
             binary = config.FOSSIL_BINARY_PATH
         self.binary = binary
 
+    @property
+    def _env(self):
+        import os
+
+        return {**os.environ, "USER": "fossilrepo"}
+
     def _run(self, *args: str, timeout: int = 30) -> subprocess.CompletedProcess:
         cmd = [self.binary, *args]
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=True)
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=True, env=self._env)
 
     def init(self, path: Path) -> Path:
         """Create a new .fossil repository."""
@@ -93,7 +99,7 @@ class FossilCLI:
                             }
                         )
             # Close checkout
-            subprocess.run([self.binary, "close", "--force"], capture_output=True, cwd=tmpdir, timeout=10)
+            subprocess.run([self.binary, "close", "--force"], capture_output=True, cwd=tmpdir, timeout=10, env=self._env)
         except Exception:
             pass
         finally:
@@ -139,13 +145,13 @@ class FossilCLI:
         cmd = [self.binary, "wiki", "commit", page_name, "-R", str(repo_path)]
         if user:
             cmd.extend(["--technote-user", user])
-        result = subprocess.run(cmd, input=content, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, input=content, capture_output=True, text=True, timeout=30, env=self._env)
         return result.returncode == 0
 
     def wiki_create(self, repo_path: Path, page_name: str, content: str) -> bool:
         """Create a new wiki page."""
         cmd = [self.binary, "wiki", "create", page_name, "-R", str(repo_path)]
-        result = subprocess.run(cmd, input=content, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, input=content, capture_output=True, text=True, timeout=30, env=self._env)
         return result.returncode == 0
 
     def ticket_add(self, repo_path: Path, fields: dict) -> bool:
@@ -154,7 +160,7 @@ class FossilCLI:
         for key, value in fields.items():
             cmd.append(f"{key}")
             cmd.append(f"{value}")
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=self._env)
         return result.returncode == 0
 
     def ticket_change(self, repo_path: Path, uuid: str, fields: dict) -> bool:
@@ -163,5 +169,5 @@ class FossilCLI:
         for key, value in fields.items():
             cmd.append(f"{key}")
             cmd.append(f"{value}")
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=self._env)
         return result.returncode == 0
