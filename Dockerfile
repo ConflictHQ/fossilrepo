@@ -26,7 +26,7 @@ RUN curl -sSL "https://fossil-scm.org/home/tarball/version-${FOSSIL_VERSION}/fos
 FROM python:3.12-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client ca-certificates zlib1g libssl3 \
+    postgresql-client ca-certificates zlib1g libssl3 openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Fossil binary from builder
@@ -44,13 +44,29 @@ COPY . .
 
 RUN DJANGO_SECRET_KEY=build-placeholder DJANGO_DEBUG=true python manage.py collectstatic --noinput
 
-# Create data directory for .fossil files
-RUN mkdir -p /data/repos /data/trash
+# Create data directories
+RUN mkdir -p /data/repos /data/trash /data/ssh
+
+# SSH setup — restricted fossil user + sshd for clone/push
+RUN useradd -r -m -d /home/fossil -s /bin/bash fossil \
+    && mkdir -p /run/sshd /home/fossil/.ssh \
+    && chown fossil:fossil /home/fossil/.ssh \
+    && chmod 700 /home/fossil/.ssh
+
+COPY docker/sshd_config /etc/ssh/sshd_config
+COPY docker/fossil-shell /usr/local/bin/fossil-shell
+RUN chmod +x /usr/local/bin/fossil-shell
+
+# Generate host keys if they don't exist (entrypoint will handle persistent keys)
+RUN ssh-keygen -A
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV DJANGO_SETTINGS_MODULE=config.settings
 
-EXPOSE 8000
+EXPOSE 8000 2222
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+CMD ["/usr/local/bin/entrypoint.sh"]

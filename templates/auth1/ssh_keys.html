@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}SSH Keys — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-6">SSH Keys</h1>
+
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-6 mb-6">
+  <h2 class="text-lg font-semibold text-gray-200 mb-4">Add SSH Key</h2>
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+    <div>
+      <label for="title" class="block text-sm font-medium text-gray-300 mb-1">Title</label>
+      <input type="text" name="title" id="title" required placeholder="e.g. Work laptop"
+             class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+    </div>
+    <div>
+      <label for="public_key" class="block text-sm font-medium text-gray-300 mb-1">Public Key</label>
+      <textarea name="public_key" id="public_key" rows="4" required
+                placeholder="ssh-ed25519 AAAA... user@host"
+                class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm font-mono px-3 py-2 focus:border-brand focus:ring-brand"></textarea>
+      <p class="mt-1 text-xs text-gray-500">Paste your public key (usually from ~/.ssh/id_ed25519.pub)</p>
+    </div>
+    <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">
+      Add Key
+    </button>
+  </form>
+</div>
+
+{% if keys %}
+<div class="rounded-lg bg-gray-800 border border-gray-700">
+  <div class="p-4 border-b border-gray-700">
+    <h2 class="text-lg font-semibold text-gray-200">Your Keys</h2>
+  </div>
+  <div class="divide-y divide-gray-700">
+    {% for key in keys %}
+    <div class="p-4 flex items-center justify-between">
+      <div>
+        <div class="text-sm font-medium text-gray-200">{{ key.title }}</div>
+        <div class="text-xs text-gray-500 font-mono mt-1">{{ key.fingerprint }}</div>
+        <div class="text-xs text-gray-500 mt-1">
+          {{ key.key_type|upper }} &middot; Added {{ key.created_at|timesince }} ago
+          {% if key.last_used_at %}&middot; Last used {{ key.last_used_at|timesince }} ago{% endif %}
+        </div>
+      </div>
+      <form hx-post="{% url 'auth1:ssh_key_delete' pk=key.pk %}" hx-confirm="Delete SSH key '{{ key.title }}'?">
+        {% csrf_token %}
+        <button type="submit" class="text-sm text-red-400 hover:text-red-300">Delete</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="text-center py-12 text-gray-500">
+  <p class="text-sm">No SSH keys added yet.</p>
+  <p class="text-xs mt-1">Add an SSH key to clone and push Fossil repos over SSH.</p>
+</div>
+{% endif %}
+{% endblock %}

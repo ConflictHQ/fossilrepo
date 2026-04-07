@@ -1,0 +1,65 @@
+#!/bin/bash
+# fossil-shell — Forced command for SSH-based Fossil clone/push/pull.
+#
+# Each authorized_keys entry uses:
+#   command="/usr/local/bin/fossil-shell <username>",no-port-forwarding,...
+#
+# When a Fossil client connects via SSH, it sends a command like:
+#   fossil http /path/to/repo.fossil
+# which arrives in $SSH_ORIGINAL_COMMAND.
+#
+# This script:
+#   1. Extracts the repo name from the SSH command
+#   2. Maps it to the on-disk .fossil file
+#   3. Runs fossil http in CGI mode with --localauth
+#
+# Auth is already handled by the SSH key → user mapping in authorized_keys.
+
+set -euo pipefail
+
+FOSSIL_USER="${1:-anonymous}"
+REPO_DIR="${FOSSIL_DATA_DIR:-/data/repos}"
+
+# Validate SSH_ORIGINAL_COMMAND
+if [ -z "${SSH_ORIGINAL_COMMAND:-}" ]; then
+    echo "Error: Interactive SSH sessions are not supported." >&2
+    echo "Use: fossil clone ssh://fossil@<host>/<project-slug> local.fossil" >&2
+    exit 1
+fi
+
+# Fossil SSH sends: fossil http <repo-path> --args...
+# We only allow "fossil http" commands.
+if ! echo "$SSH_ORIGINAL_COMMAND" | grep -qE '^fossil\s+http\s+'; then
+    echo "Error: Only fossil http commands are allowed." >&2
+    exit 1
+fi
+
+# Extract the repo identifier (second argument after "fossil http")
+REPO_ARG=$(echo "$SSH_ORIGINAL_COMMAND" | awk '{print $3}')
+
+if [ -z "$REPO_ARG" ]; then
+    echo "Error: No repository specified." >&2
+    exit 1
+fi
+
+# Strip any path components — only allow bare slugs or slug.fossil
+REPO_NAME=$(basename "$REPO_ARG" .fossil)
+
+# Sanitize: only allow alphanumeric, hyphens, underscores
+if ! echo "$REPO_NAME" | grep -qE '^[a-zA-Z0-9_-]+$'; then
+    echo "Error: Invalid repository name." >&2
+    exit 1
+fi
+
+REPO_PATH="${REPO_DIR}/${REPO_NAME}.fossil"
+
+if [ ! -f "$REPO_PATH" ]; then
+    echo "Error: Repository '${REPO_NAME}' not found." >&2
+    exit 1
+fi
+
+# Log the access
+logger -t fossil-shell "user=${FOSSIL_USER} repo=${REPO_NAME} action=ssh-sync"
+
+# Run fossil http in CGI mode
+exec fossil http "$REPO_PATH" --localauth

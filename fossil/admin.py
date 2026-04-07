@@ -4,6 +4,7 @@ from core.admin import BaseCoreAdmin
 
 from .models import FossilRepository, FossilSnapshot
 from .sync_models import GitMirror, SSHKey, SyncLog
+from .user_keys import UserSSHKey
 
 
 class FossilSnapshotInline(admin.TabularInline):
@@ -44,3 +45,11 @@ class GitMirrorAdmin(BaseCoreAdmin):
 class SSHKeyAdmin(BaseCoreAdmin):
     list_display = ("name", "fingerprint", "created_at")
     readonly_fields = ("public_key", "fingerprint")
+
+
+@admin.register(UserSSHKey)
+class UserSSHKeyAdmin(BaseCoreAdmin):
+    list_display = ("title", "user", "key_type", "fingerprint", "last_used_at", "created_at")
+    list_filter = ("key_type",)
+    search_fields = ("title", "user__username", "fingerprint")
+    readonly_fields = ("fingerprint", "key_type")

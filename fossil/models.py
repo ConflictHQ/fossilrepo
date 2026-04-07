@@ -69,3 +69,4 @@ class FossilSnapshot(Tracking):
 # Import related models so they're discoverable by Django
 from fossil.notifications import Notification, ProjectWatch  # noqa: E402, F401
 from fossil.sync_models import GitMirror, SSHKey, SyncLog  # noqa: E402, F401
+from fossil.user_keys import UserSSHKey  # noqa: E402, F401

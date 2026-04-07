@@ -3,9 +3,10 @@ import re
 
 import markdown as md
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
+from django.views.decorators.csrf import csrf_exempt
 
 from projects.models import Project
 
@@ -1123,6 +1124,58 @@ def git_mirror_run(request, slug, mirror_id):
     from django.shortcuts import redirect
 
     return redirect("fossil:git_mirror", slug=slug)
+
+
+# --- Fossil Wire Protocol Proxy (clone / push / pull) ---
+
+
+@csrf_exempt
+def fossil_xfer(request, slug):
+    """Proxy Fossil sync protocol (clone/push/pull) through Django.
+
+    GET  — informational page with clone URL.
+    POST — pipe the request body through ``fossil http`` in CGI mode.
+    """
+    from projects.access import require_project_read, require_project_write
+
+    from .cli import FossilCLI
+
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+    fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
+
+    if request.method == "GET":
+        require_project_read(request, project)
+        clone_url = request.build_absolute_uri()
+        html = (
+            f"<html><head><title>{project.name} — Fossil Sync</title></head>"
+            f"<body>"
+            f"<h1>{project.name}</h1>"
+            f"<p>This is the Fossil sync endpoint for <strong>{project.name}</strong>.</p>"
+            f"<p>Clone with:</p>"
+            f"<pre>fossil clone {clone_url} {project.slug}.fossil</pre>"
+            f"<p>Authentication is required.</p>"
+            f"</body></html>"
+        )
+        return HttpResponse(html)
+
+    if request.method == "POST":
+        # All POST sync operations (push/pull/clone) require write access for
+        # now.  We can loosen pull to read-only once we can distinguish the
+        # operation from the request payload.
+        require_project_write(request, project)
+
+        if not fossil_repo.exists_on_disk:
+            raise Http404("Repository file not found on disk.")
+
+        cli = FossilCLI()
+        body, content_type = cli.http_proxy(
+            fossil_repo.full_path,
+            request.body,
+            request.content_type,
+        )
+        return HttpResponse(body, content_type=content_type)
+
+    return HttpResponse(status=405)
 
 
 # --- Watch / Notifications ---
