@@ -195,11 +195,19 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
         m = re.match(r"/tktview[?/](?:name=)?([0-9a-f]+)", url)
         if m:
             return f'href="{base}/tickets/{m.group(1)}/"'
+        # /vdiff?from=X&to=Y -> compare view
+        m = re.match(r"/vdiff\?from=([0-9a-f]+)&to=([0-9a-f]+)", url)
+        if m:
+            return f'href="{base}/compare/?from={m.group(1)}&to={m.group(2)}"'
         # /timeline -> timeline
         if url.startswith("/timeline"):
             return f'href="{base}/timeline/"'
-        # /forum -> forum
-        if url.startswith("/forumpost") or url.startswith("/forum"):
+        # /forumpost/HASH -> forum thread
+        m = re.match(r"/forumpost/([0-9a-f]+)", url)
+        if m:
+            return f'href="{base}/forum/{m.group(1)}/"'
+        # /forum -> forum list
+        if url.startswith("/forum"):
             return f'href="{base}/forum/"'
         # /www/file.wiki or /www/subdir/file -> doc page viewer
         m = re.match(r"/(www/.+)", url)
@@ -618,11 +626,21 @@ def ticket_detail(request, slug, ticket_uuid):
 
     with reader:
         ticket = reader.get_ticket_detail(ticket_uuid)
+        comments = reader.get_ticket_comments(ticket_uuid) if ticket else []
 
     if not ticket:
         raise Http404("Ticket not found")
 
     body_html = mark_safe(_render_fossil_content(ticket.body, project_slug=slug)) if ticket.body else ""
+    rendered_comments = []
+    for c in comments:
+        rendered_comments.append(
+            {
+                "user": c["user"],
+                "timestamp": c["timestamp"],
+                "html": mark_safe(_render_fossil_content(c["comment"], project_slug=slug)),
+            }
+        )
 
     return render(
         request,
@@ -632,6 +650,7 @@ def ticket_detail(request, slug, ticket_uuid):
             "fossil_repo": fossil_repo,
             "ticket": ticket,
             "body_html": body_html,
+            "comments": rendered_comments,
             "active_tab": "tickets",
         },
     )
@@ -994,6 +1013,72 @@ def search(request, slug):
             "active_tab": "code",
         },
     )
+
+
+# --- RSS Feed ---
+
+
+@login_required
+def timeline_rss(request, slug):
+    """RSS feed of recent timeline entries."""
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        entries = reader.get_timeline(limit=30, event_type="ci")
+
+    from django.http import HttpResponse as DjHttpResponse
+    from django.utils.html import escape
+
+    items = []
+    for e in entries:
+        link = request.build_absolute_uri(f"/projects/{slug}/fossil/checkin/{e.uuid}/")
+        items.append(
+            f"<item><title>{escape(e.comment)}</title><link>{link}</link>"
+            f"<author>{escape(e.user)}</author>"
+            f"<pubDate>{e.timestamp.strftime('%a, %d %b %Y %H:%M:%S +0000')}</pubDate>"
+            f"<guid>{e.uuid}</guid></item>"
+        )
+
+    tl_link = request.build_absolute_uri(f"/projects/{slug}/fossil/timeline/")
+    rss = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<rss version="2.0"><channel>'
+        f"<title>{escape(project.name)} — Timeline</title>"
+        f"<link>{tl_link}</link>"
+        f"<description>Recent checkins for {escape(project.name)}</description>"
+        f"{''.join(items)}"
+        "</channel></rss>"
+    )
+    return DjHttpResponse(rss, content_type="application/rss+xml")
+
+
+# --- CSV Export ---
+
+
+@login_required
+def tickets_csv(request, slug):
+    """Export all tickets as CSV."""
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        tickets = reader.get_tickets(limit=5000)
+
+    import csv
+    import io
+
+    from django.http import HttpResponse as DjHttpResponse
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["UUID", "Title", "Status", "Type", "Priority", "Severity", "Created"])
+    for t in tickets:
+        writer.writerow([t.uuid, t.title, t.status, t.type, t.priority, t.severity, t.created.isoformat() if t.created else ""])
+
+    response = DjHttpResponse(output.getvalue(), content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{slug}-tickets.csv"'
+    return response
 
 
 # --- File History ---
