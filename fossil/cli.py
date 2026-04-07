@@ -200,3 +200,49 @@ class FossilCLI:
             cmd.append(f"{value}")
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=self._env)
         return result.returncode == 0
+
+    def git_export(self, repo_path: Path, mirror_dir: Path, autopush_url: str = "") -> dict:
+        """Export Fossil repo to a Git mirror directory. Incremental.
+
+        Returns {success, message}.
+        """
+        mirror_dir.mkdir(parents=True, exist_ok=True)
+        cmd = [self.binary, "git", "export", str(mirror_dir), "-R", str(repo_path)]
+        if autopush_url:
+            cmd.extend(["--autopush", autopush_url])
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=self._env)
+            return {"success": result.returncode == 0, "message": (result.stdout + result.stderr).strip()}
+        except subprocess.TimeoutExpired:
+            return {"success": False, "message": "Export timed out after 5 minutes"}
+
+    def generate_ssh_key(self, key_path: Path, comment: str = "fossilrepo") -> dict:
+        """Generate an SSH key pair for Git authentication.
+
+        Returns {success, public_key, fingerprint}.
+        """
+        import os
+
+        try:
+            key_path.parent.mkdir(parents=True, exist_ok=True)
+            result = subprocess.run(
+                ["ssh-keygen", "-t", "ed25519", "-f", str(key_path), "-N", "", "-C", comment],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env={**os.environ},
+            )
+            if result.returncode == 0:
+                pub_key = key_path.with_suffix(".pub").read_text().strip()
+                # Get fingerprint
+                fp_result = subprocess.run(
+                    ["ssh-keygen", "-lf", str(key_path.with_suffix(".pub"))],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                fingerprint = fp_result.stdout.strip().split()[1] if fp_result.returncode == 0 else ""
+                return {"success": True, "public_key": pub_key, "fingerprint": fingerprint}
+        except Exception as e:
+            return {"success": False, "public_key": "", "fingerprint": "", "error": str(e)}
+        return {"success": False, "public_key": "", "fingerprint": ""}

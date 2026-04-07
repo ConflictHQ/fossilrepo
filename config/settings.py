@@ -222,10 +222,22 @@ CONSTANCE_CONFIG = {
     "FOSSIL_S3_TRACKING": (False, "Track S3/Litestream replication keys and versions"),
     "FOSSIL_S3_BUCKET": ("", "S3 bucket name for Fossil repo replication"),
     "FOSSIL_BINARY_PATH": ("fossil", "Path to the fossil binary"),
+    # Git sync settings
+    "GIT_SYNC_MODE": ("disabled", "Default sync mode: disabled, on_change, scheduled, both"),
+    "GIT_SYNC_SCHEDULE": ("*/15 * * * *", "Default cron schedule for Git sync"),
+    "GIT_MIRROR_DIR": ("/data/git-mirrors", "Directory for Git mirror checkouts"),
+    "GIT_SSH_KEY_DIR": ("/data/ssh-keys", "Directory for SSH key storage"),
+    "GITHUB_OAUTH_CLIENT_ID": ("", "GitHub OAuth App Client ID"),
+    "GITHUB_OAUTH_CLIENT_SECRET": ("", "GitHub OAuth App Client Secret"),
+    "GITLAB_OAUTH_CLIENT_ID": ("", "GitLab OAuth App Client ID"),
+    "GITLAB_OAUTH_CLIENT_SECRET": ("", "GitLab OAuth App Client Secret"),
 }
 CONSTANCE_CONFIG_FIELDSETS = {
     "General": ("SITE_NAME",),
     "Fossil Storage": ("FOSSIL_DATA_DIR", "FOSSIL_STORE_IN_DB", "FOSSIL_S3_TRACKING", "FOSSIL_S3_BUCKET", "FOSSIL_BINARY_PATH"),
+    "Git Sync": ("GIT_SYNC_MODE", "GIT_SYNC_SCHEDULE", "GIT_MIRROR_DIR", "GIT_SSH_KEY_DIR"),
+    "GitHub OAuth": ("GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET"),
+    "GitLab OAuth": ("GITLAB_OAUTH_CLIENT_ID", "GITLAB_OAUTH_CLIENT_SECRET"),
 }
 
 # --- Sentry ---

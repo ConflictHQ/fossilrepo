@@ -115,3 +115,78 @@ def check_upstream_updates():
                 repo.save(update_fields=["upstream_artifacts_available", "last_sync_at", "updated_at", "version"])
         except Exception:
             logger.exception("Failed to check upstream for %s", repo.filename)
+
+
+@shared_task(name="fossil.git_sync")
+def run_git_sync(mirror_id: int | None = None):
+    """Run Git export/push for configured mirrors."""
+    from pathlib import Path
+
+    from constance import config
+    from django.utils import timezone
+
+    from fossil.cli import FossilCLI
+    from fossil.sync_models import GitMirror, SyncLog
+
+    cli = FossilCLI()
+    if not cli.is_available():
+        return
+
+    mirrors = GitMirror.objects.filter(deleted_at__isnull=True).exclude(sync_mode="disabled")
+    if mirror_id:
+        mirrors = mirrors.filter(pk=mirror_id)
+
+    mirror_dir = Path(config.GIT_MIRROR_DIR)
+
+    for mirror in mirrors:
+        repo = mirror.repository
+        if not repo.exists_on_disk:
+            continue
+
+        log = SyncLog.objects.create(mirror=mirror, triggered_by="schedule" if not mirror_id else "manual")
+
+        try:
+            # Ensure default user
+            cli.ensure_default_user(repo.full_path)
+
+            # Git export directory for this mirror
+            export_dir = mirror_dir / f"{repo.filename.replace('.fossil', '')}-git"
+
+            # Build autopush URL with credentials if token auth
+            push_url = mirror.git_remote_url
+            if mirror.auth_method == "token" and mirror.auth_credential and push_url.startswith("https://"):
+                push_url = push_url.replace("https://", f"https://{mirror.auth_credential}@")
+
+            result = cli.git_export(repo.full_path, export_dir, autopush_url=push_url)
+
+            log.status = "success" if result["success"] else "failed"
+            log.message = result["message"]
+            log.completed_at = timezone.now()
+            log.save()
+
+            mirror.last_sync_at = timezone.now()
+            mirror.last_sync_status = log.status
+            mirror.last_sync_message = result["message"][:500]
+            mirror.total_syncs += 1
+            mirror.save(
+                update_fields=[
+                    "last_sync_at",
+                    "last_sync_status",
+                    "last_sync_message",
+                    "total_syncs",
+                    "updated_at",
+                    "version",
+                ]
+            )
+
+            if result["success"]:
+                logger.info("Git sync success for %s → %s", repo.filename, mirror.git_remote_url)
+            else:
+                logger.warning("Git sync failed for %s: %s", repo.filename, result["message"][:200])
+
+        except Exception:
+            logger.exception("Git sync error for %s", repo.filename)
+            log.status = "failed"
+            log.message = "Unexpected error"
+            log.completed_at = timezone.now()
+            log.save()

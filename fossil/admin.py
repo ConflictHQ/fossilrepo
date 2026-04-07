@@ -3,6 +3,7 @@ from django.contrib import admin
 from core.admin import BaseCoreAdmin
 
 from .models import FossilRepository, FossilSnapshot
+from .sync_models import GitMirror, SSHKey, SyncLog
 
 
 class FossilSnapshotInline(admin.TabularInline):
@@ -23,3 +24,23 @@ class FossilRepositoryAdmin(BaseCoreAdmin):
 class FossilSnapshotAdmin(BaseCoreAdmin):
     list_display = ("repository", "file_size_bytes", "fossil_hash", "created_at")
     raw_id_fields = ("repository",)
+
+
+class SyncLogInline(admin.TabularInline):
+    model = SyncLog
+    extra = 0
+    readonly_fields = ("started_at", "completed_at", "status", "artifacts_synced", "triggered_by")
+
+
+@admin.register(GitMirror)
+class GitMirrorAdmin(BaseCoreAdmin):
+    list_display = ("repository", "git_remote_url", "sync_mode", "sync_direction", "last_sync_status", "last_sync_at")
+    list_filter = ("sync_mode", "sync_direction", "auth_method")
+    raw_id_fields = ("repository",)
+    inlines = [SyncLogInline]
+
+
+@admin.register(SSHKey)
+class SSHKeyAdmin(BaseCoreAdmin):
+    list_display = ("name", "fingerprint", "created_at")
+    readonly_fields = ("public_key", "fingerprint")

@@ -64,3 +64,7 @@ class FossilSnapshot(Tracking):
 
     def __str__(self):
         return f"{self.repository.filename} @ {self.created_at:%Y-%m-%d %H:%M}" if self.created_at else self.repository.filename
+
+
+# Import sync models so they're discoverable by Django
+from fossil.sync_models import GitMirror, SSHKey, SyncLog  # noqa: E402, F401
