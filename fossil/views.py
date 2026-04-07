@@ -1423,6 +1423,113 @@ def sync_pull(request, slug):
     )
 
 
+# --- Repository Settings ---
+
+
+@login_required
+def repo_settings(request, slug):
+    """Repository settings: remote URL, storage info, danger zone."""
+    from projects.access import require_project_admin
+
+    project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
+    require_project_admin(request, project)
+    fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+
+        if action == "update_remote":
+            remote_url = request.POST.get("remote_url", "").strip()
+            fossil_repo.remote_url = remote_url
+            fossil_repo.save(update_fields=["remote_url", "updated_at", "version"])
+            from django.contrib import messages
+
+            messages.success(request, "Remote URL updated.")
+
+        elif action == "sync_metadata":
+            # Refresh metadata from the .fossil file
+            if fossil_repo.exists_on_disk:
+                with contextlib.suppress(Exception), FossilReader(fossil_repo.full_path) as reader:
+                    meta = reader.get_metadata()
+                    fossil_repo.checkin_count = meta.checkin_count
+                    fossil_repo.fossil_project_code = meta.project_code
+                    fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
+                    fossil_repo.save(
+                        update_fields=[
+                            "checkin_count",
+                            "fossil_project_code",
+                            "file_size_bytes",
+                            "updated_at",
+                            "version",
+                        ]
+                    )
+                from django.contrib import messages
+
+                messages.success(request, "Metadata synced from repository file.")
+
+        elif action == "pull_remote":
+            if fossil_repo.remote_url and fossil_repo.exists_on_disk:
+                from fossil.cli import FossilCLI
+
+                cli = FossilCLI()
+                if cli.is_available():
+                    cli.ensure_default_user(fossil_repo.full_path)
+                    result = cli.pull(fossil_repo.full_path)
+                    from django.contrib import messages
+
+                    if result["success"]:
+                        from django.utils import timezone
+
+                        fossil_repo.last_sync_at = timezone.now()
+                        if result["artifacts_received"] > 0:
+                            with FossilReader(fossil_repo.full_path) as rdr:
+                                fossil_repo.checkin_count = rdr.get_checkin_count()
+                            fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
+                        fossil_repo.save(
+                            update_fields=[
+                                "last_sync_at",
+                                "checkin_count",
+                                "file_size_bytes",
+                                "updated_at",
+                                "version",
+                            ]
+                        )
+                        if result["artifacts_received"] > 0:
+                            messages.success(request, f"Pulled {result['artifacts_received']} new artifacts.")
+                        else:
+                            messages.info(request, "Already up to date.")
+                    else:
+                        messages.warning(request, f"Pull failed: {result['message']}")
+
+        return redirect("fossil:repo_settings", slug=slug)
+
+    # Gather repo info for display
+    repo_info = {
+        "exists_on_disk": fossil_repo.exists_on_disk,
+    }
+    if fossil_repo.exists_on_disk:
+        repo_info["file_size"] = fossil_repo.full_path.stat().st_size
+        repo_info["file_path"] = str(fossil_repo.full_path)
+        with contextlib.suppress(Exception), FossilReader(fossil_repo.full_path) as reader:
+            meta = reader.get_metadata()
+            repo_info["project_name"] = meta.project_name
+            repo_info["project_code"] = meta.project_code
+            repo_info["checkin_count"] = meta.checkin_count
+            repo_info["ticket_count"] = meta.ticket_count
+            repo_info["wiki_page_count"] = meta.wiki_page_count
+
+    return render(
+        request,
+        "fossil/repo_settings.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "repo_info": repo_info,
+            "active_tab": "settings",
+        },
+    )
+
+
 # --- Git Mirror ---
 
 

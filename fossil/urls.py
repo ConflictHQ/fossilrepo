@@ -36,6 +36,7 @@ urlpatterns = [
     path("search/", views.search, name="search"),
     path("stats/", views.repo_stats, name="stats"),
     path("compare/", views.compare_checkins, name="compare"),
+    path("settings/", views.repo_settings, name="repo_settings"),
     path("sync/", views.sync_pull, name="sync"),
     path("sync/git/", views.git_mirror_config, name="git_mirror"),
     path("sync/git/<int:mirror_id>/run/", views.git_mirror_run, name="git_mirror_run"),

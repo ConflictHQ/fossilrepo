@@ -6,8 +6,25 @@ from .models import Project, ProjectTeam
 
 tw = "w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
 
+REPO_SOURCE_CHOICES = [
+    ("empty", "Create empty repository"),
+    ("fossil_url", "Clone from Fossil URL"),
+]
+
 
 class ProjectForm(forms.ModelForm):
+    repo_source = forms.ChoiceField(
+        choices=REPO_SOURCE_CHOICES,
+        initial="empty",
+        widget=forms.RadioSelect,
+        required=False,
+    )
+    clone_url = forms.URLField(
+        required=False,
+        widget=forms.URLInput(attrs={"placeholder": "https://fossil-scm.org/home"}),
+        help_text="Fossil repository URL to clone from",
+    )
+
     class Meta:
         model = Project
         fields = ["name", "description", "visibility"]
@@ -16,6 +33,14 @@ class ProjectForm(forms.ModelForm):
             "description": forms.Textarea(attrs={"class": tw, "rows": 3, "placeholder": "Description"}),
             "visibility": forms.Select(attrs={"class": tw}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        repo_source = cleaned.get("repo_source", "empty")
+        clone_url = cleaned.get("clone_url", "").strip()
+        if repo_source == "fossil_url" and not clone_url:
+            self.add_error("clone_url", "Clone URL is required when cloning from a Fossil URL.")
+        return cleaned
 
 
 class ProjectTeamAddForm(forms.Form):

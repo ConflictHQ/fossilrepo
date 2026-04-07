@@ -36,5 +36,9 @@
      class="px-4 py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'sync' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
     {% if fossil_repo.remote_url %}Sync{% else %}Setup Sync{% endif %}
   </a>
+  <a href="{% url 'fossil:repo_settings' slug=project.slug %}"
+     class="px-4 py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'settings' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+    Settings
+  </a>
   {% endif %}
 </nav>
