@@ -24,9 +24,19 @@ def sidebar(request):
 
     ungrouped_projects = [p for p in projects if p.id not in grouped_ids]
 
+    # Split pages: product docs (known slugs) vs org knowledge base (user-created)
+    PRODUCT_DOC_SLUGS = {
+        "agentic-development", "api-reference", "architecture",
+        "administration", "setup-guide",
+    }
+    product_docs = [p for p in pages if p.slug in PRODUCT_DOC_SLUGS]
+    kb_pages = [p for p in pages if p.slug not in PRODUCT_DOC_SLUGS]
+
     return {
         "sidebar_projects": projects,
         "sidebar_grouped": grouped_projects,
         "sidebar_ungrouped": ungrouped_projects,
-        "sidebar_pages": pages,
+        "sidebar_pages": pages,  # Keep for backwards compat
+        "sidebar_product_docs": product_docs,
+        "sidebar_kb_pages": kb_pages,
     }
