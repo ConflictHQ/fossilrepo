@@ -273,6 +273,16 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
         return match.group(0)
 
     html = re.sub(r'href="https?://(?:www\.)?fossil-scm\.org/home(/[^"]*)"', replace_external_fossil, html)
+
+    # Also rewrite fossil-scm.org/forum links to our local forum
+    def replace_external_forum(match):
+        path = match.group(1)
+        m = re.match(r"/forumpost/([0-9a-f]+)", path)
+        if m:
+            return f'href="{base}/forum/{m.group(1)}/"'
+        return f'href="{base}/forum/"'
+
+    html = re.sub(r'href="https?://(?:www\.)?fossil-scm\.org/forum(/[^"]*)"', replace_external_forum, html)
     return html
 
 
