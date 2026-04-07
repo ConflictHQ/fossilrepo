@@ -204,18 +204,34 @@ class FossilCLI:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=self._env)
         return result.returncode == 0
 
-    def git_export(self, repo_path: Path, mirror_dir: Path, autopush_url: str = "") -> dict:
+    def git_export(self, repo_path: Path, mirror_dir: Path, autopush_url: str = "", auth_token: str = "") -> dict:
         """Export Fossil repo to a Git mirror directory. Incremental.
+
+        When auth_token is provided, credentials are passed via Git environment
+        variables instead of being embedded in the URL (avoids exposure in
+        process args and command output).
 
         Returns {success, message}.
         """
         mirror_dir.mkdir(parents=True, exist_ok=True)
         cmd = [self.binary, "git", "export", str(mirror_dir), "-R", str(repo_path)]
+
+        env = dict(self._env)
+
         if autopush_url:
             cmd.extend(["--autopush", autopush_url])
+            if auth_token:
+                env["GIT_TERMINAL_PROMPT"] = "0"
+                env["GIT_CONFIG_COUNT"] = "1"
+                env["GIT_CONFIG_KEY_0"] = "credential.helper"
+                env["GIT_CONFIG_VALUE_0"] = f"!echo password={auth_token}"
+
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=self._env)
-            return {"success": result.returncode == 0, "message": (result.stdout + result.stderr).strip()}
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env)
+            output = (result.stdout + result.stderr).strip()
+            if auth_token:
+                output = output.replace(auth_token, "[REDACTED]")
+            return {"success": result.returncode == 0, "message": output}
         except subprocess.TimeoutExpired:
             return {"success": False, "message": "Export timed out after 5 minutes"}
 

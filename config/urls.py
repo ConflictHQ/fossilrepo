@@ -11,10 +11,21 @@ from django.views.generic import RedirectView
 
 def _oauth_github_callback(request):
     """Global GitHub OAuth callback. Extracts slug from state param and delegates."""
+    from django.contrib import messages
+
     state = request.GET.get("state", "")
-    slug = state.split(":")[0] if ":" in state else ""
-    if not slug:
+    parts = state.split(":")
+    if len(parts) < 3:
         return _redirect("/dashboard/")
+
+    slug = parts[0]
+    nonce = parts[2]
+
+    expected_nonce = request.session.pop("oauth_state_nonce", "")
+    if not nonce or nonce != expected_nonce:
+        messages.error(request, "OAuth state mismatch. Please try again.")
+        return _redirect(f"/projects/{slug}/fossil/sync/git/")
+
     from fossil.oauth import github_exchange_token
 
     result = github_exchange_token(request, slug)
@@ -26,10 +37,21 @@ def _oauth_github_callback(request):
 
 def _oauth_gitlab_callback(request):
     """Global GitLab OAuth callback. Extracts slug from state param and delegates."""
+    from django.contrib import messages
+
     state = request.GET.get("state", "")
-    slug = state.split(":")[0] if ":" in state else ""
-    if not slug:
+    parts = state.split(":")
+    if len(parts) < 3:
         return _redirect("/dashboard/")
+
+    slug = parts[0]
+    nonce = parts[2]
+
+    expected_nonce = request.session.pop("oauth_state_nonce", "")
+    if not nonce or nonce != expected_nonce:
+        messages.error(request, "OAuth state mismatch. Please try again.")
+        return _redirect(f"/projects/{slug}/fossil/sync/git/")
+
     from fossil.oauth import gitlab_exchange_token
 
     result = gitlab_exchange_token(request, slug)

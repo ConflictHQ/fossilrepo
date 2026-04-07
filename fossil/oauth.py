@@ -5,6 +5,7 @@ Stores tokens on GitMirror.auth_credential.
 """
 
 import logging
+import secrets
 
 import requests
 
@@ -27,7 +28,9 @@ def github_authorize_url(request, slug, mirror_id=None):
         return None
 
     callback = request.build_absolute_uri("/oauth/callback/github/")
-    state = f"{slug}:{mirror_id or 'new'}"
+    nonce = secrets.token_urlsafe(32)
+    state = f"{slug}:{mirror_id or 'new'}:{nonce}"
+    request.session["oauth_state_nonce"] = nonce
 
     return f"{GITHUB_AUTHORIZE_URL}?client_id={client_id}&redirect_uri={callback}&scope=repo&state={state}"
 
@@ -74,7 +77,9 @@ def gitlab_authorize_url(request, slug, mirror_id=None):
         return None
 
     callback = request.build_absolute_uri("/oauth/callback/gitlab/")
-    state = f"{slug}:{mirror_id or 'new'}"
+    nonce = secrets.token_urlsafe(32)
+    state = f"{slug}:{mirror_id or 'new'}:{nonce}"
+    request.session["oauth_state_nonce"] = nonce
 
     return f"{GITLAB_AUTHORIZE_URL}?client_id={client_id}&redirect_uri={callback}&response_type=code&scope=api&state={state}"
 

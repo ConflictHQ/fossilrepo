@@ -152,21 +152,27 @@ def run_git_sync(mirror_id: int | None = None):
             # Git export directory for this mirror
             export_dir = mirror_dir / f"{repo.filename.replace('.fossil', '')}-git"
 
-            # Build autopush URL with credentials if token auth
+            # Pass clean URL and token separately -- never embed credentials in URLs
             push_url = mirror.git_remote_url
+            auth_token = ""
             if mirror.auth_method == "token" and mirror.auth_credential and push_url.startswith("https://"):
-                push_url = push_url.replace("https://", f"https://{mirror.auth_credential}@")
+                auth_token = mirror.auth_credential
 
-            result = cli.git_export(repo.full_path, export_dir, autopush_url=push_url)
+            result = cli.git_export(repo.full_path, export_dir, autopush_url=push_url, auth_token=auth_token)
+
+            # Scrub any credential from output before persisting
+            message = result.get("message", "")
+            if mirror.auth_credential:
+                message = message.replace(mirror.auth_credential, "[REDACTED]")
 
             log.status = "success" if result["success"] else "failed"
-            log.message = result["message"]
+            log.message = message
             log.completed_at = timezone.now()
             log.save()
 
             mirror.last_sync_at = timezone.now()
             mirror.last_sync_status = log.status
-            mirror.last_sync_message = result["message"][:500]
+            mirror.last_sync_message = message[:500]
             mirror.total_syncs += 1
             mirror.save(
                 update_fields=[
