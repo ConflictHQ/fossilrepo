@@ -2,7 +2,11 @@
 
 **Self-hosted Fossil forge with a modern web interface.**
 
+![FossilRepo Tour](docs/fossilrepo-tour.gif)
+
 Fossilrepo wraps [Fossil SCM](https://fossil-scm.org) with a Django + HTMX management layer, replacing Fossil's built-in web UI with a GitHub/GitLab-caliber experience while preserving everything that makes Fossil unique: single-file repos, built-in wiki, tickets, forum, and technotes.
+
+**Live instance:** [fossilrepo.io](https://fossilrepo.io) | **Docs:** [fossilrepo.dev](https://fossilrepo.dev) | **Powered by [BoilerWorks](https://boilerworks.ai)**
 
 ## Why Fossilrepo?
 
