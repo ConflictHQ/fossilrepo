@@ -9,7 +9,6 @@ import core.fields
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("fossil", "0004_historicalprojectwatch_notification_projectwatch"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -39,9 +38,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigIntegerField(
-                        auto_created=True, blank=True, db_index=True, verbose_name="ID"
-                    ),
+                    models.BigIntegerField(auto_created=True, blank=True, db_index=True, verbose_name="ID"),
                 ),
                 ("version", models.PositiveIntegerField(default=1, editable=False)),
                 ("created_at", models.DateTimeField(blank=True, editable=False)),
@@ -56,9 +53,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "public_key",
-                    core.fields.EncryptedTextField(
-                        help_text="SSH public key (ssh-ed25519, ssh-rsa, etc.)"
-                    ),
+                    core.fields.EncryptedTextField(help_text="SSH public key (ssh-ed25519, ssh-rsa, etc.)"),
                 ),
                 (
                     "fingerprint",
@@ -163,9 +158,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "public_key",
-                    core.fields.EncryptedTextField(
-                        help_text="SSH public key (ssh-ed25519, ssh-rsa, etc.)"
-                    ),
+                    core.fields.EncryptedTextField(help_text="SSH public key (ssh-ed25519, ssh-rsa, etc.)"),
                 ),
                 (
                     "fingerprint",
