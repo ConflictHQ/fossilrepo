@@ -763,6 +763,9 @@ def wiki_list(request, slug):
         pages = reader.get_wiki_pages()
         home_page = reader.get_wiki_page("Home")
 
+    # Sort: Home first, then alphabetical
+    pages = sorted(pages, key=lambda p: ("" if p.name == "Home" else "~" + p.name.lower()))
+
     search = request.GET.get("search", "").strip()
     if search:
         pages = [p for p in pages if search.lower() in p.name.lower()]
