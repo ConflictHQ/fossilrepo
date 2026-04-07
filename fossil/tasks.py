@@ -276,6 +276,24 @@ def dispatch_webhook(self, webhook_id, event_type, payload):
         logger.warning("Webhook %s not found, skipping delivery", webhook_id)
         return
 
+    # Re-validate URL at dispatch time (hostname could resolve differently than at save time)
+    from core.url_validation import is_safe_webhook_url
+
+    is_safe, url_error = is_safe_webhook_url(webhook.url)
+    if not is_safe:
+        logger.warning("Webhook %s URL failed safety check at dispatch: %s", webhook_id, url_error)
+        WebhookDelivery.objects.create(
+            webhook=webhook,
+            event_type=event_type,
+            payload=payload,
+            response_status=0,
+            response_body=f"Blocked: {url_error}",
+            success=False,
+            duration_ms=0,
+            attempt=self.request.retries + 1,
+        )
+        return
+
     headers = {"Content-Type": "application/json", "X-Fossilrepo-Event": event_type}
     body = json.dumps(payload)
 

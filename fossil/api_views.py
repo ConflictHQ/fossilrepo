@@ -38,24 +38,30 @@ def _get_repo(slug):
     return project, repo
 
 
-def _check_api_auth(request, project, repo):
-    """Authenticate request and check read access.
+def _check_api_auth(request, project, repo, required_scope="read"):
+    """Authenticate request and check access.
+
+    Args:
+        required_scope: "read" or "write" — enforced on both API tokens and PAT scopes.
 
     Returns (user, token, error_response). If error_response is not None,
     the caller should return it immediately.
     """
-    user, token, err = authenticate_request(request, repository=repo)
+    user, token, err = authenticate_request(request, repository=repo, required_scope=required_scope)
     if err is not None:
         return None, None, err
 
     # For project-scoped APITokens (no user), the token itself grants access
-    # since it's already scoped to this repository.
+    # since it's scoped to this repository and scope was already checked.
     if token is not None and user is None:
         return user, token, None
 
     # For user-scoped auth (PAT or session), check project visibility
-    if user is not None and not can_read_project(user, project):
-        return None, None, JsonResponse({"error": "Access denied"}, status=403)
+    if user is not None:
+        if required_scope == "write" and not can_write_project(user, project):
+            return None, None, JsonResponse({"error": "Write access required"}, status=403)
+        if not can_read_project(user, project):
+            return None, None, JsonResponse({"error": "Access denied"}, status=403)
 
     return user, token, None
 
@@ -766,7 +772,7 @@ def api_workspace_create(request, slug):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -916,7 +922,7 @@ def api_workspace_commit(request, slug, workspace_name):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1013,7 +1019,7 @@ def api_workspace_merge(request, slug, workspace_name):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1074,7 +1080,14 @@ def api_workspace_merge(request, slug, workspace_name):
         cwd=checkout_dir,
     )
 
-    # Close the checkout and clean up
+    if commit_result.returncode != 0:
+        # Merge commit failed — don't close the workspace, let the user retry
+        return JsonResponse(
+            {"error": "Merge commit failed", "detail": commit_result.stderr.strip()},
+            status=500,
+        )
+
+    # Close the checkout and clean up (only on successful commit)
     subprocess.run([cli.binary, "close", "--force"], capture_output=True, cwd=checkout_dir, timeout=10, env=cli._env)
     shutil.rmtree(checkout_dir, ignore_errors=True)
 
@@ -1106,7 +1119,7 @@ def api_workspace_abandon(request, slug, workspace_name):
         return JsonResponse({"error": "DELETE required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1160,7 +1173,7 @@ def api_ticket_claim(request, slug, ticket_uuid):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1251,7 +1264,7 @@ def api_ticket_release(request, slug, ticket_uuid):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1299,7 +1312,7 @@ def api_ticket_submit(request, slug, ticket_uuid):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1561,7 +1574,7 @@ def api_review_create(request, slug):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1738,7 +1751,7 @@ def api_review_comment(request, slug, review_id):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1795,7 +1808,7 @@ def api_review_approve(request, slug, review_id):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1828,7 +1841,7 @@ def api_review_request_changes(request, slug, review_id):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 
@@ -1879,7 +1892,7 @@ def api_review_merge(request, slug, review_id):
         return JsonResponse({"error": "POST required"}, status=405)
 
     project, repo = _get_repo(slug)
-    user, token, err = _check_api_auth(request, project, repo)
+    user, token, err = _check_api_auth(request, project, repo, required_scope="write")
     if err is not None:
         return err
 

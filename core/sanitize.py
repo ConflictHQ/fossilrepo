@@ -10,16 +10,73 @@ from html.parser import HTMLParser
 from io import StringIO
 
 # Tags that are safe to render — covers Markdown/wiki formatting and Pikchr SVG
-ALLOWED_TAGS = frozenset({
-    "a", "abbr", "acronym", "b", "blockquote", "br", "code", "dd", "del",
-    "details", "div", "dl", "dt", "em", "h1", "h2", "h3", "h4", "h5", "h6",
-    "hr", "i", "img", "ins", "kbd", "li", "mark", "ol", "p", "pre", "q",
-    "s", "samp", "small", "span", "strong", "sub", "summary", "sup",
-    "table", "tbody", "td", "tfoot", "th", "thead", "tr", "tt", "u", "ul", "var",
-    # SVG elements for Pikchr diagrams
-    "svg", "path", "circle", "rect", "line", "polyline", "polygon",
-    "g", "text", "defs", "use", "symbol",
-})
+ALLOWED_TAGS = frozenset(
+    {
+        "a",
+        "abbr",
+        "acronym",
+        "b",
+        "blockquote",
+        "br",
+        "code",
+        "dd",
+        "del",
+        "details",
+        "div",
+        "dl",
+        "dt",
+        "em",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "hr",
+        "i",
+        "img",
+        "ins",
+        "kbd",
+        "li",
+        "mark",
+        "ol",
+        "p",
+        "pre",
+        "q",
+        "s",
+        "samp",
+        "small",
+        "span",
+        "strong",
+        "sub",
+        "summary",
+        "sup",
+        "table",
+        "tbody",
+        "td",
+        "tfoot",
+        "th",
+        "thead",
+        "tr",
+        "tt",
+        "u",
+        "ul",
+        "var",
+        # SVG elements for Pikchr diagrams
+        "svg",
+        "path",
+        "circle",
+        "rect",
+        "line",
+        "polyline",
+        "polygon",
+        "g",
+        "text",
+        "defs",
+        "use",
+        "symbol",
+    }
+)
 
 # Attributes allowed per tag (all others stripped)
 ALLOWED_ATTRS = {
@@ -37,8 +94,12 @@ ALLOWED_ATTRS = {
     "li": {"class", "value"},
     "details": {"open", "class"},
     "summary": {"class"},
-    "h1": {"id", "class"}, "h2": {"id", "class"}, "h3": {"id", "class"},
-    "h4": {"id", "class"}, "h5": {"id", "class"}, "h6": {"id", "class"},
+    "h1": {"id", "class"},
+    "h2": {"id", "class"},
+    "h3": {"id", "class"},
+    "h4": {"id", "class"},
+    "h5": {"id", "class"},
+    "h6": {"id", "class"},
     # SVG attributes
     "svg": {"viewbox", "width", "height", "class", "xmlns", "fill", "stroke"},
     "path": {"d", "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "class"},
@@ -62,12 +123,19 @@ _PROTOCOL_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+\-.]*):.*", re.DOTALL)
 
 
 def _is_safe_url(url: str) -> bool:
-    """Check if a URL uses a safe protocol. Decodes HTML entities first."""
-    decoded = html.unescape(url).strip()
-    m = _PROTOCOL_RE.match(decoded)
+    """Check if a URL uses a safe protocol.
+
+    Decodes HTML entities, then strips ASCII control characters (tabs, CRs, NULs,
+    etc.) that browsers silently ignore but can be used to bypass protocol checks
+    (e.g. ``jav&#9;ascript:`` or ``java&#x0D;script:``).
+    """
+    decoded = html.unescape(url)
+    # Strip all ASCII control characters (0x00-0x1F, 0x7F) — browsers ignore them
+    # in URL scheme parsing, so "jav\tascript:" is treated as "javascript:"
+    cleaned = re.sub(r"[\x00-\x1f\x7f]", "", decoded).strip()
+    m = _PROTOCOL_RE.match(cleaned)
     if m:
         return m.group(1).lower() in ALLOWED_PROTOCOLS
-    # Relative URLs (no protocol) are safe
     return True
 
 
