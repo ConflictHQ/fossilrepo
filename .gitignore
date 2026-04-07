@@ -25,7 +25,7 @@ Thumbs.db
 static/css/output.css
 node_modules/
 runtime/
-assets/
+/assets/
 fossilrepo.fossil
 .fslckout
 site/
