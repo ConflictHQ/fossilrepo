@@ -1,0 +1,85 @@
+site_name: Fossilrepo
+site_url: https://fossilrepo.dev
+site_description: Self-hosted Fossil forge -- omnibus installer for production Fossil SCM hosting
+site_author: CONFLICT LLC
+repo_url: https://github.com/ConflictHQ/fossilrepo
+repo_name: ConflictHQ/fossilrepo
+
+theme:
+  name: material
+  logo: assets/images/conflict-logo.svg
+  favicon: assets/images/favicon.png
+  font:
+    text: Roboto
+    code: Roboto Mono
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - header.autohide
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - assets/css/custom.css
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Prerequisites: getting-started/prerequisites.md
+      - Installation: getting-started/installation.md
+      - Configuration: getting-started/configuration.md
+      - First Repository: getting-started/first-repo.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Sync Bridge: architecture/sync-bridge.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ConflictHQ/fossilrepo
+
+copyright: Copyright &copy; 2026 CONFLICT LLC
