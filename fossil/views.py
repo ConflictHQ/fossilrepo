@@ -969,6 +969,7 @@ def sync_pull(request, slug):
         if url:
             fossil_repo.remote_url = url
             fossil_repo.save(update_fields=["remote_url", "updated_at", "version"])
+            cli.ensure_default_user(fossil_repo.full_path)
             from django.contrib import messages
 
             messages.success(request, f"Sync configured: {url}")
@@ -990,6 +991,7 @@ def sync_pull(request, slug):
 
     elif action == "pull" and fossil_repo.remote_url:
         if cli.is_available():
+            cli.ensure_default_user(fossil_repo.full_path)
             result = cli.pull(fossil_repo.full_path)
             if result["success"]:
                 from django.utils import timezone
