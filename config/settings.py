@@ -202,6 +202,16 @@ CELERY_BEAT_SCHEDULE = {
         "task": "fossil.dispatch_notifications",
         "schedule": 300.0,  # every 5 minutes
     },
+    "fossil-daily-digest": {
+        "task": "fossil.send_digest",
+        "schedule": 86400.0,  # daily
+        "kwargs": {"mode": "daily"},
+    },
+    "fossil-weekly-digest": {
+        "task": "fossil.send_digest",
+        "schedule": 604800.0,  # weekly
+        "kwargs": {"mode": "weekly"},
+    },
 }
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 

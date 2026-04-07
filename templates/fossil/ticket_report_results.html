@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ report.title }} — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-4">
+  <a href="{% url 'fossil:ticket_reports' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Reports</a>
+</div>
+
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <h2 class="text-xl font-bold text-gray-100">{{ report.title }}</h2>
+    {% if report.description %}
+    <p class="text-sm text-gray-500 mt-1">{{ report.description }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if error %}
+<div class="rounded-lg bg-red-900/30 border border-red-700 p-4 mb-4">
+  <p class="text-sm text-red-300">{{ error }}</p>
+</div>
+{% endif %}
+
+{% if columns %}
+<div class="rounded-lg bg-gray-800 border border-gray-700 overflow-x-auto">
+  <table class="min-w-full divide-y divide-gray-700">
+    <thead>
+      <tr>
+        {% for col in columns %}
+        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">{{ col }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-700">
+      {% for row in rows %}
+      <tr class="hover:bg-gray-750">
+        {% for cell in row %}
+        <td class="px-4 py-3 text-sm text-gray-300 whitespace-nowrap">{{ cell|default:"" }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="mt-2 text-xs text-gray-500">
+  {{ rows|length }} row{{ rows|length|pluralize }} returned{% if rows|length >= 1000 %} (limited to 1000){% endif %}
+</div>
+{% elif not error %}
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-8 text-center">
+  <p class="text-sm text-gray-500">No results.</p>
+</div>
+{% endif %}
+{% endblock %}

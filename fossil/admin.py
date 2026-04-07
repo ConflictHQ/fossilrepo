@@ -7,9 +7,11 @@ from .branch_protection import BranchProtection
 from .ci import StatusCheck
 from .forum import ForumPost
 from .models import FossilRepository, FossilSnapshot
-from .notifications import Notification, ProjectWatch
+from .notifications import Notification, NotificationPreference, ProjectWatch
 from .releases import Release, ReleaseAsset
 from .sync_models import GitMirror, SSHKey, SyncLog
+from .ticket_fields import TicketFieldDefinition
+from .ticket_reports import TicketReport
 from .user_keys import UserSSHKey
 from .webhooks import Webhook, WebhookDelivery
 
@@ -76,6 +78,14 @@ class ProjectWatchAdmin(BaseCoreAdmin):
     list_filter = ("event_filter", "email_enabled")
     search_fields = ("user__username", "project__name")
     raw_id_fields = ("user", "project")
+
+
+@admin.register(NotificationPreference)
+class NotificationPreferenceAdmin(admin.ModelAdmin):
+    list_display = ("user", "delivery_mode", "notify_checkins", "notify_tickets", "notify_wiki", "notify_releases", "notify_forum")
+    list_filter = ("delivery_mode",)
+    search_fields = ("user__username",)
+    raw_id_fields = ("user",)
 
 
 class ReleaseAssetInline(admin.TabularInline):
@@ -154,4 +164,20 @@ class BranchProtectionAdmin(BaseCoreAdmin):
     list_display = ("branch_pattern", "repository", "require_status_checks", "restrict_push", "created_at")
     list_filter = ("require_status_checks", "restrict_push")
     search_fields = ("branch_pattern",)
+    raw_id_fields = ("repository",)
+
+
+@admin.register(TicketFieldDefinition)
+class TicketFieldDefinitionAdmin(BaseCoreAdmin):
+    list_display = ("name", "label", "repository", "field_type", "is_required", "sort_order")
+    list_filter = ("field_type", "is_required")
+    search_fields = ("name", "label")
+    raw_id_fields = ("repository",)
+
+
+@admin.register(TicketReport)
+class TicketReportAdmin(BaseCoreAdmin):
+    list_display = ("title", "repository", "is_public", "created_at")
+    list_filter = ("is_public",)
+    search_fields = ("title", "description")
     raw_id_fields = ("repository",)

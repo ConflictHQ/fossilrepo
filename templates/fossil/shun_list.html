@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Shunned Artifacts — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="flex items-center justify-between mb-6">
+  <h2 class="text-lg font-semibold text-gray-200">Shunned Artifacts</h2>
+</div>
+
+<div class="rounded-lg bg-red-900/20 border border-red-800/50 p-4 mb-6">
+  <div class="flex items-start gap-3">
+    <svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+    </svg>
+    <div>
+      <h3 class="text-sm font-semibold text-red-300">Irreversible Operation</h3>
+      <p class="text-xs text-red-400 mt-1">
+        Shunning permanently removes an artifact from the repository. This cannot be undone.
+        Shunned artifacts are expunged from the database and will not be recovered through sync.
+        Use this for spam, accidentally committed secrets, or legal compliance.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-6 mb-6" x-data="{ showForm: false, artifactUuid: '', confirmation: '' }">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-base font-semibold text-gray-200">Shun an Artifact</h3>
+    <button @click="showForm = !showForm"
+            class="text-sm text-brand-light hover:text-brand"
+            x-text="showForm ? 'Cancel' : 'Shun New Artifact'"></button>
+  </div>
+
+  <form method="post" action="{% url 'fossil:shun_artifact' slug=project.slug %}"
+        x-show="showForm" x-transition class="space-y-4">
+    {% csrf_token %}
+    <div>
+      <label for="artifact_uuid" class="block text-sm font-medium text-gray-300 mb-1">Artifact UUID (SHA hash)</label>
+      <input type="text" name="artifact_uuid" id="artifact_uuid" required
+             x-model="artifactUuid"
+             placeholder="e.g. a1b2c3d4e5f6..."
+             pattern="[0-9a-fA-F]{4,64}"
+             title="Must be a hex hash (4-64 characters)"
+             class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm font-mono px-3 py-2 focus:border-brand focus:ring-brand">
+    </div>
+    <div>
+      <label for="reason" class="block text-sm font-medium text-gray-300 mb-1">Reason (optional)</label>
+      <input type="text" name="reason" id="reason"
+             placeholder="e.g. Accidentally committed API key"
+             class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+    </div>
+    <div class="rounded-md bg-red-900/30 border border-red-700/50 p-3">
+      <label for="confirmation" class="block text-sm font-medium text-red-300 mb-1">
+        Type the first 8 characters of the UUID to confirm:
+        <span class="font-mono text-red-200" x-text="artifactUuid.slice(0, 8).toLowerCase() || '________'"></span>
+      </label>
+      <input type="text" name="confirmation" id="confirmation" required
+             x-model="confirmation"
+             placeholder="Type to confirm..."
+             class="w-full rounded-md border-red-700/50 bg-gray-900 text-gray-100 text-sm font-mono px-3 py-2 focus:border-red-500 focus:ring-red-500">
+    </div>
+    <button type="submit"
+            class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+            :disabled="confirmation.toLowerCase() !== artifactUuid.slice(0, 8).toLowerCase() || artifactUuid.length < 4">
+      Permanently Shun Artifact
+    </button>
+  </form>
+</div>
+
+{% if shunned %}
+<div class="rounded-lg bg-gray-800 border border-gray-700">
+  <div class="p-4 border-b border-gray-700">
+    <h3 class="text-base font-semibold text-gray-200">Currently Shunned ({{ shunned|length }})</h3>
+  </div>
+  <div class="divide-y divide-gray-700">
+    {% for uuid in shunned %}
+    <div class="px-4 py-3">
+      <span class="text-sm font-mono text-gray-300">{{ uuid }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-8 text-center">
+  <p class="text-sm text-gray-500">No artifacts have been shunned in this repository.</p>
+</div>
+{% endif %}
+{% endblock %}

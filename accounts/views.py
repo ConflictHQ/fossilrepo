@@ -195,3 +195,29 @@ def ssh_key_delete(request, pk):
         return HttpResponse(status=200, headers={"HX-Redirect": "/auth/ssh-keys/"})
 
     return redirect("accounts:ssh_keys")
+
+
+@login_required
+def notification_preferences(request):
+    """User notification preferences page."""
+    from fossil.notifications import NotificationPreference
+
+    prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
+
+    if request.method == "POST":
+        prefs.delivery_mode = request.POST.get("delivery_mode", "immediate")
+        prefs.notify_checkins = "notify_checkins" in request.POST
+        prefs.notify_tickets = "notify_tickets" in request.POST
+        prefs.notify_wiki = "notify_wiki" in request.POST
+        prefs.notify_releases = "notify_releases" in request.POST
+        prefs.notify_forum = "notify_forum" in request.POST
+        prefs.save()
+
+        messages.success(request, "Notification preferences updated.")
+
+        if request.headers.get("HX-Request"):
+            return HttpResponse(status=200, headers={"HX-Redirect": "/auth/notifications/"})
+
+        return redirect("accounts:notification_prefs")
+
+    return render(request, "accounts/notification_prefs.html", {"prefs": prefs})

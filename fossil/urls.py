@@ -11,6 +11,18 @@ urlpatterns = [
     path("timeline/", views.timeline, name="timeline"),
     path("checkin/<str:checkin_uuid>/", views.checkin_detail, name="checkin_detail"),
     path("tickets/", views.ticket_list, name="tickets"),
+    path("tickets/create/", views.ticket_create, name="ticket_create"),
+    path("tickets/export/", views.tickets_csv, name="tickets_csv"),
+    # Custom Ticket Fields (must be before tickets/<str:ticket_uuid>/ to avoid str match)
+    path("tickets/fields/", views.ticket_fields_list, name="ticket_fields"),
+    path("tickets/fields/create/", views.ticket_fields_create, name="ticket_field_create"),
+    path("tickets/fields/<int:pk>/edit/", views.ticket_fields_edit, name="ticket_field_edit"),
+    path("tickets/fields/<int:pk>/delete/", views.ticket_fields_delete, name="ticket_field_delete"),
+    # Custom Ticket Reports (must be before tickets/<str:ticket_uuid>/ to avoid str match)
+    path("tickets/reports/", views.ticket_reports_list, name="ticket_reports"),
+    path("tickets/reports/create/", views.ticket_report_create, name="ticket_report_create"),
+    path("tickets/reports/<int:pk>/", views.ticket_report_run, name="ticket_report_run"),
+    path("tickets/reports/<int:pk>/edit/", views.ticket_report_edit, name="ticket_report_edit"),
     path("tickets/<str:ticket_uuid>/", views.ticket_detail, name="ticket_detail"),
     path("tickets/<str:ticket_uuid>/edit/", views.ticket_edit, name="ticket_edit"),
     path("tickets/<str:ticket_uuid>/comment/", views.ticket_comment, name="ticket_comment"),
@@ -18,7 +30,6 @@ urlpatterns = [
     path("wiki/create/", views.wiki_create, name="wiki_create"),
     path("wiki/page/<path:page_name>", views.wiki_page, name="wiki_page"),
     path("wiki/edit/<path:page_name>", views.wiki_edit, name="wiki_edit"),
-    path("tickets/create/", views.ticket_create, name="ticket_create"),
     path("forum/", views.forum_list, name="forum"),
     path("forum/create/", views.forum_create, name="forum_create"),
     path("forum/<str:thread_uuid>/", views.forum_thread, name="forum_thread"),
@@ -56,7 +67,6 @@ urlpatterns = [
     path("code/history/<path:filepath>", views.file_history, name="file_history"),
     path("watch/", views.toggle_watch, name="toggle_watch"),
     path("timeline/rss/", views.timeline_rss, name="timeline_rss"),
-    path("tickets/export/", views.tickets_csv, name="tickets_csv"),
     path("docs/", views.fossil_docs, name="docs"),
     path("docs/<path:doc_path>", views.fossil_doc_page, name="doc_page"),
     path("xfer", views.fossil_xfer, name="xfer"),
@@ -80,4 +90,7 @@ urlpatterns = [
     path("branches/protect/create/", views.branch_protection_create, name="branch_protection_create"),
     path("branches/protect/<int:pk>/edit/", views.branch_protection_edit, name="branch_protection_edit"),
     path("branches/protect/<int:pk>/delete/", views.branch_protection_delete, name="branch_protection_delete"),
+    # Artifact Shunning
+    path("admin/shun/", views.shun_list_view, name="shun_list"),
+    path("admin/shun/add/", views.shun_artifact, name="shun_artifact"),
 ]
