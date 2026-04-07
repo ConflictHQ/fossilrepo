@@ -9,7 +9,7 @@ on:
       - '*.md'
 
 env:
-  AWS_REGION: us-west-2
+  AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPO: fossilrepo
   ECS_CLUSTER: dev-fossilrepo
   ECS_SERVICE: dev-fossilrepo-app
