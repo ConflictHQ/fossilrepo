@@ -1,34 +1,25 @@
-name: Deploy
+name: Promote to Production
 
 on:
   push:
-    branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - 'mkdocs.yml'
-      - '*.md'
+    tags:
+      - 'v*'
 
 env:
   AWS_REGION: us-west-2
   ECR_REPO: fossilrepo
-  ECS_CLUSTER: dev-fossilrepo
-  ECS_SERVICE: dev-fossilrepo-app
-  TASK_FAMILY: dev-fossilrepo-app
+  ECS_CLUSTER: prd-fossilhub
+  ECS_SERVICE: prd-fossilhub-app
+  TASK_FAMILY: prd-fossilhub-app
 
 jobs:
-  ci:
-    uses: ./.github/workflows/ci.yaml
-
-  deploy:
-    needs: [ci]
+  promote:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
-
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -38,22 +29,36 @@ jobs:
       - uses: aws-actions/amazon-ecr-login@v2
         id: ecr
 
-      - name: Build and push image
+      - name: Tag image as stable + version
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          VERSION_TAG: ${{ github.ref_name }}
         run: |
-          docker build \
-            -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPO:latest \
-            .
-          docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPO:latest
+          # Pull the latest image (what dev is running)
+          MANIFEST=$(aws ecr batch-get-image \
+            --repository-name $ECR_REPO \
+            --image-ids imageTag=latest \
+            --query 'images[0].imageManifest' \
+            --output text)
 
-      - name: Deploy to ECS
+          # Tag it with the version
+          aws ecr put-image \
+            --repository-name $ECR_REPO \
+            --image-tag "$VERSION_TAG" \
+            --image-manifest "$MANIFEST" || true
+
+          # Tag it as stable
+          aws ecr put-image \
+            --repository-name $ECR_REPO \
+            --image-tag stable \
+            --image-manifest "$MANIFEST" || true
+
+          echo "Promoted latest → $VERSION_TAG + stable"
+
+      - name: Deploy to production ECS
         env:
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          VERSION_TAG: ${{ github.ref_name }}
         run: |
           TASK_DEF=$(aws ecs describe-task-definition \
             --task-definition $TASK_FAMILY \
@@ -61,7 +66,7 @@ jobs:
             --output json)
 
           NEW_TASK_DEF=$(echo "$TASK_DEF" | jq \
-            --arg IMAGE "$ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG" \
+            --arg IMAGE "$ECR_REGISTRY/$ECR_REPO:$VERSION_TAG" \
             '.containerDefinitions[0].image = $IMAGE |
              del(.taskDefinitionArn, .revision, .status,
                  .requiresAttributes, .compatibilities,
@@ -78,12 +83,12 @@ jobs:
             --task-definition "$NEW_TASK_ARN" \
             --force-new-deployment
 
-          echo "Deployed $NEW_TASK_ARN to $ECS_SERVICE"
+          echo "Deployed $VERSION_TAG to production"
 
       - name: Wait for deployment to stabilize
         run: |
-          echo "Waiting for ECS service to reach steady state..."
+          echo "Waiting for production to reach steady state..."
           aws ecs wait services-stable \
             --cluster $ECS_CLUSTER \
             --services $ECS_SERVICE
-          echo "Deployment stable."
+          echo "Production deployment stable."
