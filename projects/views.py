@@ -5,6 +5,7 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from core.pagination import PER_PAGE_OPTIONS, get_per_page
 from core.permissions import P
 from organization.models import Team
 from organization.views import get_org
@@ -22,13 +23,16 @@ def project_list(request):
     if search:
         projects = projects.filter(name__icontains=search)
 
-    paginator = Paginator(projects, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(projects, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    if request.headers.get("HX-Request"):
-        return render(request, "projects/partials/project_table.html", {"projects": page_obj, "page_obj": page_obj, "search": search})
+    ctx = {"projects": page_obj, "page_obj": page_obj, "search": search, "per_page": per_page, "per_page_options": PER_PAGE_OPTIONS}
 
-    return render(request, "projects/project_list.html", {"projects": page_obj, "page_obj": page_obj, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(request, "projects/partials/project_table.html", ctx)
+
+    return render(request, "projects/project_list.html", ctx)
 
 
 @login_required
@@ -260,13 +264,16 @@ def group_list(request):
     if search:
         groups = groups.filter(name__icontains=search)
 
-    paginator = Paginator(groups, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(groups, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    if request.headers.get("HX-Request"):
-        return render(request, "projects/partials/group_table.html", {"groups": page_obj, "page_obj": page_obj, "search": search})
+    ctx = {"groups": page_obj, "page_obj": page_obj, "search": search, "per_page": per_page, "per_page_options": PER_PAGE_OPTIONS}
 
-    return render(request, "projects/group_list.html", {"groups": page_obj, "page_obj": page_obj, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(request, "projects/partials/group_table.html", ctx)
+
+    return render(request, "projects/group_list.html", ctx)
 
 
 @login_required

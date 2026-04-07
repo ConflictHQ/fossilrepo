@@ -1,16 +1,27 @@
-{% if pagination.num_pages > 1 %}
+{% if pagination.num_pages > 1 or per_page_options %}
 <nav class="flex items-center justify-between border-t border-gray-700 px-2 py-3 mt-4">
-  <div class="text-xs text-gray-500">
-    Page {{ pagination.number }} of {{ pagination.num_pages }}
-    ({{ pagination.count }} total)
+  <div class="flex items-center gap-4">
+    <span class="text-xs text-gray-500">
+      Page {{ pagination.number }} of {{ pagination.num_pages }}
+      ({{ pagination.count }} total)
+    </span>
+    {% if per_page_options %}
+    <div class="flex items-center gap-1 text-xs text-gray-500">
+      <span>Show</span>
+      {% for opt in per_page_options %}
+      <a href="?per_page={{ opt }}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
+         class="px-2 py-0.5 rounded {% if per_page == opt %}bg-gray-700 text-gray-200{% else %}text-gray-500 hover:text-gray-300{% endif %}">{{ opt }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
   <div class="flex gap-1">
     {% if pagination.has_previous %}
-    <a href="?page={{ pagination.previous_page_number }}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
+    <a href="?page={{ pagination.previous_page_number }}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
        class="px-3 py-1 text-xs rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700">Previous</a>
     {% endif %}
     {% if pagination.has_next %}
-    <a href="?page={{ pagination.next_page_number }}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
+    <a href="?page={{ pagination.next_page_number }}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
        class="px-3 py-1 text-xs rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700">Next</a>
     {% endif %}
   </div>

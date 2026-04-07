@@ -11,38 +11,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 from django.views.decorators.csrf import csrf_exempt
 
+from core.pagination import PER_PAGE_OPTIONS, get_per_page, manual_paginate
 from core.sanitize import sanitize_html
 from projects.models import Project
 
 from .models import FossilRepository
 from .reader import FossilReader
-
-
-def _manual_paginate(items, request, per_page=25):
-    """Paginate a plain list (FossilReader results) and return (sliced_items, pagination_dict).
-
-    The pagination dict has keys compatible with the _pagination_manual.html partial:
-    has_previous, has_next, previous_page_number, next_page_number, number, num_pages, count.
-    """
-    total = len(items)
-    num_pages = max(1, math.ceil(total / per_page))
-    try:
-        page = int(request.GET.get("page", 1))
-    except (ValueError, TypeError):
-        page = 1
-    page = max(1, min(page, num_pages))
-    offset = (page - 1) * per_page
-    sliced = items[offset : offset + per_page]
-    pagination = {
-        "has_previous": page > 1,
-        "has_next": offset + per_page < total,
-        "previous_page_number": page - 1,
-        "next_page_number": page + 1,
-        "number": page,
-        "num_pages": num_pages,
-        "count": total,
-    }
-    return sliced, pagination
 
 
 def _render_fossil_content(content: str, project_slug: str = "", base_path: str = "") -> str:
@@ -668,7 +642,7 @@ def timeline(request, slug):
 
     event_type = request.GET.get("type", "")
     page = int(request.GET.get("page", "1"))
-    per_page = 50
+    per_page = get_per_page(request, default=50)
     offset = (page - 1) * per_page
 
     with reader:
@@ -689,6 +663,8 @@ def timeline(request, slug):
             "entries": graph_entries,
             "event_type": event_type,
             "page": page,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "timeline",
         },
     )
@@ -703,8 +679,7 @@ def ticket_list(request, slug):
     status_filter = request.GET.get("status", "")
     search = request.GET.get("search", "").strip()
     page = int(request.GET.get("page", "1"))
-    per_page = int(request.GET.get("per_page", "50"))
-    per_page = per_page if per_page in (25, 50, 100) else 50
+    per_page = get_per_page(request, default=50)
 
     with reader:
         tickets = reader.get_tickets(status=status_filter or None, limit=1000)
@@ -733,7 +708,7 @@ def ticket_list(request, slug):
             "search": search,
             "page": page,
             "per_page": per_page,
-            "per_page_options": [25, 50, 100],
+            "per_page_options": PER_PAGE_OPTIONS,
             "has_next": has_next,
             "has_prev": has_prev,
             "total": total,
@@ -792,42 +767,30 @@ def wiki_list(request, slug):
     if search:
         pages = [p for p in pages if search.lower() in p.name.lower()]
 
-    pages, pagination = _manual_paginate(pages, request)
+    per_page = get_per_page(request)
+    pages, pagination = manual_paginate(pages, request, per_page=per_page)
 
     home_content_html = ""
     if home_page:
         home_content_html = mark_safe(sanitize_html(_render_fossil_content(home_page.content, project_slug=slug)))
 
-    if request.headers.get("HX-Request"):
-        return render(
-            request,
-            "fossil/wiki_list.html",
-            {
-                "project": project,
-                "fossil_repo": fossil_repo,
-                "pages": pages,
-                "home_page": home_page,
-                "home_content_html": home_content_html,
-                "search": search,
-                "pagination": pagination,
-                "active_tab": "wiki",
-            },
-        )
+    ctx = {
+        "project": project,
+        "fossil_repo": fossil_repo,
+        "pages": pages,
+        "home_page": home_page,
+        "home_content_html": home_content_html,
+        "search": search,
+        "pagination": pagination,
+        "per_page": per_page,
+        "per_page_options": PER_PAGE_OPTIONS,
+        "active_tab": "wiki",
+    }
 
-    return render(
-        request,
-        "fossil/wiki_list.html",
-        {
-            "project": project,
-            "fossil_repo": fossil_repo,
-            "pages": pages,
-            "home_page": home_page,
-            "home_content_html": home_content_html,
-            "search": search,
-            "pagination": pagination,
-            "active_tab": "wiki",
-        },
-    )
+    if request.headers.get("HX-Request"):
+        return render(request, "fossil/wiki_list.html", ctx)
+
+    return render(request, "fossil/wiki_list.html", ctx)
 
 
 def wiki_page(request, slug, page_name):
@@ -902,7 +865,8 @@ def forum_list(request, slug):
         search_lower = search.lower()
         merged = [p for p in merged if search_lower in (p.get("title") or "").lower() or search_lower in (p.get("body") or "").lower()]
 
-    merged, pagination = _manual_paginate(merged, request)
+    per_page = get_per_page(request)
+    merged, pagination = manual_paginate(merged, request, per_page=per_page)
 
     has_write = can_write_project(request.user, project)
 
@@ -916,6 +880,8 @@ def forum_list(request, slug):
             "has_write": has_write,
             "search": search,
             "pagination": pagination,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "forum",
         },
     )
@@ -1092,7 +1058,8 @@ def webhook_list(request, slug):
     if search:
         webhooks = webhooks.filter(url__icontains=search)
 
-    paginator = Paginator(webhooks, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(webhooks, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
     return render(
@@ -1104,6 +1071,8 @@ def webhook_list(request, slug):
             "webhooks": page_obj,
             "page_obj": page_obj,
             "search": search,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "settings",
         },
     )
@@ -1964,7 +1933,8 @@ def technote_list(request, slug):
         search_lower = search.lower()
         notes = [n for n in notes if search_lower in (n.comment or "").lower()]
 
-    notes, pagination = _manual_paginate(notes, request)
+    per_page = get_per_page(request)
+    notes, pagination = manual_paginate(notes, request, per_page=per_page)
 
     has_write = can_write_project(request.user, project)
 
@@ -1977,6 +1947,8 @@ def technote_list(request, slug):
             "has_write": has_write,
             "search": search,
             "pagination": pagination,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "wiki",
         },
     )
@@ -2100,7 +2072,8 @@ def unversioned_list(request, slug):
         search_lower = search.lower()
         files = [f for f in files if search_lower in f.name.lower()]
 
-    files, pagination = _manual_paginate(files, request)
+    per_page = get_per_page(request)
+    files, pagination = manual_paginate(files, request, per_page=per_page)
 
     has_admin = can_admin_project(request.user, project)
 
@@ -2113,6 +2086,8 @@ def unversioned_list(request, slug):
             "has_admin": has_admin,
             "search": search,
             "pagination": pagination,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "files",
         },
     )
@@ -2430,7 +2405,8 @@ def branch_list(request, slug):
         search_lower = search.lower()
         branches = [b for b in branches if search_lower in b.name.lower()]
 
-    branches, pagination = _manual_paginate(branches, request)
+    per_page = get_per_page(request)
+    branches, pagination = manual_paginate(branches, request, per_page=per_page)
 
     return render(
         request,
@@ -2441,6 +2417,8 @@ def branch_list(request, slug):
             "branches": branches,
             "search": search,
             "pagination": pagination,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "code",
         },
     )
@@ -2460,7 +2438,8 @@ def tag_list(request, slug):
         search_lower = search.lower()
         tags = [t for t in tags if search_lower in t.name.lower()]
 
-    tags, pagination = _manual_paginate(tags, request)
+    per_page = get_per_page(request)
+    tags, pagination = manual_paginate(tags, request, per_page=per_page)
 
     return render(
         request,
@@ -2470,6 +2449,8 @@ def tag_list(request, slug):
             "tags": tags,
             "search": search,
             "pagination": pagination,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "code",
         },
     )
@@ -2914,7 +2895,8 @@ def release_list(request, slug):
         releases = releases.filter(tag_name__icontains=search) | releases.filter(name__icontains=search)
         releases = releases.distinct()
 
-    paginator = Paginator(releases, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(releases, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
     return render(
@@ -2927,6 +2909,8 @@ def release_list(request, slug):
             "page_obj": page_obj,
             "has_write": has_write,
             "search": search,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "releases",
         },
     )
@@ -3327,7 +3311,8 @@ def api_token_list(request, slug):
     if search:
         tokens = tokens.filter(name__icontains=search)
 
-    paginator = Paginator(tokens, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(tokens, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
     return render(
@@ -3339,6 +3324,8 @@ def api_token_list(request, slug):
             "tokens": page_obj,
             "page_obj": page_obj,
             "search": search,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "settings",
         },
     )
@@ -3423,7 +3410,8 @@ def branch_protection_list(request, slug):
     if search:
         rules = rules.filter(branch_pattern__icontains=search)
 
-    paginator = Paginator(rules, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(rules, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
     return render(
@@ -3435,6 +3423,8 @@ def branch_protection_list(request, slug):
             "rules": page_obj,
             "page_obj": page_obj,
             "search": search,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "settings",
         },
     )
@@ -3570,7 +3560,8 @@ def ticket_fields_list(request, slug):
         fields = fields.filter(label__icontains=search) | fields.filter(name__icontains=search)
         fields = fields.distinct()
 
-    paginator = Paginator(fields, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(fields, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
     return render(
@@ -3582,6 +3573,8 @@ def ticket_fields_list(request, slug):
             "fields": page_obj,
             "page_obj": page_obj,
             "search": search,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "settings",
         },
     )
@@ -3726,7 +3719,8 @@ def ticket_reports_list(request, slug):
         reports = reports.filter(title__icontains=search) | reports.filter(description__icontains=search)
         reports = reports.distinct()
 
-    paginator = Paginator(reports, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(reports, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
     return render(
@@ -3739,6 +3733,8 @@ def ticket_reports_list(request, slug):
             "page_obj": page_obj,
             "can_admin": is_admin,
             "search": search,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
             "active_tab": "tickets",
         },
     )
