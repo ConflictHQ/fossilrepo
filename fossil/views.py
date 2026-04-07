@@ -871,6 +871,63 @@ def ticket_create(request, slug):
     return render(request, "fossil/ticket_form.html", {"project": project, "active_tab": "tickets", "title": "New Ticket"})
 
 
+@login_required
+def ticket_edit(request, slug, ticket_uuid):
+    P.PROJECT_CHANGE.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        ticket = reader.get_ticket_detail(ticket_uuid)
+    if not ticket:
+        raise Http404("Ticket not found")
+
+    if request.method == "POST":
+        from fossil.cli import FossilCLI
+
+        cli = FossilCLI()
+        fields = {}
+        for field in ["title", "status", "type", "severity", "priority", "resolution", "subsystem"]:
+            val = request.POST.get(field, "").strip()
+            if val:
+                fields[field] = val
+        if fields:
+            success = cli.ticket_change(fossil_repo.full_path, ticket.uuid, fields)
+            if success:
+                from django.contrib import messages
+
+                messages.success(request, f'Ticket "{ticket.title}" updated.')
+                from django.shortcuts import redirect
+
+                return redirect("fossil:ticket_detail", slug=slug, ticket_uuid=ticket.uuid)
+
+    return render(
+        request,
+        "fossil/ticket_edit.html",
+        {"project": project, "ticket": ticket, "active_tab": "tickets"},
+    )
+
+
+@login_required
+def ticket_comment(request, slug, ticket_uuid):
+    P.PROJECT_CHANGE.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    if request.method == "POST":
+        comment = request.POST.get("comment", "").strip()
+        if comment:
+            from fossil.cli import FossilCLI
+
+            cli = FossilCLI()
+            success = cli.ticket_change(fossil_repo.full_path, ticket_uuid, {"icomment": comment})
+            if success:
+                from django.contrib import messages
+
+                messages.success(request, "Comment added.")
+    from django.shortcuts import redirect
+
+    return redirect("fossil:ticket_detail", slug=slug, ticket_uuid=ticket_uuid)
+
+
 # --- User Activity ---
 
 
@@ -1481,6 +1538,24 @@ def _compute_dag_graph(entries):
                 rail = max(entry.rail, 0)
                 active_spans.append((rail, i, parent_idx))
 
+    # Precompute connectors: for each row, collect all horizontal connections
+    # A connector appears when a child on one rail connects to a parent on a different rail
+    # We draw the connector at BOTH the child row (fork out) and on every row where
+    # a branch line needs to cross from one rail to another
+    row_connectors: dict[int, list[dict]] = {}
+    for entry in entries:
+        if entry.event_type != "ci" or entry.parent_rid not in rid_to_idx:
+            continue
+        parent_idx = rid_to_idx[entry.parent_rid]
+        child_rail = max(entry.rail, 0)
+        parent_rail = rid_to_rail.get(entry.parent_rid, 0)
+        if child_rail != parent_rail:
+            child_x = rail_offset + child_rail * rail_pitch
+            parent_x = rail_offset + parent_rail * rail_pitch
+            conn = {"left": min(child_x, parent_x), "width": abs(child_x - parent_x)}
+            # Draw at the parent's row (where branch meets trunk)
+            row_connectors.setdefault(parent_idx, []).append(conn)
+
     result = []
     for i, entry in enumerate(entries):
         rail = max(entry.rail, 0) if entry.rail >= 0 else 0
@@ -1493,27 +1568,14 @@ def _compute_dag_graph(entries):
                 active_rails.add(span_rail)
 
         lines = [{"x": rail_offset + r * rail_pitch} for r in sorted(active_rails)]
-
-        # Fork/merge connector: if this entry's parent is on a different rail,
-        # draw a horizontal connector at the parent's row (where the line joins)
-        connector = None
-        if entry.event_type == "ci" and entry.parent_rid in rid_to_idx:
-            parent_idx = rid_to_idx[entry.parent_rid]
-            parent_rail = rid_to_rail.get(entry.parent_rid, 0)
-            if parent_rail != rail and parent_idx == i + 1:
-                # Connector at this row going to parent's rail
-                parent_x = rail_offset + parent_rail * rail_pitch
-                connector = {
-                    "left": min(node_x, parent_x),
-                    "width": abs(node_x - parent_x),
-                }
+        connectors = row_connectors.get(i, [])
 
         result.append(
             {
                 "entry": entry,
                 "node_x": node_x,
                 "lines": lines,
-                "connector": connector,
+                "connectors": connectors,
                 "graph_width": graph_width,
             }
         )
