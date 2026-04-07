@@ -245,7 +245,7 @@ def _explore_view(request):
 
 
 urlpatterns = [
-    path("", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
+    path("", lambda request: _redirect("/explore/") if not request.user.is_authenticated else _redirect("/dashboard/"), name="home"),
     path("profile/", RedirectView.as_view(pattern_name="accounts:profile", permanent=False)),
     path("status/", status_page, name="status"),
     path("explore/", _explore_view, name="explore"),
