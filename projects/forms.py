@@ -2,7 +2,7 @@ from django import forms
 
 from organization.models import Team
 
-from .models import Project, ProjectTeam
+from .models import Project, ProjectGroup, ProjectTeam
 
 tw = "w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
 
@@ -10,6 +10,16 @@ REPO_SOURCE_CHOICES = [
     ("empty", "Create empty repository"),
     ("fossil_url", "Clone from Fossil URL"),
 ]
+
+
+class ProjectGroupForm(forms.ModelForm):
+    class Meta:
+        model = ProjectGroup
+        fields = ["name", "description"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": tw, "placeholder": "Group name"}),
+            "description": forms.Textarea(attrs={"class": tw, "rows": 3, "placeholder": "Description (optional)"}),
+        }
 
 
 class ProjectForm(forms.ModelForm):
@@ -27,11 +37,12 @@ class ProjectForm(forms.ModelForm):
 
     class Meta:
         model = Project
-        fields = ["name", "description", "visibility"]
+        fields = ["name", "description", "visibility", "group"]
         widgets = {
             "name": forms.TextInput(attrs={"class": tw, "placeholder": "Project name"}),
             "description": forms.Textarea(attrs={"class": tw, "rows": 3, "placeholder": "Description"}),
             "visibility": forms.Select(attrs={"class": tw}),
+            "group": forms.Select(attrs={"class": tw}),
         }
 
     def clean(self):

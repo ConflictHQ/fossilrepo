@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from core.admin import BaseCoreAdmin
 
-from .models import Organization, OrganizationMember, Team
+from .models import Organization, OrganizationMember, OrgRole, Team
 
 
 class OrganizationMemberInline(admin.TabularInline):
@@ -18,6 +18,12 @@ class OrganizationAdmin(BaseCoreAdmin):
     inlines = [OrganizationMemberInline]
 
 
+@admin.register(OrgRole)
+class OrgRoleAdmin(BaseCoreAdmin):
+    list_display = ("name", "slug", "is_default", "created_at")
+    filter_horizontal = ("permissions",)
+
+
 @admin.register(Team)
 class TeamAdmin(BaseCoreAdmin):
     list_display = ("name", "slug", "organization", "created_at")
@@ -28,6 +34,6 @@ class TeamAdmin(BaseCoreAdmin):
 
 @admin.register(OrganizationMember)
 class OrganizationMemberAdmin(BaseCoreAdmin):
-    list_display = ("member", "organization", "is_active", "created_at")
-    list_filter = ("is_active",)
+    list_display = ("member", "organization", "role", "is_active", "created_at")
+    list_filter = ("is_active", "role")
     raw_id_fields = ("member", "organization")

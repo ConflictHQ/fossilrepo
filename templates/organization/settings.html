@@ -74,4 +74,18 @@
     </div>
   </div>
 </div>
+
+<div class="mt-4">
+  <div class="md:flex md:items-center md:justify-between mb-4">
+    <h2 class="text-lg font-semibold text-gray-100">Roles</h2>
+    <div class="flex gap-3 mt-4 md:mt-0">
+      {% if perms.organization.view_organization %}
+      <a href="{% url 'organization:role_list' %}"
+         class="inline-flex items-center rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Manage Roles
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}

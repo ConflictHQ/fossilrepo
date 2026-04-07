@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Project Groups — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="md:flex md:items-center md:justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-100">Project Groups</h1>
+  {% if perms.projects.add_projectgroup %}
+  <a href="{% url 'projects:group_create' %}"
+     class="mt-4 md:mt-0 inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+    New Group
+  </a>
+  {% endif %}
+</div>
+
+{% include "projects/partials/group_table.html" %}
+{% endblock %}

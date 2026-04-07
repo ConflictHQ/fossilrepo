@@ -27,6 +27,12 @@ class P(Enum):
     TEAM_CHANGE = "organization.change_team"
     TEAM_DELETE = "organization.delete_team"
 
+    # Project Groups
+    PROJECT_GROUP_VIEW = "projects.view_projectgroup"
+    PROJECT_GROUP_ADD = "projects.add_projectgroup"
+    PROJECT_GROUP_CHANGE = "projects.change_projectgroup"
+    PROJECT_GROUP_DELETE = "projects.delete_projectgroup"
+
     # Projects
     PROJECT_VIEW = "projects.view_project"
     PROJECT_ADD = "projects.add_project"

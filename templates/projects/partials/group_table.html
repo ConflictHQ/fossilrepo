@@ -1,0 +1,38 @@
+<div id="group-table">
+  <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
+    <table class="min-w-full divide-y divide-gray-700">
+      <thead class="bg-gray-900">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Name</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Description</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Projects</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Created</th>
+          <th class="px-6 py-3 text-right text-xs font-medium uppercase text-gray-400">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700 bg-gray-800">
+        {% for group in groups %}
+        <tr class="hover:bg-gray-700/50">
+          <td class="px-6 py-4 whitespace-nowrap">
+            <a href="{% url 'projects:group_detail' slug=group.slug %}" class="text-brand-light hover:text-brand font-medium">
+              {{ group.name }}
+            </a>
+          </td>
+          <td class="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{{ group.description|default:"—" }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ group.projects.count }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ group.created_at|date:"N j, Y" }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+            {% if perms.projects.change_projectgroup %}
+            <a href="{% url 'projects:group_edit' slug=group.slug %}" class="text-brand-light hover:text-brand">Edit</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-400">No project groups yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

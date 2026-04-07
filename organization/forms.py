@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
-from .models import Organization, Team
+from .models import Organization, OrgRole, Team
 
 tw = "w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
 
@@ -68,6 +68,12 @@ class UserCreateForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={"class": tw, "placeholder": "Confirm password"}),
         strip=False,
     )
+    role = forms.ModelChoiceField(
+        queryset=OrgRole.objects.filter(deleted_at__isnull=True),
+        required=False,
+        empty_label="No role",
+        widget=forms.Select(attrs={"class": tw}),
+    )
 
     class Meta:
         model = User
@@ -104,6 +110,13 @@ class UserCreateForm(forms.ModelForm):
 
 
 class UserEditForm(forms.ModelForm):
+    role = forms.ModelChoiceField(
+        queryset=OrgRole.objects.filter(deleted_at__isnull=True),
+        required=False,
+        empty_label="No role",
+        widget=forms.Select(attrs={"class": tw}),
+    )
+
     class Meta:
         model = User
         fields = ["email", "first_name", "last_name", "is_active", "is_staff"]
