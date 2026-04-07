@@ -50,6 +50,9 @@
           Disable Sync
         </button>
       </form>
+      <a href="{% url 'fossil:git_mirror' slug=project.slug %}" class="rounded-md bg-gray-700 px-3 py-2 text-sm text-gray-400 hover:text-white ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Git Mirrors
+      </a>
     </div>
   </div>
 
@@ -104,7 +107,8 @@
         </ul>
       </div>
 
-      <div class="flex justify-end">
+      <div class="flex items-center justify-between">
+        <a href="{% url 'fossil:git_mirror' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">Or configure Git Mirror (GitHub/GitLab) &rarr;</a>
         <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
           Enable Sync
         </button>

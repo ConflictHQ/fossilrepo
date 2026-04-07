@@ -1033,6 +1033,85 @@ def sync_pull(request, slug):
     )
 
 
+# --- Git Mirror ---
+
+
+@login_required
+def git_mirror_config(request, slug):
+    """Configure Git mirror sync for a project."""
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "admin")
+
+    from fossil.sync_models import GitMirror
+
+    mirrors = GitMirror.objects.filter(repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        if action == "create":
+            git_url = request.POST.get("git_remote_url", "").strip()
+            auth_method = request.POST.get("auth_method", "token")
+            auth_credential = request.POST.get("auth_credential", "").strip()
+            sync_mode = request.POST.get("sync_mode", "scheduled")
+            sync_schedule = request.POST.get("sync_schedule", "*/15 * * * *").strip()
+            git_branch = request.POST.get("git_branch", "main").strip()
+
+            if git_url:
+                GitMirror.objects.create(
+                    repository=fossil_repo,
+                    git_remote_url=git_url,
+                    auth_method=auth_method,
+                    auth_credential=auth_credential,
+                    sync_mode=sync_mode,
+                    sync_schedule=sync_schedule,
+                    git_branch=git_branch,
+                    created_by=request.user,
+                )
+                from django.contrib import messages
+
+                messages.success(request, f"Git mirror configured: {git_url}")
+                from django.shortcuts import redirect
+
+                return redirect("fossil:git_mirror", slug=slug)
+
+        elif action == "delete":
+            mirror_id = request.POST.get("mirror_id")
+            mirror = GitMirror.objects.filter(pk=mirror_id, repository=fossil_repo).first()
+            if mirror:
+                mirror.soft_delete(user=request.user)
+                from django.contrib import messages
+
+                messages.info(request, "Git mirror removed.")
+
+    return render(
+        request,
+        "fossil/git_mirror.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "mirrors": mirrors,
+            "active_tab": "sync",
+        },
+    )
+
+
+@login_required
+def git_mirror_run(request, slug, mirror_id):
+    """Manually trigger a Git sync for a specific mirror."""
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "admin")
+
+    if request.method == "POST":
+        from fossil.tasks import run_git_sync
+
+        run_git_sync.delay(mirror_id)
+        from django.contrib import messages
+
+        messages.info(request, "Git sync triggered. Check back shortly for results.")
+
+    from django.shortcuts import redirect
+
+    return redirect("fossil:git_mirror", slug=slug)
+
+
 # --- Technotes ---
 
 
