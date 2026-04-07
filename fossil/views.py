@@ -764,7 +764,7 @@ def wiki_list(request, slug):
         home_page = reader.get_wiki_page("Home")
 
     # Sort: Home first, then alphabetical
-    pages = sorted(pages, key=lambda p: ("" if p.name == "Home" else "~" + p.name.lower()))
+    pages = sorted(pages, key=lambda p: "" if p.name == "Home" else "~" + p.name.lower())
 
     search = request.GET.get("search", "").strip()
     if search:
@@ -807,7 +807,7 @@ def wiki_page(request, slug, page_name):
         raise Http404(f"Wiki page not found: {page_name}")
 
     # Sort: Home first, then alphabetical
-    all_pages = sorted(all_pages, key=lambda p: ("" if p.name == "Home" else "~" + p.name.lower()))
+    all_pages = sorted(all_pages, key=lambda p: "" if p.name == "Home" else "~" + p.name.lower())
 
     content_html = mark_safe(sanitize_html(_render_fossil_content(page.content, project_slug=slug)))
 
@@ -1100,9 +1100,9 @@ def webhook_create(request, slug):
         is_active = request.POST.get("is_active") == "on"
 
         if url:
-            from core.url_validation import is_safe_webhook_url
+            from core.url_validation import is_safe_outbound_url
 
-            is_safe, url_error = is_safe_webhook_url(url)
+            is_safe, url_error = is_safe_outbound_url(url)
             if not is_safe:
                 messages.error(request, f"Invalid webhook URL: {url_error}")
             else:
@@ -1150,9 +1150,9 @@ def webhook_edit(request, slug, webhook_id):
         is_active = request.POST.get("is_active") == "on"
 
         if url:
-            from core.url_validation import is_safe_webhook_url
+            from core.url_validation import is_safe_outbound_url
 
-            is_safe, url_error = is_safe_webhook_url(url)
+            is_safe, url_error = is_safe_outbound_url(url)
             if not is_safe:
                 messages.error(request, f"Invalid webhook URL: {url_error}")
             else:
@@ -1447,6 +1447,17 @@ def sync_pull(request, slug):
         # Save remote URL configuration
         url = request.POST.get("remote_url", "").strip()
         if url:
+            from core.url_validation import is_safe_outbound_url
+
+            is_safe, url_error = is_safe_outbound_url(url)
+            if not is_safe:
+                from django.contrib import messages
+
+                messages.error(request, f"Invalid remote URL: {url_error}")
+                from django.shortcuts import redirect
+
+                return redirect("fossil:sync", slug=slug)
+
             fossil_repo.remote_url = url
             fossil_repo.save(update_fields=["remote_url", "updated_at", "version"])
             cli.ensure_default_user(fossil_repo.full_path)
@@ -3992,12 +4003,12 @@ def ticket_report_run(request, slug, pk):
     if error:
         pass  # error is shown in template
     else:
-        # Replace placeholders with request params
+        # Replace placeholders with named parameters for safe execution
         sql = report.sql_query
         status_param = request.GET.get("status", "")
         type_param = request.GET.get("type", "")
-        sql = sql.replace("{status}", status_param)
-        sql = sql.replace("{type}", type_param)
+        sql = sql.replace("{status}", ":status").replace("{type}", ":type")
+        params = {"status": status_param, "type": type_param}
 
         # Execute against the Fossil SQLite file in read-only mode
         repo_path = fossil_repo.full_path
@@ -4005,7 +4016,7 @@ def ticket_report_run(request, slug, pk):
         try:
             conn = sqlite3.connect(uri, uri=True)
             try:
-                cursor = conn.execute(sql)
+                cursor = conn.execute(sql, params)
                 columns = [desc[0] for desc in cursor.description] if cursor.description else []
                 rows = [list(row) for row in cursor.fetchall()[:1000]]
             except sqlite3.OperationalError as e:

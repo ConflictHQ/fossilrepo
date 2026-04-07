@@ -277,9 +277,9 @@ def dispatch_webhook(self, webhook_id, event_type, payload):
         return
 
     # Re-validate URL at dispatch time (hostname could resolve differently than at save time)
-    from core.url_validation import is_safe_webhook_url
+    from core.url_validation import is_safe_outbound_url
 
-    is_safe, url_error = is_safe_webhook_url(webhook.url)
+    is_safe, url_error = is_safe_outbound_url(webhook.url)
     if not is_safe:
         logger.warning("Webhook %s URL failed safety check at dispatch: %s", webhook_id, url_error)
         WebhookDelivery.objects.create(
@@ -303,7 +303,7 @@ def dispatch_webhook(self, webhook_id, event_type, payload):
 
     start = time.monotonic()
     try:
-        resp = requests.post(webhook.url, data=body, headers=headers, timeout=30)
+        resp = requests.post(webhook.url, data=body, headers=headers, timeout=30, allow_redirects=False)
         duration = int((time.monotonic() - start) * 1000)
 
         WebhookDelivery.objects.create(

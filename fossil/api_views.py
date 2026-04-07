@@ -1770,11 +1770,13 @@ def api_review_comment(request, slug, review_id):
     if not body:
         return JsonResponse({"error": "Comment body is required"}, status=400)
 
-    author = (data.get("author") or "").strip()
-    if not author and user:
+    # Determine author from auth context, not caller-supplied data
+    if user:
         author = user.username
-    if not author:
-        return JsonResponse({"error": "Author is required"}, status=400)
+    elif token:
+        author = f"token:{token.name}" if hasattr(token, "name") else "api-token"
+    else:
+        author = "anonymous"
 
     comment = ReviewComment.objects.create(
         review=review,

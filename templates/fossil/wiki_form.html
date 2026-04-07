@@ -18,7 +18,7 @@
     <h2 class="text-xl font-bold text-gray-100">{{ title }}</h2>
     <div class="flex items-center gap-1 text-xs">
       <button @click="tab = 'write'" :class="tab === 'write' ? 'bg-brand text-white' : 'text-gray-500 hover:text-white'" class="px-3 py-1 rounded">Write</button>
-      <button @click="tab = 'preview'; document.getElementById('preview-pane').innerHTML = marked.parse(document.getElementById('content-input').value)" :class="tab === 'preview' ? 'bg-brand text-white' : 'text-gray-500 hover:text-white'" class="px-3 py-1 rounded">Preview</button>
+      <button @click="tab = 'preview'; document.getElementById('preview-pane').innerHTML = DOMPurify.sanitize(marked.parse(document.getElementById('content-input').value))" :class="tab === 'preview' ? 'bg-brand text-white' : 'text-gray-500 hover:text-white'" class="px-3 py-1 rounded">Preview</button>
     </div>
   </div>
 

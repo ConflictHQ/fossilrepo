@@ -5,7 +5,7 @@ import socket
 from urllib.parse import urlparse
 
 
-def is_safe_webhook_url(url: str) -> tuple[bool, str]:
+def is_safe_outbound_url(url: str) -> tuple[bool, str]:
     """Validate a webhook URL is safe for server-side requests.
 
     Blocks:

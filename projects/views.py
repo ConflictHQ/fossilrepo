@@ -60,7 +60,13 @@ def project_create(request):
             clone_url = form.cleaned_data.get("clone_url", "").strip()
 
             if repo_source == "fossil_url" and clone_url:
-                _clone_fossil_repo(request, project, clone_url)
+                from core.url_validation import is_safe_outbound_url
+
+                is_safe, url_error = is_safe_outbound_url(clone_url)
+                if not is_safe:
+                    messages.error(request, f"Invalid clone URL: {url_error}")
+                else:
+                    _clone_fossil_repo(request, project, clone_url)
 
             messages.success(request, f'Project "{project.name}" created.')
             return redirect("projects:detail", slug=project.slug)
