@@ -1202,11 +1202,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: [\"CMD-SHELL\", \"curl -f http://localhost:8000/health/ || exit 1\"]
-      interval: 30s
+      test: [\"CMD-SHELL\", \"curl -sf -o /dev/null -w '%{http_code}' http://localhost:8000/health/ | grep -qE '200|301|302' || exit 1\"]
+      interval: 15s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
 
   celery-worker:
     build:
@@ -1284,7 +1284,7 @@ services:
       - static-files:/srv/static:ro
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 ${litestream_service}
 volumes:
