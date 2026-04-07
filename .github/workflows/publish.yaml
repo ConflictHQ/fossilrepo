@@ -125,3 +125,5 @@ jobs:
             conflicthq/fossilrepo:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true

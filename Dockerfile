@@ -60,6 +60,10 @@ RUN chmod +x /usr/local/bin/fossil-shell
 # Generate host keys if they don't exist (entrypoint will handle persistent keys)
 RUN ssh-keygen -A
 
+# Create non-root app user for running gunicorn
+RUN useradd -r -m -d /home/app -s /bin/false app \
+    && chown -R app:app /app /data
+
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV DJANGO_SETTINGS_MODULE=config.settings
@@ -69,4 +73,8 @@ EXPOSE 8000 2222
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Install gosu for privilege dropping in entrypoint
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
+
+# Entrypoint runs as root (to start sshd), then drops to app user for gunicorn
 CMD ["/usr/local/bin/entrypoint.sh"]

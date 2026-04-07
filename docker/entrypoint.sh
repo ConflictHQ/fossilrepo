@@ -1,8 +1,8 @@
 #!/bin/bash
-# fossilrepo entrypoint — starts sshd + gunicorn.
+# fossilrepo entrypoint — starts sshd as root, drops to app user for gunicorn.
 #
-# sshd runs in the background for Fossil SSH access.
-# gunicorn runs in the foreground as the main process.
+# sshd needs root for port binding and key access.
+# gunicorn runs as the unprivileged 'app' user.
 
 set -euo pipefail
 
@@ -11,16 +11,16 @@ if [ ! -f /etc/ssh/ssh_host_ed25519_key ]; then
     ssh-keygen -A
 fi
 
-# Ensure SSH data dir exists and has correct permissions
-mkdir -p /data/ssh
+# Ensure data dirs exist with correct permissions
+mkdir -p /data/ssh /data/repos /data/trash
 touch /data/ssh/authorized_keys
 chmod 600 /data/ssh/authorized_keys
 chown -R fossil:fossil /data/ssh
+chown -R app:app /data/repos /data/trash
+# fossil user needs read access to repos for SSH sync
+chmod -R g+r /data/repos
 
-# Ensure fossil user can read repos
-chown -R fossil:fossil /data/repos
-
-# Start sshd in the background (non-detach mode with -D would block)
+# Start sshd in the background (runs as root)
 /usr/sbin/sshd -p 2222 -e &
 SSHD_PID=$!
 echo "sshd started (PID $SSHD_PID) on port 2222"
@@ -33,8 +33,8 @@ cleanup() {
 }
 trap cleanup EXIT TERM INT
 
-# Run gunicorn in the foreground
-exec gunicorn config.wsgi:application \
+# Drop to non-root 'app' user for gunicorn
+exec gosu app gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 3 \
     --timeout 120
