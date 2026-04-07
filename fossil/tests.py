@@ -1,6 +1,5 @@
 import shutil
 from pathlib import Path
-from unittest.mock import PropertyMock, patch
 
 import pytest
 
@@ -157,47 +156,87 @@ class TestFossilRepositoryModel:
 @pytest.mark.django_db
 class TestFossilViews:
     @pytest.fixture
-    def repo_with_path(self, sample_project, admin_user, tmp_path):
+    def setup_repo(self, sample_project, admin_user, tmp_path):
+        """Set up a real .fossil file and point Constance FOSSIL_DATA_DIR to tmp."""
         src = Path("/tmp/fossil-setup/frontend-app.fossil")
         if not src.exists():
             pytest.skip("Test fossil repo not available")
-        dest = tmp_path / "frontend-app.fossil"
-        shutil.copy2(src, dest)
-        # Get the auto-created repo from the signal and update its path
+        # Copy to tmp dir using the repo's expected filename
         repo = FossilRepository.objects.get(project=sample_project)
-        return repo, dest
+        dest = tmp_path / repo.filename
+        shutil.copy2(src, dest)
+        # Override Constance FOSSIL_DATA_DIR to point to our tmp dir
+        from constance import config
 
-    def test_code_browser(self, admin_client, repo_with_path):
-        repo, dest = repo_with_path
-        with (
-            patch.object(type(repo), "full_path", new_callable=PropertyMock, return_value=dest),
-            patch("fossil.views.FossilRepository.objects") as mock_qs,
-        ):
-            mock_qs.filter.return_value.first.return_value = repo
-            # Use get_object_or_404 mock approach
-            response = admin_client.get(f"/projects/{repo.project.slug}/fossil/code/")
-            # May 404 if constance config points elsewhere, but shouldn't error
-            assert response.status_code in (200, 404)
+        original_dir = config.FOSSIL_DATA_DIR
+        config.FOSSIL_DATA_DIR = str(tmp_path)
+        yield sample_project.slug
+        config.FOSSIL_DATA_DIR = original_dir
 
-    def test_timeline(self, admin_client, repo_with_path):
-        repo, dest = repo_with_path
-        response = admin_client.get(f"/projects/{repo.project.slug}/fossil/timeline/")
-        assert response.status_code in (200, 404)
+    def test_code_browser_content(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/code/")
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "CONTRIBUTING.md" in content or "README" in content or "utils" in content
 
-    def test_tickets(self, admin_client, repo_with_path):
-        repo, dest = repo_with_path
-        response = admin_client.get(f"/projects/{repo.project.slug}/fossil/tickets/")
-        assert response.status_code in (200, 404)
+    def test_timeline_content(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/timeline/")
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "ragelink" in content
+        assert "tl-row" in content
 
-    def test_wiki(self, admin_client, repo_with_path):
-        repo, dest = repo_with_path
-        response = admin_client.get(f"/projects/{repo.project.slug}/fossil/wiki/")
-        assert response.status_code in (200, 404)
+    def test_checkin_detail(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/timeline/")
+        # Extract a hash from the page
+        import re
 
-    def test_forum(self, admin_client, repo_with_path):
-        repo, dest = repo_with_path
-        response = admin_client.get(f"/projects/{repo.project.slug}/fossil/forum/")
-        assert response.status_code in (200, 404)
+        hashes = re.findall(r"/checkin/([0-9a-f]{8,})/", response.content.decode())
+        if hashes:
+            detail = admin_client.get(f"/projects/{slug}/fossil/checkin/{hashes[0]}/")
+            assert detail.status_code == 200
+            assert "diff-table" in detail.content.decode() or "file" in detail.content.decode().lower()
+
+    def test_wiki_content(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/wiki/")
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Home" in content
+
+    def test_wiki_page_content(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/wiki/page/Home")
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "prose" in content
+
+    def test_search(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/search/?q=initial")
+        assert response.status_code == 200
+
+    def test_file_view(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/code/file/CONTRIBUTING.md")
+        if response.status_code == 200:
+            content = response.content.decode()
+            assert "line-num" in content
+
+    def test_branches(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/branches/")
+        assert response.status_code == 200
+        assert "trunk" in response.content.decode()
+
+    def test_stats(self, admin_client, setup_repo):
+        slug = setup_repo
+        response = admin_client.get(f"/projects/{slug}/fossil/stats/")
+        assert response.status_code == 200
+        assert "Checkins" in response.content.decode()
 
     def test_views_denied_without_perm(self, no_perm_client, sample_project):
         slug = sample_project.slug
