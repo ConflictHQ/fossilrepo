@@ -1,6 +1,6 @@
 [project]
 name = "fossilrepo"
-version = "0.1.0"
+version = "0.0.9"
 description = "Self-hosted Fossil SCM forge — code hosting, issues, wiki, and continuous backups in one command."
 license = "MIT"
 requires-python = ">=3.12"
