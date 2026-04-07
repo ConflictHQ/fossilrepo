@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ target_user.username }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <a href="{% url 'organization:members' %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Members</a>
+</div>
+
+<div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+  <div class="px-6 py-5 sm:flex sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-100">{{ target_user.username }}</h1>
+      <p class="mt-1 text-sm text-gray-400">{{ target_user.get_full_name|default:"No name set" }}</p>
+    </div>
+    <div class="mt-4 flex gap-3 sm:mt-0">
+      {% if can_manage %}
+      <a href="{% url 'organization:user_edit' username=target_user.username %}"
+         class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Edit
+      </a>
+      <a href="{% url 'organization:user_password' username=target_user.username %}"
+         class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Change Password
+      </a>
+      {% elif request.user.pk == target_user.pk %}
+      <a href="{% url 'organization:user_password' username=target_user.username %}"
+         class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Change Password
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="border-t border-gray-700 px-6 py-5">
+    <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Email</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ target_user.email|default:"--" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Full Name</dt>
+        <dd class="mt-1 text-sm text-gray-100">{{ target_user.get_full_name|default:"--" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Status</dt>
+        <dd class="mt-1">
+          {% if target_user.is_active %}
+          <span class="inline-flex rounded-full bg-green-900/50 px-2 text-xs font-semibold leading-5 text-green-300">Active</span>
+          {% else %}
+          <span class="inline-flex rounded-full bg-gray-700 px-2 text-xs font-semibold leading-5 text-gray-300">Inactive</span>
+          {% endif %}
+          {% if target_user.is_staff %}
+          <span class="ml-1 inline-flex rounded-full bg-purple-900/50 px-2 text-xs font-semibold leading-5 text-purple-300">Staff</span>
+          {% endif %}
+          {% if target_user.is_superuser %}
+          <span class="ml-1 inline-flex rounded-full bg-yellow-900/50 px-2 text-xs font-semibold leading-5 text-yellow-300">Superuser</span>
+          {% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Date Joined</dt>
+        <dd class="mt-1 text-sm text-gray-400">{{ target_user.date_joined|date:"N j, Y g:i a" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Last Login</dt>
+        <dd class="mt-1 text-sm text-gray-400">{{ target_user.last_login|date:"N j, Y g:i a"|default:"Never" }}</dd>
+      </div>
+      {% if membership %}
+      <div>
+        <dt class="text-sm font-medium text-gray-400">Member Since</dt>
+        <dd class="mt-1 text-sm text-gray-400">{{ membership.created_at|date:"N j, Y g:i a" }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+  </div>
+</div>
+
+<div class="mt-8">
+  <h2 class="text-lg font-semibold text-gray-100 mb-4">Team Memberships</h2>
+  <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
+    <table class="min-w-full divide-y divide-gray-700">
+      <thead class="bg-gray-900">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Team</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Description</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700 bg-gray-800">
+        {% for team in user_teams %}
+        <tr class="hover:bg-gray-700/50">
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <a href="{% url 'organization:team_detail' slug=team.slug %}" class="text-brand-light hover:text-brand">{{ team.name }}</a>
+          </td>
+          <td class="px-6 py-4 text-sm text-gray-400">{{ team.description|default:"--"|truncatewords:15 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="2" class="px-6 py-8 text-center text-sm text-gray-400">Not a member of any teams.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mt-8">
+  <h2 class="text-lg font-semibold text-gray-100 mb-4">SSH Keys</h2>
+  <div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
+    <table class="min-w-full divide-y divide-gray-700">
+      <thead class="bg-gray-900">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Title</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Type</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Fingerprint</th>
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-400">Added</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700 bg-gray-800">
+        {% for key in ssh_keys %}
+        <tr class="hover:bg-gray-700/50">
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{{ key.title }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ key.key_type|default:"--" }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono">{{ key.fingerprint|default:"--"|truncatechars:30 }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ key.created_at|date:"N j, Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-400">No SSH keys.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

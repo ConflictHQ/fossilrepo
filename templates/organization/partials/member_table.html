@@ -13,8 +13,8 @@
       <tbody class="divide-y divide-gray-700 bg-gray-800">
         {% for membership in members %}
         <tr class="hover:bg-gray-700/50">
-          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
-            {{ membership.member.username }}
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <a href="{% url 'organization:user_detail' username=membership.member.username %}" class="text-brand-light hover:text-brand">{{ membership.member.username }}</a>
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ membership.member.email|default:"—" }}</td>
           <td class="px-6 py-4 whitespace-nowrap">

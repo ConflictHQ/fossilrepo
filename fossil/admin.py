@@ -2,11 +2,13 @@ from django.contrib import admin
 
 from core.admin import BaseCoreAdmin
 
+from .forum import ForumPost
 from .models import FossilRepository, FossilSnapshot
 from .notifications import Notification, ProjectWatch
 from .releases import Release, ReleaseAsset
 from .sync_models import GitMirror, SSHKey, SyncLog
 from .user_keys import UserSSHKey
+from .webhooks import Webhook, WebhookDelivery
 
 
 class FossilSnapshotInline(admin.TabularInline):
@@ -97,3 +99,32 @@ class SyncLogAdmin(admin.ModelAdmin):
     list_filter = ("status", "triggered_by")
     search_fields = ("mirror__repository__filename", "message")
     raw_id_fields = ("mirror",)
+
+
+@admin.register(ForumPost)
+class ForumPostAdmin(BaseCoreAdmin):
+    list_display = ("title", "repository", "parent", "created_by", "created_at")
+    search_fields = ("title", "body")
+    raw_id_fields = ("repository", "parent", "thread_root")
+
+
+class WebhookDeliveryInline(admin.TabularInline):
+    model = WebhookDelivery
+    extra = 0
+    readonly_fields = ("event_type", "response_status", "success", "delivered_at", "duration_ms", "attempt")
+
+
+@admin.register(Webhook)
+class WebhookAdmin(BaseCoreAdmin):
+    list_display = ("url", "repository", "events", "is_active", "created_at")
+    list_filter = ("is_active", "events")
+    search_fields = ("url", "repository__filename")
+    raw_id_fields = ("repository",)
+    inlines = [WebhookDeliveryInline]
+
+
+@admin.register(WebhookDelivery)
+class WebhookDeliveryAdmin(admin.ModelAdmin):
+    list_display = ("webhook", "event_type", "response_status", "success", "delivered_at", "duration_ms")
+    list_filter = ("success", "event_type")
+    raw_id_fields = ("webhook",)

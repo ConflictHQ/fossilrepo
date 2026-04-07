@@ -6,7 +6,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from core.permissions import P
 
-from .forms import MemberAddForm, OrganizationSettingsForm, TeamForm, TeamMemberAddForm
+from .forms import (
+    MemberAddForm,
+    OrganizationSettingsForm,
+    TeamForm,
+    TeamMemberAddForm,
+    UserCreateForm,
+    UserEditForm,
+    UserPasswordForm,
+)
 from .models import Organization, OrganizationMember, Team
 
 
@@ -215,3 +223,103 @@ def team_member_remove(request, slug, username):
         return redirect("organization:team_detail", slug=team.slug)
 
     return render(request, "organization/team_member_confirm_remove.html", {"team": team, "member_user": user})
+
+
+# --- User Management ---
+
+
+def _check_user_management_permission(request):
+    """User management requires superuser or ORGANIZATION_CHANGE permission."""
+    if request.user.is_superuser:
+        return True
+    return P.ORGANIZATION_CHANGE.check(request.user)
+
+
+@login_required
+def user_create(request):
+    _check_user_management_permission(request)
+    org = get_org()
+
+    if request.method == "POST":
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            OrganizationMember.objects.create(member=user, organization=org, created_by=request.user)
+            messages.success(request, f'User "{user.username}" created and added as member.')
+            return redirect("organization:members")
+    else:
+        form = UserCreateForm()
+
+    return render(request, "organization/user_form.html", {"form": form, "title": "New User"})
+
+
+@login_required
+def user_detail(request, username):
+    P.ORGANIZATION_MEMBER_VIEW.check(request.user)
+    org = get_org()
+    target_user = get_object_or_404(User, username=username)
+    membership = OrganizationMember.objects.filter(member=target_user, organization=org, deleted_at__isnull=True).first()
+    user_teams = Team.objects.filter(members=target_user, organization=org, deleted_at__isnull=True)
+
+    from fossil.user_keys import UserSSHKey
+
+    ssh_keys = UserSSHKey.objects.filter(user=target_user)
+
+    can_manage = request.user.is_superuser or P.ORGANIZATION_CHANGE.check(request.user, raise_error=False)
+
+    return render(
+        request,
+        "organization/user_detail.html",
+        {
+            "target_user": target_user,
+            "membership": membership,
+            "user_teams": user_teams,
+            "ssh_keys": ssh_keys,
+            "can_manage": can_manage,
+            "org": org,
+        },
+    )
+
+
+@login_required
+def user_edit(request, username):
+    _check_user_management_permission(request)
+    target_user = get_object_or_404(User, username=username)
+    editing_self = request.user.pk == target_user.pk
+
+    if request.method == "POST":
+        form = UserEditForm(request.POST, instance=target_user, editing_self=editing_self)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'User "{target_user.username}" updated.')
+            return redirect("organization:members")
+    else:
+        form = UserEditForm(instance=target_user, editing_self=editing_self)
+
+    return render(
+        request,
+        "organization/user_form.html",
+        {"form": form, "title": f"Edit {target_user.username}", "edit_user": target_user},
+    )
+
+
+@login_required
+def user_password(request, username):
+    target_user = get_object_or_404(User, username=username)
+    editing_own = request.user.pk == target_user.pk
+
+    # Allow changing own password, or require admin/org-change for others
+    if not editing_own:
+        _check_user_management_permission(request)
+
+    if request.method == "POST":
+        form = UserPasswordForm(request.POST)
+        if form.is_valid():
+            target_user.set_password(form.cleaned_data["new_password1"])
+            target_user.save()
+            messages.success(request, f'Password changed for "{target_user.username}".')
+            return redirect("organization:user_detail", username=target_user.username)
+    else:
+        form = UserPasswordForm()
+
+    return render(request, "organization/user_password.html", {"form": form, "target_user": target_user})
