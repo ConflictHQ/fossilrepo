@@ -8,16 +8,21 @@
 <div class="flex items-center justify-between mb-6">
   <h2 class="text-lg font-semibold text-gray-200">Webhooks</h2>
   <div class="flex items-center gap-3">
+    <span class="search-wrap">
     <input type="search"
            name="search"
            value="{{ search }}"
            placeholder="Search webhooks..."
+           aria-label="Search webhooks"
            class="rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand text-sm px-3 py-1.5"
            hx-get="{% url 'fossil:webhooks' slug=project.slug %}"
            hx-trigger="input changed delay:300ms, search"
            hx-target="#webhook-content"
            hx-swap="innerHTML"
-           hx-push-url="true" />
+           hx-push-url="true"
+           hx-indicator="closest .search-wrap" />
+    <svg class="search-spinner animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+    </span>
     <a href="{% url 'fossil:webhook_create' slug=project.slug %}"
        class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
       Add Webhook

@@ -7,7 +7,7 @@ services:
       - "2222:2222"
     env_file: .env.example
     environment:
-      DJANGO_DEBUG: "false"
+      DJANGO_DEBUG: "true"
       DJANGO_SECRET_KEY: "local-dev-only-not-for-production-use-change-in-prod"
       SECURE_SSL_REDIRECT: "false"
       SESSION_COOKIE_SECURE: "false"

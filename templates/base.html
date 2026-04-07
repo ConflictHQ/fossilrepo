@@ -47,6 +47,19 @@
     }
   </style>
   <style>
+    /* HTMX loading indicator: hidden by default, shown when htmx is in flight */
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-flex; }
+    /* Spinner next to search inputs during HTMX requests */
+    .search-wrap { position: relative; display: inline-flex; align-items: center; }
+    .search-wrap .search-spinner {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      display: none; color: #6b7280;
+    }
+    .search-wrap:has(input.htmx-request) .search-spinner,
+    .search-wrap.htmx-request .search-spinner { display: block; }
+  </style>
+  <style>
     /*
      * Light mode — matches Django admin dark_theme.css palette
      * Brand: #DC394C red, #8B3138 crimson, #2B2D2C charcoal

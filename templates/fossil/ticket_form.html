@@ -18,7 +18,7 @@
     <div>
       <label class="block text-sm font-medium text-gray-300 mb-1">Title <span class="text-red-400">*</span></label>
       <input type="text" name="title" required placeholder="Ticket title"
-             class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+             class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
     </div>
 
     <div class="grid grid-cols-2 gap-4">
@@ -46,7 +46,7 @@
     <div>
       <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
       <textarea name="body" rows="10" placeholder="Describe the issue..."
-                class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"></textarea>
+                class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"></textarea>
     </div>
 
     {% if custom_fields %}
@@ -62,13 +62,13 @@
           {% if cf.field_type == "text" or cf.field_type == "url" or cf.field_type == "date" %}
           <input type="{% if cf.field_type == "url" %}url{% elif cf.field_type == "date" %}date{% else %}text{% endif %}"
                  name="custom_{{ cf.name }}" {% if cf.is_required %}required{% endif %}
-                 class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                 class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
           {% elif cf.field_type == "textarea" %}
           <textarea name="custom_{{ cf.name }}" rows="3" {% if cf.is_required %}required{% endif %}
-                    class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"></textarea>
+                    class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"></textarea>
           {% elif cf.field_type == "select" %}
           <select name="custom_{{ cf.name }}" {% if cf.is_required %}required{% endif %}
-                  class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                  class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
             <option value="">--</option>
             {% for choice in cf.choices_list %}
             <option value="{{ choice }}">{{ choice }}</option>
