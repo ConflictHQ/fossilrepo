@@ -18,10 +18,16 @@
       <span>{{ user.email }}</span>
     </div>
   </div>
-  <a href="{% url 'accounts:profile_edit' %}"
-     class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-600">
-    Edit Profile
-  </a>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'accounts:profile_edit' %}"
+       class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-600">
+      Edit Profile
+    </a>
+    <a href="{% url 'organization:user_password' username=user.username %}"
+       class="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-700 ring-1 ring-gray-700">
+      Change Password
+    </a>
+  </div>
 </div>
 
 <!-- Profile Info Card -->
