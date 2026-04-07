@@ -85,7 +85,7 @@ def health_check(request):
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
         db_ok = True
-    except Exception as e:
+    except Exception:
         return JsonResponse(
             {
                 "service": "fossilrepo-django-htmx",
@@ -93,7 +93,7 @@ def health_check(request):
                 "status": "error",
                 "uptime": _uptime_str(),
                 "timestamp": datetime.now(UTC).isoformat(),
-                "checks": {"database": "error", "detail": str(e)},
+                "checks": {"database": "error"},
             },
             status=503,
         )

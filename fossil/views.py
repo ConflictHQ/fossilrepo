@@ -1100,17 +1100,23 @@ def webhook_create(request, slug):
         is_active = request.POST.get("is_active") == "on"
 
         if url:
-            events_str = ",".join(events) if events else "all"
-            Webhook.objects.create(
-                repository=fossil_repo,
-                url=url,
-                secret=secret,
-                events=events_str,
-                is_active=is_active,
-                created_by=request.user,
-            )
-            messages.success(request, f"Webhook for {url} created.")
-            return redirect("fossil:webhooks", slug=slug)
+            from core.url_validation import is_safe_webhook_url
+
+            is_safe, url_error = is_safe_webhook_url(url)
+            if not is_safe:
+                messages.error(request, f"Invalid webhook URL: {url_error}")
+            else:
+                events_str = ",".join(events) if events else "all"
+                Webhook.objects.create(
+                    repository=fossil_repo,
+                    url=url,
+                    secret=secret,
+                    events=events_str,
+                    is_active=is_active,
+                    created_by=request.user,
+                )
+                messages.success(request, "Webhook created.")
+                return redirect("fossil:webhooks", slug=slug)
 
     return render(
         request,
@@ -1144,16 +1150,21 @@ def webhook_edit(request, slug, webhook_id):
         is_active = request.POST.get("is_active") == "on"
 
         if url:
-            webhook.url = url
-            # Only update secret if a new one was provided (don't blank it on edit)
-            if secret:
-                webhook.secret = secret
-            webhook.events = ",".join(events) if events else "all"
-            webhook.is_active = is_active
-            webhook.updated_by = request.user
-            webhook.save()
-            messages.success(request, f"Webhook for {webhook.url} updated.")
-            return redirect("fossil:webhooks", slug=slug)
+            from core.url_validation import is_safe_webhook_url
+
+            is_safe, url_error = is_safe_webhook_url(url)
+            if not is_safe:
+                messages.error(request, f"Invalid webhook URL: {url_error}")
+            else:
+                webhook.url = url
+                if secret:
+                    webhook.secret = secret
+                webhook.events = ",".join(events) if events else "all"
+                webhook.is_active = is_active
+                webhook.updated_by = request.user
+                webhook.save()
+                messages.success(request, "Webhook updated.")
+                return redirect("fossil:webhooks", slug=slug)
 
     return render(
         request,
@@ -1834,20 +1845,25 @@ def fossil_xfer(request, slug):
             from django.core.exceptions import PermissionDenied
 
             raise PermissionDenied
+        import html as html_mod
+
         clone_url = request.build_absolute_uri()
         is_public = project.visibility == "public"
         auth_note = "" if is_public else "<p>Authentication is required.</p>"
-        html = (
-            f"<html><head><title>{project.name} — Fossil Sync</title></head>"
+        safe_name = html_mod.escape(project.name)
+        safe_slug = html_mod.escape(project.slug)
+        safe_url = html_mod.escape(clone_url)
+        response_html = (
+            f"<html><head><title>{safe_name} — Fossil Sync</title></head>"
             f"<body>"
-            f"<h1>{project.name}</h1>"
-            f"<p>This is the Fossil sync endpoint for <strong>{project.name}</strong>.</p>"
+            f"<h1>{safe_name}</h1>"
+            f"<p>This is the Fossil sync endpoint for <strong>{safe_name}</strong>.</p>"
             f"<p>Clone with:</p>"
-            f"<pre>fossil clone {clone_url} {project.slug}.fossil</pre>"
+            f"<pre>fossil clone {safe_url} {safe_slug}.fossil</pre>"
             f"{auth_note}"
             f"</body></html>"
         )
-        return HttpResponse(html)
+        return HttpResponse(response_html)
 
     if request.method == "POST":
         if not fossil_repo.exists_on_disk:
