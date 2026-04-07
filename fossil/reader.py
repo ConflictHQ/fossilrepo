@@ -374,6 +374,37 @@ class FossilReader:
             pass
         return contributors
 
+    def get_branches(self) -> list[dict]:
+        """Get all branches with their latest checkin info."""
+        branches = []
+        try:
+            rows = self.conn.execute(
+                """
+                SELECT tag.tagname, max(event.mtime) as last_mtime, event.user,
+                       count(tagxref.rid) as checkin_count, blob.uuid
+                FROM tag
+                JOIN tagxref ON tag.tagid = tagxref.tagid
+                JOIN event ON tagxref.rid = event.objid
+                JOIN blob ON event.objid = blob.rid
+                WHERE tag.tagname LIKE 'sym-%' AND event.type = 'ci'
+                GROUP BY tag.tagname
+                ORDER BY last_mtime DESC
+                """,
+            ).fetchall()
+            for r in rows:
+                branches.append(
+                    {
+                        "name": r["tagname"].replace("sym-", "", 1),
+                        "last_checkin": _julian_to_datetime(r["last_mtime"]),
+                        "last_user": r["user"] or "",
+                        "checkin_count": r["checkin_count"],
+                        "last_uuid": r["uuid"],
+                    }
+                )
+        except sqlite3.OperationalError:
+            pass
+        return branches
+
     # --- Timeline ---
 
     def get_timeline(self, limit: int = 50, offset: int = 0, event_type: str | None = None) -> list[TimelineEntry]:

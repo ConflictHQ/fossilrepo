@@ -20,6 +20,7 @@ urlpatterns = [
     path("forum/", views.forum_list, name="forum"),
     path("forum/<str:thread_uuid>/", views.forum_thread, name="forum_thread"),
     path("user/<str:username>/", views.user_activity, name="user_activity"),
+    path("branches/", views.branch_list, name="branches"),
     path("docs/", views.fossil_docs, name="docs"),
     path("docs/<path:doc_path>", views.fossil_doc_page, name="doc_page"),
 ]

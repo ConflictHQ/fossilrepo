@@ -341,8 +341,17 @@ def code_file(request, slug, filepath):
 
     # Split into lines for line-number display
     lines = content.split("\n") if not is_binary else []
-    # Enumerate for template (1-indexed)
     numbered_lines = [{"num": i + 1, "text": line} for i, line in enumerate(lines)]
+
+    # Check if file can be rendered (wiki, markdown, html)
+    can_render = ext in ("wiki", "md", "markdown", "html", "htm")
+    view_mode = request.GET.get("mode", "source")
+    rendered_html = ""
+    if can_render and view_mode == "rendered" and not is_binary:
+        doc_base = "/".join(filepath.split("/")[:-1])
+        if doc_base:
+            doc_base += "/"
+        rendered_html = mark_safe(_render_fossil_content(content, project_slug=slug, base_path=doc_base))
 
     return render(
         request,
@@ -357,6 +366,9 @@ def code_file(request, slug, filepath):
             "line_count": len(lines),
             "is_binary": is_binary,
             "language": ext,
+            "can_render": can_render,
+            "view_mode": view_mode,
+            "rendered_html": rendered_html,
             "active_tab": "code",
         },
     )
@@ -809,6 +821,29 @@ def user_activity(request, slug, username):
             "username": username,
             "activity": activity,
             "active_tab": "timeline",
+        },
+    )
+
+
+# --- Branches ---
+
+
+@login_required
+def branch_list(request, slug):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    with reader:
+        branches = reader.get_branches()
+
+    return render(
+        request,
+        "fossil/branch_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "branches": branches,
+            "active_tab": "code",
         },
     )
 

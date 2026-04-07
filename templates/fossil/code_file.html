@@ -57,13 +57,27 @@
       {% endif %}
       {% endfor %}
     </div>
-    {% if not is_binary %}
-    <span class="text-xs text-gray-500">{{ line_count }} line{{ line_count|pluralize }}</span>
-    {% endif %}
+    <div class="flex items-center gap-3">
+      {% if can_render %}
+      <div class="flex items-center gap-1 text-xs">
+        <a href="?mode=source" class="px-2 py-1 rounded {% if view_mode == 'source' %}bg-brand text-white{% else %}text-gray-500 hover:text-white{% endif %}">Source</a>
+        <a href="?mode=rendered" class="px-2 py-1 rounded {% if view_mode == 'rendered' %}bg-brand text-white{% else %}text-gray-500 hover:text-white{% endif %}">Rendered</a>
+      </div>
+      {% endif %}
+      {% if not is_binary %}
+      <span class="text-xs text-gray-500">{{ line_count }} line{{ line_count|pluralize }}</span>
+      {% endif %}
+    </div>
   </div>
   <div class="overflow-x-auto">
     {% if is_binary %}
     <p class="p-4 text-sm text-gray-500">{{ content }}</p>
+    {% elif view_mode == "rendered" and rendered_html %}
+    <div class="px-6 py-6">
+      <div class="prose prose-invert prose-gray max-w-none">
+        {{ rendered_html }}
+      </div>
+    </div>
     {% else %}
     <table class="code-table">
       <tbody>
