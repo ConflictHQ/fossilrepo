@@ -51,6 +51,57 @@ class FossilCLI:
             pass
         return ""
 
+    def blame(self, repo_path: Path, filename: str) -> list[dict]:
+        """Run fossil blame on a file. Returns [{user, uuid, line_num, text}].
+
+        Requires creating a temp checkout since blame needs an open checkout.
+        """
+        import tempfile
+
+        lines = []
+        tmpdir = tempfile.mkdtemp(prefix="fossilrepo-blame-")
+        try:
+            # Open a checkout in the temp dir
+            subprocess.run(
+                [self.binary, "open", str(repo_path), "--workdir", tmpdir],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=tmpdir,
+            )
+            # Run blame
+            result = subprocess.run(
+                [self.binary, "blame", filename],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=tmpdir,
+            )
+            if result.returncode == 0:
+                import re
+
+                for line in result.stdout.splitlines():
+                    # Format: "hash date user: code"
+                    m = re.match(r"([0-9a-f]+)\s+(\S+)\s+([^:]+):\s?(.*)", line)
+                    if m:
+                        lines.append(
+                            {
+                                "uuid": m.group(1),
+                                "date": m.group(2),
+                                "user": m.group(3).strip(),
+                                "text": m.group(4),
+                            }
+                        )
+            # Close checkout
+            subprocess.run([self.binary, "close", "--force"], capture_output=True, cwd=tmpdir, timeout=10)
+        except Exception:
+            pass
+        finally:
+            import shutil
+
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        return lines
+
     def wiki_commit(self, repo_path: Path, page_name: str, content: str, user: str = "") -> bool:
         """Create or update a wiki page. Pipes content to fossil wiki commit."""
         cmd = [self.binary, "wiki", "commit", page_name, "-R", str(repo_path)]

@@ -983,6 +983,38 @@ def code_raw(request, slug, filepath):
     return response
 
 
+# --- File Blame ---
+
+
+@login_required
+def code_blame(request, slug, filepath):
+    P.PROJECT_VIEW.check(request.user)
+    project, fossil_repo, reader = _get_repo_and_reader(slug)
+
+    from fossil.cli import FossilCLI
+
+    cli = FossilCLI()
+    blame_lines = []
+    if cli.is_available():
+        blame_lines = cli.blame(fossil_repo.full_path, filepath)
+
+    parts = filepath.split("/")
+    file_breadcrumbs = [{"name": p, "path": "/".join(parts[: i + 1])} for i, p in enumerate(parts)]
+
+    return render(
+        request,
+        "fossil/code_blame.html",
+        {
+            "project": project,
+            "filepath": filepath,
+            "file_breadcrumbs": file_breadcrumbs,
+            "blame_lines": blame_lines,
+            "line_count": len(blame_lines),
+            "active_tab": "code",
+        },
+    )
+
+
 # --- Repository Statistics ---
 
 

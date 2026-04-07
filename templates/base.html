@@ -113,6 +113,14 @@
       var token = document.querySelector('meta[name="csrf-token"]');
       if (token) { event.detail.headers['X-CSRFToken'] = token.content; }
     });
+    // Keyboard shortcut: / to open search
+    document.addEventListener('keydown', function(e) {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        document.querySelector('[x-ref="searchInput"]')?.closest('[x-data]')?.__x?.$data && (document.querySelector('[x-ref="searchInput"]').closest('[x-data]').__x.$data.open = true);
+        setTimeout(() => document.querySelector('[x-ref="searchInput"]')?.focus(), 100);
+      }
+    });
   </script>
 </head>
 <body class="h-full bg-gray-950 text-gray-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>

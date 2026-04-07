@@ -8,6 +8,21 @@
         </a>
       </div>
       <div class="flex items-center gap-3">
+        <!-- Quick search -->
+        <div x-data="{ open: false }" class="relative">
+          <button @click="open = !open; $nextTick(() => $refs.searchInput?.focus())" class="rounded-md p-2 text-gray-400 hover:text-white hover:bg-gray-800" title="Search (/)">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+          </button>
+          <div x-show="open" @click.outside="open = false" @keydown.escape.window="open = false" x-transition
+               class="absolute right-0 z-20 mt-2 w-80 rounded-lg bg-gray-800 shadow-lg ring-1 ring-gray-700 p-3">
+            <form method="get" action="{% if request.resolver_match.kwargs.slug %}/projects/{{ request.resolver_match.kwargs.slug }}/fossil/search/{% else %}/projects/fossil-scm/fossil/search/{% endif %}">
+              <input type="text" name="q" x-ref="searchInput" placeholder="Search checkins, tickets, wiki..."
+                     class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 text-sm px-3 py-2 focus:border-brand focus:ring-brand">
+            </form>
+          </div>
+        </div>
         <!-- Theme toggle -->
         <button x-data="{ dark: document.documentElement.classList.contains('dark') }"
                 @click="dark = !dark; document.documentElement.classList.toggle('dark'); localStorage.setItem('theme', dark ? 'dark' : 'light')"
