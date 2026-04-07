@@ -95,4 +95,8 @@ urlpatterns = [
     # Artifact Shunning
     path("admin/shun/", views.shun_list_view, name="shun_list"),
     path("admin/shun/add/", views.shun_artifact, name="shun_artifact"),
+    # SQLite Explorer
+    path("explorer/", views.repo_explorer, name="explorer"),
+    path("explorer/table/<str:table_name>/", views.repo_explorer_table, name="explorer_table"),
+    path("explorer/query/", views.repo_explorer_query, name="explorer_query"),
 ]

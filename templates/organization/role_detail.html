@@ -12,9 +12,19 @@
       <h1 class="text-2xl font-bold text-gray-100">{{ role.name }}</h1>
       <p class="mt-1 text-sm text-gray-400">{{ role.description|default:"No description." }}</p>
     </div>
-    <div class="mt-4 flex items-center gap-2 sm:mt-0">
+    <div class="mt-4 flex items-center gap-3 sm:mt-0">
       {% if role.is_default %}
       <span class="inline-flex rounded-full bg-blue-900/50 px-2 text-xs font-semibold leading-5 text-blue-300">Default Role</span>
+      {% endif %}
+      {% if perms.organization.change_organization or user.is_superuser %}
+      <a href="{% url 'organization:role_edit' slug=role.slug %}"
+         class="rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Edit
+      </a>
+      <a href="{% url 'organization:role_delete' slug=role.slug %}"
+         class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">
+        Delete
+      </a>
       {% endif %}
     </div>
   </div>

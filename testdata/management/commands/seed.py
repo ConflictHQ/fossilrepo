@@ -3,7 +3,7 @@ import logging
 from django.contrib.auth.models import Group, Permission, User
 from django.core.management.base import BaseCommand
 
-from organization.models import Organization, OrganizationMember, Team
+from organization.models import Organization, OrganizationMember, OrgRole, Team
 from pages.models import Page
 from projects.models import Project, ProjectTeam
 
@@ -128,5 +128,51 @@ class Command(BaseCommand):
                 name=pdata["name"],
                 defaults={**pdata, "organization": org, "created_by": admin_user},
             )
+
+        # --- Seed sample users per role ---
+        roles = OrgRole.objects.all()
+        if not roles.exists():
+            from django.core.management import call_command
+
+            call_command("seed_roles")
+            roles = OrgRole.objects.all()
+
+        role_users = {
+            "admin": {"email": "admin-role@fossilrepo.local", "first_name": "Admin", "last_name": "User"},
+            "manager": {"email": "manager@fossilrepo.local", "first_name": "Manager", "last_name": "User"},
+            "developer": {"email": "developer@fossilrepo.local", "first_name": "Dev", "last_name": "User"},
+            "viewer": {"email": "viewer-role@fossilrepo.local", "first_name": "Viewer", "last_name": "RoleUser"},
+        }
+
+        for role in roles:
+            slug = role.slug
+            if slug not in role_users:
+                continue
+            info = role_users[slug]
+            username = f"role-{slug}"
+            user, created = User.objects.get_or_create(
+                username=username,
+                defaults={
+                    "email": info["email"],
+                    "first_name": info["first_name"],
+                    "last_name": info["last_name"],
+                    "is_active": True,
+                },
+            )
+            if created:
+                user.set_password(username)
+                user.save()
+
+            membership, _ = OrganizationMember.objects.get_or_create(
+                member=user,
+                organization=org,
+                defaults={"created_by": admin_user},
+            )
+            if membership.role != role:
+                membership.role = role
+                membership.save()
+                role.apply_to_user(user)
+
+            self.stdout.write(f"  User: {username} / {username} (role: {role.name})")
 
         self.stdout.write(self.style.SUCCESS("Seed complete."))

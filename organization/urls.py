@@ -18,8 +18,11 @@ urlpatterns = [
     path("members/<str:username>/remove/", views.member_remove, name="member_remove"),
     # Roles
     path("roles/", views.role_list, name="role_list"),
+    path("roles/create/", views.role_create, name="role_create"),
     path("roles/initialize/", views.role_initialize, name="role_initialize"),
     path("roles/<slug:slug>/", views.role_detail, name="role_detail"),
+    path("roles/<slug:slug>/edit/", views.role_edit, name="role_edit"),
+    path("roles/<slug:slug>/delete/", views.role_delete, name="role_delete"),
     # Audit log
     path("audit/", views.audit_log, name="audit_log"),
     # Teams
