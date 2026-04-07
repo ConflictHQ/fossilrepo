@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Notification Preferences — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-6">Notification Preferences</h1>
+
+<form method="post" class="space-y-6">
+  {% csrf_token %}
+
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-6">
+    <h2 class="text-lg font-semibold text-gray-200 mb-4">Delivery Mode</h2>
+    <p class="text-sm text-gray-400 mb-4">Choose how you receive notifications.</p>
+    <div class="space-y-3">
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="radio" name="delivery_mode" value="immediate"
+               {% if prefs.delivery_mode == "immediate" %}checked{% endif %}
+               class="mt-1 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Immediate (per event)</span>
+          <p class="text-xs text-gray-500">Get an email for each event as it happens.</p>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="radio" name="delivery_mode" value="daily"
+               {% if prefs.delivery_mode == "daily" %}checked{% endif %}
+               class="mt-1 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Daily Digest</span>
+          <p class="text-xs text-gray-500">Receive a single daily summary of all notifications.</p>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="radio" name="delivery_mode" value="weekly"
+               {% if prefs.delivery_mode == "weekly" %}checked{% endif %}
+               class="mt-1 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Weekly Digest</span>
+          <p class="text-xs text-gray-500">Receive a weekly summary of all notifications.</p>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="radio" name="delivery_mode" value="off"
+               {% if prefs.delivery_mode == "off" %}checked{% endif %}
+               class="mt-1 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Off</span>
+          <p class="text-xs text-gray-500">Do not send any email notifications.</p>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-6">
+    <h2 class="text-lg font-semibold text-gray-200 mb-4">Event Types</h2>
+    <p class="text-sm text-gray-400 mb-4">Choose which types of events you want to be notified about.</p>
+    <div class="space-y-3">
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" name="notify_checkins"
+               {% if prefs.notify_checkins %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Checkins</span>
+          <span class="text-xs text-gray-500 ml-2">New commits and code changes</span>
+        </div>
+      </label>
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" name="notify_tickets"
+               {% if prefs.notify_tickets %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Tickets</span>
+          <span class="text-xs text-gray-500 ml-2">New and updated tickets</span>
+        </div>
+      </label>
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" name="notify_wiki"
+               {% if prefs.notify_wiki %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Wiki</span>
+          <span class="text-xs text-gray-500 ml-2">Wiki page changes</span>
+        </div>
+      </label>
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" name="notify_releases"
+               {% if prefs.notify_releases %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Releases</span>
+          <span class="text-xs text-gray-500 ml-2">New releases and tags</span>
+        </div>
+      </label>
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" name="notify_forum"
+               {% if prefs.notify_forum %}checked{% endif %}
+               class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+        <div>
+          <span class="text-sm font-medium text-gray-200">Forum</span>
+          <span class="text-xs text-gray-500 ml-2">Forum posts and replies</span>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <div>
+    <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover">
+      Save Preferences
+    </button>
+  </div>
+</form>
+{% endblock %}

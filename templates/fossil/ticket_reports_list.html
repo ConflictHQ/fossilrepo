@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Ticket Reports — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="flex items-center justify-between mb-6">
+  <h2 class="text-lg font-semibold text-gray-200">Ticket Reports</h2>
+  {% if can_admin %}
+  <a href="{% url 'fossil:ticket_report_create' slug=project.slug %}"
+     class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+    Create Report
+  </a>
+  {% endif %}
+</div>
+
+{% if reports %}
+<div class="space-y-3">
+  {% for report in reports %}
+  <div class="rounded-lg bg-gray-800 border border-gray-700">
+    <div class="px-5 py-4">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-3 mb-1">
+            <a href="{% url 'fossil:ticket_report_run' slug=project.slug pk=report.pk %}"
+               class="text-sm font-medium text-brand-light hover:text-brand">{{ report.title }}</a>
+            {% if not report.is_public %}
+            <span class="inline-flex rounded-full bg-gray-700 px-2 py-0.5 text-xs font-semibold text-gray-400">Private</span>
+            {% endif %}
+          </div>
+          {% if report.description %}
+          <p class="text-xs text-gray-500 mt-1">{{ report.description }}</p>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <a href="{% url 'fossil:ticket_report_run' slug=project.slug pk=report.pk %}"
+             class="text-xs text-gray-400 hover:text-brand-light">Run</a>
+          {% if can_admin %}
+          <a href="{% url 'fossil:ticket_report_edit' slug=project.slug pk=report.pk %}"
+             class="text-xs text-gray-400 hover:text-brand-light">Edit</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-8 text-center">
+  <p class="text-sm text-gray-500">No ticket reports defined.</p>
+  <p class="text-xs text-gray-600 mt-1">Reports let you run custom SQL queries against the Fossil ticket database.</p>
+  {% if can_admin %}
+  <a href="{% url 'fossil:ticket_report_create' slug=project.slug %}"
+     class="mt-3 inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+    Create the first report
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

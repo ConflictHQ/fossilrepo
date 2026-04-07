@@ -68,6 +68,44 @@
       </select>
     </div>
 
+    {% if custom_fields %}
+    <div class="border-t border-gray-700 pt-4 mt-4">
+      <h3 class="text-sm font-semibold text-gray-300 mb-3">Custom Fields</h3>
+      <div class="grid grid-cols-2 gap-4">
+        {% for cf in custom_fields %}
+        <div{% if cf.field_type == "textarea" %} class="col-span-2"{% endif %}>
+          <label class="block text-sm font-medium text-gray-300 mb-1">
+            {{ cf.label }}
+            {% if cf.is_required %}<span class="text-red-400">*</span>{% endif %}
+          </label>
+          {% if cf.field_type == "text" or cf.field_type == "url" or cf.field_type == "date" %}
+          <input type="{% if cf.field_type == "url" %}url{% elif cf.field_type == "date" %}date{% else %}text{% endif %}"
+                 name="custom_{{ cf.name }}" {% if cf.is_required %}required{% endif %}
+                 class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+          {% elif cf.field_type == "textarea" %}
+          <textarea name="custom_{{ cf.name }}" rows="3" {% if cf.is_required %}required{% endif %}
+                    class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"></textarea>
+          {% elif cf.field_type == "select" %}
+          <select name="custom_{{ cf.name }}" {% if cf.is_required %}required{% endif %}
+                  class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+            <option value="">--</option>
+            {% for choice in cf.choices_list %}
+            <option value="{{ choice }}">{{ choice }}</option>
+            {% endfor %}
+          </select>
+          {% elif cf.field_type == "checkbox" %}
+          <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer mt-1">
+            <input type="checkbox" name="custom_{{ cf.name }}"
+                   class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+            {{ cf.label }}
+          </label>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="flex justify-end gap-3 pt-2">
       <a href="{% url 'fossil:ticket_detail' slug=project.slug ticket_uuid=ticket.uuid %}"
          class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">

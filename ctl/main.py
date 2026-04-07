@@ -299,3 +299,108 @@ def backup_restore(path: str) -> None:
     """Restore from a backup."""
     console.print(f"[bold]Restoring from:[/bold] {path}")
     raise NotImplementedError("Restore not yet implemented")
+
+
+# ---------------------------------------------------------------------------
+# Bundle commands
+# ---------------------------------------------------------------------------
+
+
+@cli.group()
+def bundle() -> None:
+    """Export and import Fossil repository bundles."""
+
+
+@bundle.command(name="export")
+@click.argument("project_slug")
+@click.argument("output_path")
+def bundle_export(project_slug: str, output_path: str) -> None:
+    """Export a Fossil repo as a bundle file."""
+    import django
+
+    django.setup()
+
+    from fossil.cli import FossilCLI
+    from fossil.models import FossilRepository
+
+    repo = FossilRepository.objects.filter(project__slug=project_slug, deleted_at__isnull=True).first()
+    if not repo:
+        console.print(f"[red]No repository found for project: {project_slug}[/red]")
+        return
+
+    if not repo.exists_on_disk:
+        console.print(f"[red]Repository file not found on disk: {repo.full_path}[/red]")
+        return
+
+    fossil_cli = FossilCLI()
+    if not fossil_cli.is_available():
+        console.print("[red]Fossil binary not found.[/red]")
+        return
+
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    console.print(f"[bold]Exporting bundle:[/bold] {repo.filename} -> {output}")
+    try:
+        result = subprocess.run(
+            [fossil_cli.binary, "bundle", "export", str(output), "-R", str(repo.full_path)],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=fossil_cli._env,
+        )
+        if result.returncode == 0:
+            size_kb = output.stat().st_size / 1024
+            console.print(f"  [green]Success[/green] — {size_kb:.0f} KB written to {output}")
+        else:
+            console.print(f"  [red]Failed[/red] — {result.stderr.strip() or result.stdout.strip()}")
+    except subprocess.TimeoutExpired:
+        console.print("[red]Export timed out after 5 minutes.[/red]")
+
+
+@bundle.command(name="import")
+@click.argument("project_slug")
+@click.argument("input_path")
+def bundle_import(project_slug: str, input_path: str) -> None:
+    """Import a Fossil bundle into an existing repo."""
+    import django
+
+    django.setup()
+
+    from fossil.cli import FossilCLI
+    from fossil.models import FossilRepository
+
+    repo = FossilRepository.objects.filter(project__slug=project_slug, deleted_at__isnull=True).first()
+    if not repo:
+        console.print(f"[red]No repository found for project: {project_slug}[/red]")
+        return
+
+    if not repo.exists_on_disk:
+        console.print(f"[red]Repository file not found on disk: {repo.full_path}[/red]")
+        return
+
+    input_file = Path(input_path)
+    if not input_file.exists():
+        console.print(f"[red]Bundle file not found: {input_file}[/red]")
+        return
+
+    fossil_cli = FossilCLI()
+    if not fossil_cli.is_available():
+        console.print("[red]Fossil binary not found.[/red]")
+        return
+
+    console.print(f"[bold]Importing bundle:[/bold] {input_file} -> {repo.filename}")
+    try:
+        result = subprocess.run(
+            [fossil_cli.binary, "bundle", "import", str(input_file), "-R", str(repo.full_path)],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            env=fossil_cli._env,
+        )
+        if result.returncode == 0:
+            console.print(f"  [green]Success[/green] — {result.stdout.strip()}")
+        else:
+            console.print(f"  [red]Failed[/red] — {result.stderr.strip() or result.stdout.strip()}")
+    except subprocess.TimeoutExpired:
+        console.print("[red]Import timed out after 5 minutes.[/red]")

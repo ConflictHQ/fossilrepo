@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ form_title }} — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="mb-4">
+  <a href="{% url 'fossil:ticket_fields' slug=project.slug %}" class="text-sm text-brand-light hover:text-brand">&larr; Back to Custom Fields</a>
+</div>
+
+<div class="mx-auto max-w-2xl">
+  <h2 class="text-xl font-bold text-gray-100 mb-4">{{ form_title }}</h2>
+
+  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Field Name <span class="text-red-400">*</span></label>
+        <input type="text" name="name" required placeholder="e.g. component"
+               value="{% if field_def %}{{ field_def.name }}{% endif %}"
+               pattern="[a-zA-Z_][a-zA-Z0-9_]*"
+               title="Letters, numbers, and underscores only. Must start with a letter or underscore."
+               class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono">
+        <p class="mt-1 text-xs text-gray-500">Internal name used in the Fossil ticket table. Alphanumeric and underscores only.</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Display Label <span class="text-red-400">*</span></label>
+        <input type="text" name="label" required placeholder="e.g. Component"
+               value="{% if field_def %}{{ field_def.label }}{% endif %}"
+               class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Field Type</label>
+        <select name="field_type" id="field-type-select"
+                class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+          {% for value, label in field_type_choices %}
+          <option value="{{ value }}" {% if field_def and field_def.field_type == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Sort Order</label>
+        <input type="number" name="sort_order" value="{% if field_def %}{{ field_def.sort_order }}{% else %}0{% endif %}"
+               class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+        <p class="mt-1 text-xs text-gray-500">Lower numbers appear first.</p>
+      </div>
+    </div>
+
+    <div x-data="{ showChoices: '{% if field_def %}{{ field_def.field_type }}{% else %}text{% endif %}' === 'select' }">
+      <div x-show="showChoices" x-transition>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Choices</label>
+        <textarea name="choices" rows="5" placeholder="One option per line"
+                  class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono">{% if field_def %}{{ field_def.choices }}{% endif %}</textarea>
+        <p class="mt-1 text-xs text-gray-500">One option per line. Only used for Select fields.</p>
+      </div>
+      <script>
+        document.getElementById('field-type-select').addEventListener('change', function() {
+          const comp = document.querySelector('[x-data]').__x.$data;
+          comp.showChoices = this.value === 'select';
+        });
+      </script>
+    </div>
+
+    <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+      <input type="checkbox" name="is_required"
+             {% if field_def and field_def.is_required %}checked{% endif %}
+             class="rounded border-gray-600 bg-gray-900 text-brand focus:ring-brand">
+      Required field
+    </label>
+
+    <div class="flex justify-end gap-3 pt-2">
+      <a href="{% url 'fossil:ticket_fields' slug=project.slug %}"
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+        Cancel
+      </a>
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+        {{ submit_label }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

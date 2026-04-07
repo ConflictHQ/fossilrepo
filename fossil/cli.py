@@ -386,3 +386,20 @@ class FossilCLI:
                 break
 
         return body, response_content_type
+
+    def shun(self, repo_path: Path, artifact_uuid: str, reason: str = "") -> dict:
+        """Shun (permanently remove) an artifact from the repo.
+
+        This is IRREVERSIBLE. The artifact is permanently expunged from the repository.
+        """
+        cmd = [self.binary, "shun", artifact_uuid, "-R", str(repo_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=self._env)
+        return {"success": result.returncode == 0, "message": (result.stdout + result.stderr).strip()}
+
+    def shun_list(self, repo_path: Path) -> list[str]:
+        """List currently shunned artifact UUIDs."""
+        cmd = [self.binary, "shun", "--list", "-R", str(repo_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=self._env)
+        if result.returncode == 0:
+            return [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
+        return []

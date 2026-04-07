@@ -60,6 +60,32 @@ class Notification(models.Model):
         return f"{self.title} → {self.user.username}"
 
 
+class NotificationPreference(models.Model):
+    """Per-user notification delivery preferences."""
+
+    class DeliveryMode(models.TextChoices):
+        IMMEDIATE = "immediate", "Immediate (per event)"
+        DAILY = "daily", "Daily Digest"
+        WEEKLY = "weekly", "Weekly Digest"
+        OFF = "off", "Off"
+
+    user = models.OneToOneField("auth.User", on_delete=models.CASCADE, related_name="notification_prefs")
+    delivery_mode = models.CharField(max_length=20, choices=DeliveryMode.choices, default=DeliveryMode.IMMEDIATE)
+
+    # Event type toggles
+    notify_checkins = models.BooleanField(default=True)
+    notify_tickets = models.BooleanField(default=True)
+    notify_wiki = models.BooleanField(default=True)
+    notify_releases = models.BooleanField(default=True)
+    notify_forum = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Notification Preference"
+
+    def __str__(self):
+        return f"{self.user.username}: {self.delivery_mode}"
+
+
 def notify_project_event(project, event_type: str, title: str, body: str = "", url: str = "", exclude_user=None):
     """Create notifications for all watchers of a project.
 

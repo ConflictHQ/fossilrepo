@@ -1235,6 +1235,10 @@ def wiki_edit(request, slug, page_name):
 def ticket_create(request, slug):
     project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
 
+    from fossil.ticket_fields import TicketFieldDefinition
+
+    custom_fields = TicketFieldDefinition.objects.filter(repository=fossil_repo)
+
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
         body = request.POST.get("body", "")
@@ -1247,6 +1251,14 @@ def ticket_create(request, slug):
             fields = {"title": title, "type": ticket_type, "comment": body, "status": "Open"}
             if severity:
                 fields["severity"] = severity
+            # Collect custom field values
+            for cf in custom_fields:
+                if cf.field_type == "checkbox":
+                    val = "1" if request.POST.get(f"custom_{cf.name}") == "on" else "0"
+                else:
+                    val = request.POST.get(f"custom_{cf.name}", "").strip()
+                if val:
+                    fields[cf.name] = val
             success = cli.ticket_add(fossil_repo.full_path, fields)
             if success:
                 from django.contrib import messages
@@ -1256,12 +1268,20 @@ def ticket_create(request, slug):
 
                 return redirect("fossil:tickets", slug=slug)
 
-    return render(request, "fossil/ticket_form.html", {"project": project, "active_tab": "tickets", "title": "New Ticket"})
+    return render(
+        request,
+        "fossil/ticket_form.html",
+        {"project": project, "active_tab": "tickets", "title": "New Ticket", "custom_fields": custom_fields},
+    )
 
 
 @login_required
 def ticket_edit(request, slug, ticket_uuid):
     project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
+
+    from fossil.ticket_fields import TicketFieldDefinition
+
+    custom_fields = TicketFieldDefinition.objects.filter(repository=fossil_repo)
 
     with reader:
         ticket = reader.get_ticket_detail(ticket_uuid)
@@ -1277,6 +1297,14 @@ def ticket_edit(request, slug, ticket_uuid):
             val = request.POST.get(field, "").strip()
             if val:
                 fields[field] = val
+        # Collect custom field values
+        for cf in custom_fields:
+            if cf.field_type == "checkbox":
+                val = "1" if request.POST.get(f"custom_{cf.name}") == "on" else "0"
+            else:
+                val = request.POST.get(f"custom_{cf.name}", "").strip()
+            if val:
+                fields[cf.name] = val
         if fields:
             success = cli.ticket_change(fossil_repo.full_path, ticket.uuid, fields)
             if success:
@@ -1290,7 +1318,7 @@ def ticket_edit(request, slug, ticket_uuid):
     return render(
         request,
         "fossil/ticket_edit.html",
-        {"project": project, "ticket": ticket, "active_tab": "tickets"},
+        {"project": project, "ticket": ticket, "custom_fields": custom_fields, "active_tab": "tickets"},
     )
 
 
@@ -3320,3 +3348,404 @@ def branch_protection_delete(request, slug, pk):
         return redirect("fossil:branch_protections", slug=slug)
 
     return redirect("fossil:branch_protections", slug=slug)
+
+
+# ---------------------------------------------------------------------------
+# Custom Ticket Fields
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def ticket_fields_list(request, slug):
+    """List custom ticket field definitions for a project. Admin only."""
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.ticket_fields import TicketFieldDefinition
+
+    fields = TicketFieldDefinition.objects.filter(repository=fossil_repo)
+
+    return render(
+        request,
+        "fossil/ticket_fields_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "fields": fields,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def ticket_fields_create(request, slug):
+    """Create a new custom ticket field."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.ticket_fields import TicketFieldDefinition
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        label = request.POST.get("label", "").strip()
+        field_type = request.POST.get("field_type", "text")
+        choices_text = request.POST.get("choices", "").strip()
+        is_required = request.POST.get("is_required") == "on"
+        sort_order = int(request.POST.get("sort_order", "0") or "0")
+
+        if name and label:
+            if TicketFieldDefinition.objects.filter(repository=fossil_repo, name=name).exists():
+                messages.error(request, f'A field named "{name}" already exists.')
+            else:
+                TicketFieldDefinition.objects.create(
+                    repository=fossil_repo,
+                    name=name,
+                    label=label,
+                    field_type=field_type,
+                    choices=choices_text,
+                    is_required=is_required,
+                    sort_order=sort_order,
+                    created_by=request.user,
+                )
+                messages.success(request, f'Custom field "{label}" created.')
+                return redirect("fossil:ticket_fields", slug=slug)
+
+    return render(
+        request,
+        "fossil/ticket_fields_form.html",
+        {
+            "project": project,
+            "form_title": "Add Custom Ticket Field",
+            "submit_label": "Create Field",
+            "field_type_choices": TicketFieldDefinition.FieldType.choices,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def ticket_fields_edit(request, slug, pk):
+    """Edit an existing custom ticket field."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.ticket_fields import TicketFieldDefinition
+
+    field_def = get_object_or_404(TicketFieldDefinition, pk=pk, repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        label = request.POST.get("label", "").strip()
+        field_type = request.POST.get("field_type", "text")
+        choices_text = request.POST.get("choices", "").strip()
+        is_required = request.POST.get("is_required") == "on"
+        sort_order = int(request.POST.get("sort_order", "0") or "0")
+
+        if name and label:
+            dupe = TicketFieldDefinition.objects.filter(repository=fossil_repo, name=name).exclude(pk=field_def.pk).exists()
+            if dupe:
+                messages.error(request, f'A field named "{name}" already exists.')
+            else:
+                field_def.name = name
+                field_def.label = label
+                field_def.field_type = field_type
+                field_def.choices = choices_text
+                field_def.is_required = is_required
+                field_def.sort_order = sort_order
+                field_def.updated_by = request.user
+                field_def.save()
+                messages.success(request, f'Custom field "{label}" updated.')
+                return redirect("fossil:ticket_fields", slug=slug)
+
+    return render(
+        request,
+        "fossil/ticket_fields_form.html",
+        {
+            "project": project,
+            "field_def": field_def,
+            "form_title": f"Edit Field: {field_def.label}",
+            "submit_label": "Save Changes",
+            "field_type_choices": TicketFieldDefinition.FieldType.choices,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def ticket_fields_delete(request, slug, pk):
+    """Soft-delete a custom ticket field."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.ticket_fields import TicketFieldDefinition
+
+    field_def = get_object_or_404(TicketFieldDefinition, pk=pk, repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        field_def.soft_delete(user=request.user)
+        messages.success(request, f'Custom field "{field_def.label}" deleted.')
+        return redirect("fossil:ticket_fields", slug=slug)
+
+    return redirect("fossil:ticket_fields", slug=slug)
+
+
+# ---------------------------------------------------------------------------
+# Custom Ticket Reports
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def ticket_reports_list(request, slug):
+    """List available ticket reports for a project."""
+    from projects.access import can_admin_project
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "read")
+
+    from fossil.ticket_reports import TicketReport
+
+    reports = TicketReport.objects.filter(repository=fossil_repo)
+    if not can_admin_project(request.user, project):
+        reports = reports.filter(is_public=True)
+
+    return render(
+        request,
+        "fossil/ticket_reports_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "reports": reports,
+            "can_admin": can_admin_project(request.user, project),
+            "active_tab": "tickets",
+        },
+    )
+
+
+@login_required
+def ticket_report_create(request, slug):
+    """Create a new ticket report. Admin only."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.ticket_reports import TicketReport
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        sql_query = request.POST.get("sql_query", "").strip()
+        is_public = request.POST.get("is_public") == "on"
+
+        if title and sql_query:
+            error = TicketReport.validate_sql(sql_query)
+            if error:
+                messages.error(request, f"Invalid SQL: {error}")
+            else:
+                TicketReport.objects.create(
+                    repository=fossil_repo,
+                    title=title,
+                    description=description,
+                    sql_query=sql_query,
+                    is_public=is_public,
+                    created_by=request.user,
+                )
+                messages.success(request, f'Report "{title}" created.')
+                return redirect("fossil:ticket_reports", slug=slug)
+
+    return render(
+        request,
+        "fossil/ticket_report_form.html",
+        {
+            "project": project,
+            "form_title": "Create Ticket Report",
+            "submit_label": "Create Report",
+            "active_tab": "tickets",
+        },
+    )
+
+
+@login_required
+def ticket_report_edit(request, slug, pk):
+    """Edit an existing ticket report. Admin only."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    from fossil.ticket_reports import TicketReport
+
+    report = get_object_or_404(TicketReport, pk=pk, repository=fossil_repo, deleted_at__isnull=True)
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        sql_query = request.POST.get("sql_query", "").strip()
+        is_public = request.POST.get("is_public") == "on"
+
+        if title and sql_query:
+            error = TicketReport.validate_sql(sql_query)
+            if error:
+                messages.error(request, f"Invalid SQL: {error}")
+            else:
+                report.title = title
+                report.description = description
+                report.sql_query = sql_query
+                report.is_public = is_public
+                report.updated_by = request.user
+                report.save()
+                messages.success(request, f'Report "{title}" updated.')
+                return redirect("fossil:ticket_reports", slug=slug)
+
+    return render(
+        request,
+        "fossil/ticket_report_form.html",
+        {
+            "project": project,
+            "report": report,
+            "form_title": f"Edit Report: {report.title}",
+            "submit_label": "Save Changes",
+            "active_tab": "tickets",
+        },
+    )
+
+
+@login_required
+def ticket_report_run(request, slug, pk):
+    """Execute a ticket report and display results."""
+    import sqlite3
+
+    from projects.access import can_admin_project
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "read")
+
+    from fossil.ticket_reports import TicketReport
+
+    report = get_object_or_404(TicketReport, pk=pk, repository=fossil_repo, deleted_at__isnull=True)
+
+    # Non-public reports require admin access
+    if not report.is_public and not can_admin_project(request.user, project):
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied("This report is not public.")
+
+    # Re-validate the SQL at execution time (defense in depth)
+    error = TicketReport.validate_sql(report.sql_query)
+    columns = []
+    rows = []
+
+    if error:
+        pass  # error is shown in template
+    else:
+        # Replace placeholders with request params
+        sql = report.sql_query
+        status_param = request.GET.get("status", "")
+        type_param = request.GET.get("type", "")
+        sql = sql.replace("{status}", status_param)
+        sql = sql.replace("{type}", type_param)
+
+        # Execute against the Fossil SQLite file in read-only mode
+        repo_path = fossil_repo.full_path
+        uri = f"file:{repo_path}?mode=ro"
+        try:
+            conn = sqlite3.connect(uri, uri=True)
+            try:
+                cursor = conn.execute(sql)
+                columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                rows = [list(row) for row in cursor.fetchall()[:1000]]
+            except sqlite3.OperationalError as e:
+                error = f"SQL error: {e}"
+            finally:
+                conn.close()
+        except sqlite3.Error as e:
+            error = f"Database error: {e}"
+
+    return render(
+        request,
+        "fossil/ticket_report_results.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "report": report,
+            "columns": columns,
+            "rows": rows,
+            "error": error,
+            "active_tab": "tickets",
+        },
+    )
+
+
+# --- Artifact Shunning ---
+
+
+@login_required
+def shun_list_view(request, slug):
+    """List shunned artifacts and provide form to shun new ones. Admin only."""
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    shunned = []
+    if fossil_repo.exists_on_disk:
+        from fossil.cli import FossilCLI
+
+        cli = FossilCLI()
+        if cli.is_available():
+            shunned = cli.shun_list(fossil_repo.full_path)
+
+    return render(
+        request,
+        "fossil/shun_list.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "shunned": shunned,
+            "active_tab": "settings",
+        },
+    )
+
+
+@login_required
+def shun_artifact(request, slug):
+    """Shun (permanently remove) an artifact. POST only. Admin only."""
+    from django.contrib import messages
+
+    project, fossil_repo = _get_project_and_repo(slug, request, "admin")
+
+    if request.method != "POST":
+        return redirect("fossil:shun_list", slug=slug)
+
+    artifact_uuid = request.POST.get("artifact_uuid", "").strip()
+    confirmation = request.POST.get("confirmation", "").strip()
+    reason = request.POST.get("reason", "").strip()
+
+    if not artifact_uuid:
+        messages.error(request, "Artifact UUID is required.")
+        return redirect("fossil:shun_list", slug=slug)
+
+    # Validate UUID format: should be hex characters, 4-64 chars (Fossil uses SHA1/SHA3 hashes)
+    if not re.match(r"^[0-9a-fA-F]{4,64}$", artifact_uuid):
+        messages.error(request, "Invalid artifact UUID format. Must be a hex hash (4-64 characters).")
+        return redirect("fossil:shun_list", slug=slug)
+
+    # Require the user to type the first 8 chars of the UUID to confirm
+    expected_confirmation = artifact_uuid[:8].lower()
+    if confirmation.lower() != expected_confirmation:
+        messages.error(request, f'Confirmation failed. You must type "{expected_confirmation}" to confirm shunning.')
+        return redirect("fossil:shun_list", slug=slug)
+
+    if not fossil_repo.exists_on_disk:
+        messages.error(request, "Repository file not found on disk.")
+        return redirect("fossil:shun_list", slug=slug)
+
+    from fossil.cli import FossilCLI
+
+    cli = FossilCLI()
+    if not cli.is_available():
+        messages.error(request, "Fossil binary is not available.")
+        return redirect("fossil:shun_list", slug=slug)
+
+    result = cli.shun(fossil_repo.full_path, artifact_uuid, reason=reason)
+    if result["success"]:
+        messages.success(request, f"Artifact {artifact_uuid[:12]}... has been permanently shunned.")
+    else:
+        messages.error(request, f"Failed to shun artifact: {result['message']}")
+
+    return redirect("fossil:shun_list", slug=slug)

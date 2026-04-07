@@ -198,6 +198,48 @@ def run_git_sync(mirror_id: int | None = None):
             log.save()
 
 
+@shared_task(name="fossil.send_digest")
+def send_digest(mode="daily"):
+    """Send digest emails to users who prefer batch delivery.
+
+    Collects unread notifications for users with the given delivery mode
+    and sends a single summary email. Marks those notifications as read
+    after sending.
+    """
+    from django.conf import settings
+    from django.core.mail import send_mail
+
+    from fossil.notifications import Notification, NotificationPreference
+
+    prefs = NotificationPreference.objects.filter(delivery_mode=mode).select_related("user")
+    for pref in prefs:
+        unread = Notification.objects.filter(user=pref.user, read=False)
+        if not unread.exists():
+            continue
+
+        count = unread.count()
+        lines = [f"You have {count} new notification{'s' if count != 1 else ''}:\n"]
+        for notif in unread[:50]:
+            lines.append(f"- [{notif.event_type}] {notif.project.name}: {notif.title}")
+
+        if count > 50:
+            lines.append(f"\n... and {count - 50} more.")
+
+        try:
+            send_mail(
+                subject=f"Fossilrepo {mode.title()} Digest - {count} update{'s' if count != 1 else ''}",
+                message="\n".join(lines),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[pref.user.email],
+                fail_silently=True,
+            )
+        except Exception:
+            logger.exception("Failed to send %s digest to %s", mode, pref.user.email)
+            continue
+
+        unread.update(read=True)
+
+
 @shared_task(name="fossil.dispatch_webhook", bind=True, max_retries=3)
 def dispatch_webhook(self, webhook_id, event_type, payload):
     """Deliver a webhook with retry and logging."""
