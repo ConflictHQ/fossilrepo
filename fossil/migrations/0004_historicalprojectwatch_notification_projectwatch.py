@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("fossil", "0003_gitmirror_historicalgitmirror_historicalsshkey_and_more"),
         ("projects", "0001_initial"),
@@ -20,9 +19,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigIntegerField(
-                        auto_created=True, blank=True, db_index=True, verbose_name="ID"
-                    ),
+                    models.BigIntegerField(auto_created=True, blank=True, db_index=True, verbose_name="ID"),
                 ),
                 ("version", models.PositiveIntegerField(default=1, editable=False)),
                 ("created_at", models.DateTimeField(blank=True, editable=False)),
