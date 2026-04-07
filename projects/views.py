@@ -73,6 +73,13 @@ def project_detail(request, slug):
 
     import json
 
+    # Check if user is watching this project
+    is_watching = False
+    if request.user.is_authenticated:
+        from fossil.notifications import ProjectWatch
+
+        is_watching = ProjectWatch.objects.filter(user=request.user, project=project, deleted_at__isnull=True).exists()
+
     return render(
         request,
         "projects/project_detail.html",
@@ -83,6 +90,7 @@ def project_detail(request, slug):
             "recent_commits": recent_commits,
             "commit_activity_json": json.dumps([c["count"] for c in commit_activity]),
             "top_contributors": top_contributors,
+            "is_watching": is_watching,
         },
     )
 

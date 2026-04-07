@@ -199,6 +199,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "fossil.check_upstream",
         "schedule": 900.0,  # every 15 minutes
     },
+    "fossil-dispatch-notifications": {
+        "task": "fossil.dispatch_notifications",
+        "schedule": 300.0,  # every 5 minutes
+    },
 }
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
