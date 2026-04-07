@@ -806,6 +806,9 @@ def wiki_page(request, slug, page_name):
     if not page:
         raise Http404(f"Wiki page not found: {page_name}")
 
+    # Sort: Home first, then alphabetical
+    all_pages = sorted(all_pages, key=lambda p: ("" if p.name == "Home" else "~" + p.name.lower()))
+
     content_html = mark_safe(sanitize_html(_render_fossil_content(page.content, project_slug=slug)))
 
     return render(
