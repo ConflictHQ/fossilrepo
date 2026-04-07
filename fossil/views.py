@@ -962,30 +962,54 @@ def user_activity(request, slug, username):
 
 @login_required
 def sync_pull(request, slug):
-    """Pull updates from upstream remote."""
+    """Sync configuration and pull from upstream remote."""
     P.PROJECT_CHANGE.check(request.user)
     project, fossil_repo, reader = _get_repo_and_reader(slug)
 
+    from fossil.cli import FossilCLI
+
+    cli = FossilCLI()
     result = None
-    if request.method == "POST":
-        from fossil.cli import FossilCLI
+    action = request.POST.get("action", "") if request.method == "POST" else ""
 
-        cli = FossilCLI()
+    # Auto-detect remote from .fossil file if not saved yet
+    detected_remote = ""
+    if not fossil_repo.remote_url and cli.is_available():
+        detected_remote = cli.get_remote_url(fossil_repo.full_path)
+
+    if action == "configure":
+        # Save remote URL configuration
+        url = request.POST.get("remote_url", "").strip()
+        if url:
+            fossil_repo.remote_url = url
+            fossil_repo.save(update_fields=["remote_url", "updated_at", "version"])
+            from django.contrib import messages
+
+            messages.success(request, f"Sync configured: {url}")
+            from django.shortcuts import redirect
+
+            return redirect("fossil:sync", slug=slug)
+
+    elif action == "disable":
+        fossil_repo.remote_url = ""
+        fossil_repo.last_sync_at = None
+        fossil_repo.upstream_artifacts_available = 0
+        fossil_repo.save(update_fields=["remote_url", "last_sync_at", "upstream_artifacts_available", "updated_at", "version"])
+        from django.contrib import messages
+
+        messages.info(request, "Sync disabled.")
+        from django.shortcuts import redirect
+
+        return redirect("fossil:sync", slug=slug)
+
+    elif action == "pull" and fossil_repo.remote_url:
         if cli.is_available():
-            # Detect remote URL if not set
-            if not fossil_repo.remote_url:
-                remote = cli.get_remote_url(fossil_repo.full_path)
-                if remote:
-                    fossil_repo.remote_url = remote
-                    fossil_repo.save(update_fields=["remote_url", "updated_at", "version"])
-
             result = cli.pull(fossil_repo.full_path)
             if result["success"]:
                 from django.utils import timezone
 
                 fossil_repo.last_sync_at = timezone.now()
                 if result["artifacts_received"] > 0:
-                    # Update metadata
                     with reader:
                         fossil_repo.checkin_count = reader.get_checkin_count()
                         fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
@@ -1003,18 +1027,9 @@ def sync_pull(request, slug):
                 from django.contrib import messages
 
                 if result["artifacts_received"] > 0:
-                    messages.success(request, f"Pulled {result['artifacts_received']} new artifacts from upstream.")
+                    messages.success(request, f"Pulled {result['artifacts_received']} new artifacts.")
                 else:
                     messages.info(request, "Already up to date.")
-
-    # Get remote URL for display
-    remote_url = fossil_repo.remote_url
-    if not remote_url:
-        from fossil.cli import FossilCLI
-
-        cli = FossilCLI()
-        if cli.is_available():
-            remote_url = cli.get_remote_url(fossil_repo.full_path)
 
     return render(
         request,
@@ -1022,9 +1037,10 @@ def sync_pull(request, slug):
         {
             "project": project,
             "fossil_repo": fossil_repo,
-            "remote_url": remote_url,
+            "detected_remote": detected_remote,
+            "sync_configured": bool(fossil_repo.remote_url),
             "result": result,
-            "active_tab": "code",
+            "active_tab": "sync",
         },
     )
 
