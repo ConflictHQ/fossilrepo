@@ -24,6 +24,9 @@
         <td class="px-4 py-2 text-sm text-gray-500 truncate max-w-md">
           {{ entry.commit_message|truncatechars:60 }}
         </td>
+        <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-600 text-right">
+          {% if entry.size %}{{ entry.size|filesizeformat }}{% endif %}
+        </td>
         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
           {% if entry.commit_time %}{{ entry.commit_time|timesince }} ago{% endif %}
         </td>

@@ -1190,6 +1190,7 @@ def _build_file_tree(files, current_dir=""):
                 "path": f.name,
                 "is_dir": False,
                 "file": f,
+                "size": f.size,
                 "commit_message": f.last_commit_message,
                 "commit_time": f.last_commit_time,
             }
