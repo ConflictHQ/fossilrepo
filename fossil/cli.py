@@ -24,6 +24,35 @@ class FossilCLI:
         cmd = [self.binary, *args]
         return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=True, env=self._env)
 
+    def ensure_default_user(self, repo_path: Path, username: str = "fossilrepo") -> None:
+        """Ensure a default user exists in the repo. Creates if needed."""
+        try:
+            # Check if user exists
+            result = subprocess.run(
+                [self.binary, "user", "list", "-R", str(repo_path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=self._env,
+            )
+            if username not in result.stdout:
+                subprocess.run(
+                    [self.binary, "user", "new", username, "", username, "-R", str(repo_path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    env=self._env,
+                )
+            subprocess.run(
+                [self.binary, "user", "default", username, "-R", str(repo_path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=self._env,
+            )
+        except Exception:
+            pass
+
     def init(self, path: Path) -> Path:
         """Create a new .fossil repository."""
         path.parent.mkdir(parents=True, exist_ok=True)
