@@ -26,11 +26,19 @@
 {% include "fossil/partials/timeline_entries.html" %}
 
 {% if entries|length == 50 %}
-<div class="mt-4 text-center">
-  <a href="{% url 'fossil:timeline' slug=project.slug %}?page={{ page|add:1 }}{% if event_type %}&type={{ event_type }}{% endif %}"
-     class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-700">
-    Load more
-  </a>
+<div id="load-more" class="mt-4 text-center"
+     hx-get="{% url 'fossil:timeline' slug=project.slug %}?page={{ page|add:1 }}{% if event_type %}&type={{ event_type }}{% endif %}"
+     hx-trigger="revealed"
+     hx-target="#timeline-entries"
+     hx-swap="beforeend"
+     hx-select="#timeline-entries > *"
+     hx-indicator="#load-spinner">
+  <div id="load-spinner" class="htmx-indicator">
+    <div class="inline-flex items-center gap-2 text-sm text-gray-500">
+      <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+      Loading more...
+    </div>
+  </div>
 </div>
 {% endif %}
 

@@ -123,6 +123,19 @@
     </div>
     {% endif %}
 
+    <!-- Clone instructions -->
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-4" x-data="{ copied: false }">
+      <h3 class="text-sm font-medium text-gray-300 mb-2">Clone</h3>
+      <div class="flex items-center gap-2">
+        <code class="flex-1 text-xs font-mono text-gray-400 bg-gray-900 rounded px-3 py-2 truncate">fossil clone /path/to/{{ project.slug }}.fossil</code>
+        <button @click="navigator.clipboard.writeText('fossil clone /path/to/{{ project.slug }}.fossil'); copied = true; setTimeout(() => copied = false, 1500)"
+                class="flex-shrink-0 rounded px-2 py-2 text-gray-500 hover:text-brand-light hover:bg-gray-700">
+          <svg x-show="!copied" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>
+          <svg x-show="copied" class="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="display:none"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+        </button>
+      </div>
+    </div>
+
     {% if top_contributors %}
     <!-- Contributors -->
     <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
