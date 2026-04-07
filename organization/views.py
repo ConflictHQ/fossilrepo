@@ -6,6 +6,7 @@ from django.db import models
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from core.pagination import PER_PAGE_OPTIONS, get_per_page
 from core.permissions import P
 
 from .forms import (
@@ -67,15 +68,23 @@ def member_list(request):
     if search:
         members = members.filter(member__username__icontains=search)
 
-    paginator = Paginator(members, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(members, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    if request.headers.get("HX-Request"):
-        return render(
-            request, "organization/partials/member_table.html", {"members": page_obj, "page_obj": page_obj, "org": org, "search": search}
-        )
+    ctx = {
+        "members": page_obj,
+        "page_obj": page_obj,
+        "org": org,
+        "search": search,
+        "per_page": per_page,
+        "per_page_options": PER_PAGE_OPTIONS,
+    }
 
-    return render(request, "organization/member_list.html", {"members": page_obj, "page_obj": page_obj, "org": org, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(request, "organization/partials/member_table.html", ctx)
+
+    return render(request, "organization/member_list.html", ctx)
 
 
 @login_required
@@ -127,13 +136,16 @@ def team_list(request):
     if search:
         teams = teams.filter(name__icontains=search)
 
-    paginator = Paginator(teams, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(teams, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    if request.headers.get("HX-Request"):
-        return render(request, "organization/partials/team_table.html", {"teams": page_obj, "page_obj": page_obj, "search": search})
+    ctx = {"teams": page_obj, "page_obj": page_obj, "search": search, "per_page": per_page, "per_page_options": PER_PAGE_OPTIONS}
 
-    return render(request, "organization/team_list.html", {"teams": page_obj, "page_obj": page_obj, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(request, "organization/partials/team_table.html", ctx)
+
+    return render(request, "organization/team_list.html", ctx)
 
 
 @login_required
@@ -469,7 +481,7 @@ def role_delete(request, slug):
 @login_required
 def audit_log(request):
     """Unified audit log across all tracked models. Requires superuser or org admin."""
-    import math
+    from core.pagination import manual_paginate
 
     if not request.user.is_superuser:
         P.ORGANIZATION_CHANGE.check(request.user)
@@ -506,26 +518,8 @@ def audit_log(request):
 
     entries.sort(key=lambda x: x["date"], reverse=True)
 
-    # Manual pagination over the merged, sorted list
-    per_page = 25
-    total = len(entries)
-    num_pages = max(1, math.ceil(total / per_page))
-    try:
-        page = int(request.GET.get("page", 1))
-    except (ValueError, TypeError):
-        page = 1
-    page = max(1, min(page, num_pages))
-    offset = (page - 1) * per_page
-    entries = entries[offset : offset + per_page]
-    pagination = {
-        "has_previous": page > 1,
-        "has_next": offset + per_page < total,
-        "previous_page_number": page - 1,
-        "next_page_number": page + 1,
-        "number": page,
-        "num_pages": num_pages,
-        "count": total,
-    }
+    per_page = get_per_page(request)
+    entries, pagination = manual_paginate(entries, request, per_page=per_page)
 
     available_models = [label for label, _ in trackable_models]
 
@@ -537,6 +531,8 @@ def audit_log(request):
             "model_filter": model_filter,
             "available_models": available_models,
             "pagination": pagination,
+            "per_page": per_page,
+            "per_page_options": PER_PAGE_OPTIONS,
         },
     )
 

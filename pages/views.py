@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.safestring import mark_safe
 
+from core.pagination import PER_PAGE_OPTIONS, get_per_page
 from core.permissions import P
 from core.sanitize import sanitize_html
 from organization.views import get_org
@@ -26,13 +27,16 @@ def page_list(request):
     if search:
         pages = pages.filter(name__icontains=search)
 
-    paginator = Paginator(pages, 25)
+    per_page = get_per_page(request)
+    paginator = Paginator(pages, per_page)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
-    if request.headers.get("HX-Request"):
-        return render(request, "pages/partials/page_table.html", {"pages": page_obj, "page_obj": page_obj, "search": search})
+    ctx = {"pages": page_obj, "page_obj": page_obj, "search": search, "per_page": per_page, "per_page_options": PER_PAGE_OPTIONS}
 
-    return render(request, "pages/page_list.html", {"pages": page_obj, "page_obj": page_obj, "search": search})
+    if request.headers.get("HX-Request"):
+        return render(request, "pages/partials/page_table.html", ctx)
+
+    return render(request, "pages/page_list.html", ctx)
 
 
 @login_required
