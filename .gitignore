@@ -30,3 +30,5 @@ fossilrepo.fossil
 .fslckout
 site/
 repos/
+.env.deploy
+deploy.sh
