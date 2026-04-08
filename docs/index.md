@@ -2,6 +2,8 @@
 
 **Self-hosted Fossil forge. One command, full-stack code hosting.**
 
+![FossilRepo Tour](fossilrepo-tour.gif)
+
 Fossilrepo is an omnibus-style installer for a production Fossil SCM server. It packages Fossil, Caddy (SSL/routing), Litestream (S3 backups), and a Django management layer into a single deployable unit.
 
 Think GitLab Omnibus, but for Fossil.
