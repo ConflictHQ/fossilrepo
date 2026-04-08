@@ -1,51 +1,51 @@
 <nav aria-label="Project sections" class="flex space-x-1 border-b border-gray-700 mb-6 overflow-x-auto scrollbar-hide">
   <a href="{% url 'projects:detail' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'overview' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'overview' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Overview
   </a>
   <a href="{% url 'fossil:code' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'code' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'code' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Code
   </a>
   <a href="{% url 'fossil:branches' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'branches' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'branches' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Branches
   </a>
   <a href="{% url 'fossil:timeline' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'timeline' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'timeline' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Timeline
   </a>
   <a href="{% url 'fossil:tickets' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'tickets' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'tickets' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Tickets
   </a>
   <a href="{% url 'fossil:wiki' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'wiki' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'wiki' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Wiki
   </a>
   <a href="{% url 'fossil:forum' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'forum' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'forum' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Forum
   </a>
   <a href="{% url 'fossil:releases' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'releases' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'releases' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Releases
   </a>
   <a href="{% url 'fossil:unversioned' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'files' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'files' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Files
   </a>
   {% if perms.projects.change_project %}
   <a href="{% url 'fossil:sync' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'sync' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'sync' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     {% if fossil_repo.remote_url %}Sync{% else %}Setup Sync{% endif %}
   </a>
   <a href="{% url 'fossil:repo_settings' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'settings' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'settings' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Settings
   </a>
   <a href="{% url 'fossil:explorer' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'explorer' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50{% endif %}">
+     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'explorer' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Explorer
   </a>
   {% endif %}

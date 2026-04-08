@@ -26,7 +26,7 @@
     </span>
     {% if has_write %}
     <a href="{% url 'fossil:release_create' slug=project.slug %}"
-       class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+       class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">
       Create Release
     </a>
     {% endif %}
@@ -37,7 +37,7 @@
 {% if releases %}
 <div class="space-y-4">
   {% for release in releases %}
-  <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+  <div class="overflow-hidden rounded-lg bg-gray-800 shadow-sm border border-gray-700 hover:border-gray-600 transition-colors">
     <div class="px-6 py-4">
       <div class="flex items-start justify-between gap-4">
         <div class="flex-1 min-w-0">

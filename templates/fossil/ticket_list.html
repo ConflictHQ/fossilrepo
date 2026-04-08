@@ -20,7 +20,7 @@
   <div class="flex flex-wrap items-center gap-3">
     <a href="{% url 'fossil:tickets_csv' slug=project.slug %}" class="text-xs text-gray-500 hover:text-brand-light">Export CSV</a>
     {% if perms.projects.change_project %}
-    <a href="{% url 'fossil:ticket_create' slug=project.slug %}" class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">New Ticket</a>
+    <a href="{% url 'fossil:ticket_create' slug=project.slug %}" class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">New Ticket</a>
     {% endif %}
     <span class="search-wrap">
     <input type="search"
@@ -56,12 +56,12 @@
   <div class="flex items-center gap-2">
     {% if has_prev %}
     <a href="{% url 'fossil:tickets' slug=project.slug %}?page={{ page|add:"-1" }}&per_page={{ per_page }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
-       class="rounded-md bg-gray-800 px-3 py-1.5 text-gray-400 hover:text-white border border-gray-700">&larr;</a>
+       class="rounded-md bg-gray-800 px-3 py-1.5 text-gray-400 hover:text-white hover:bg-gray-700 border border-gray-700 transition-colors">&larr;</a>
     {% endif %}
     <span class="text-gray-500">{{ page }} / {{ total_pages }}</span>
     {% if has_next %}
     <a href="{% url 'fossil:tickets' slug=project.slug %}?page={{ page|add:"1" }}&per_page={{ per_page }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
-       class="rounded-md bg-gray-800 px-3 py-1.5 text-gray-400 hover:text-white border border-gray-700">&rarr;</a>
+       class="rounded-md bg-gray-800 px-3 py-1.5 text-gray-400 hover:text-white hover:bg-gray-700 border border-gray-700 transition-colors">&rarr;</a>
     {% endif %}
   </div>
 </div>

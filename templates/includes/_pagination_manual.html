@@ -18,11 +18,11 @@
   <div class="flex gap-1">
     {% if pagination.has_previous %}
     <a href="?page={{ pagination.previous_page_number }}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
-       class="px-3 py-1 text-xs rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700">Previous</a>
+       class="px-3 py-1 text-xs rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700 transition-colors">Previous</a>
     {% endif %}
     {% if pagination.has_next %}
     <a href="?page={{ pagination.next_page_number }}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if search %}&search={{ search|urlencode }}{% endif %}{% if extra_params %}{{ extra_params }}{% endif %}"
-       class="px-3 py-1 text-xs rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700">Next</a>
+       class="px-3 py-1 text-xs rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700 transition-colors">Next</a>
     {% endif %}
   </div>
 </nav>

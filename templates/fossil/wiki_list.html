@@ -24,7 +24,7 @@
     </span>
   </div>
   {% if perms.projects.change_project %}
-  <a href="{% url 'fossil:wiki_create' slug=project.slug %}" class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">New Page</a>
+  <a href="{% url 'fossil:wiki_create' slug=project.slug %}" class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">New Page</a>
   {% endif %}
 </div>
 
@@ -33,7 +33,7 @@
   <!-- Main content: home page or page index -->
   <div class="flex-1 min-w-0">
     {% if home_page and not search %}
-    <div class="overflow-hidden rounded-lg bg-gray-800 shadow border border-gray-700">
+    <div class="overflow-hidden rounded-lg bg-gray-800 shadow-sm border border-gray-700">
       <div class="px-6 py-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold text-gray-100">{{ home_page.name }}</h2>
       </div>

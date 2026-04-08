@@ -12,7 +12,7 @@
 
 <div class="space-y-3">
   {% for item in posts %}
-  <div class="rounded-lg bg-gray-800 border border-gray-700 {% if item.post.in_reply_to %}ml-8{% endif %}">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 shadow-sm {% if item.post.in_reply_to %}ml-8{% endif %}">
     <div class="px-5 py-4">
       <div class="flex items-center justify-between mb-2">
         {% if is_django_thread %}
@@ -42,13 +42,13 @@
 {% if has_write and is_django_thread %}
 <div class="mt-6">
   <h3 class="text-sm font-semibold text-gray-300 mb-3">Reply</h3>
-  <form method="post" action="{% url 'fossil:forum_reply' slug=project.slug post_id=thread_uuid %}" class="space-y-3 rounded-lg bg-gray-800 p-5 border border-gray-700">
+  <form method="post" action="{% url 'fossil:forum_reply' slug=project.slug post_id=thread_uuid %}" class="space-y-3 rounded-lg bg-gray-800 p-5 border border-gray-700 shadow-sm">
     {% csrf_token %}
     <textarea name="body" rows="6" required placeholder="Write your reply in Markdown..."
               aria-label="Write a reply"
-              class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono"></textarea>
+              class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm font-mono transition-colors"></textarea>
     <div class="flex justify-end">
-      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">
         Post Reply
       </button>
     </div>

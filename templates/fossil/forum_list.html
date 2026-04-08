@@ -26,7 +26,7 @@
     </span>
     {% if has_write %}
     <a href="{% url 'fossil:forum_create' slug=project.slug %}"
-       class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+       class="inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">
       New Thread
     </a>
     {% endif %}
@@ -36,7 +36,7 @@
 <div id="forum-content">
 <div class="space-y-3">
   {% for post in posts %}
-  <div class="rounded-lg bg-gray-800 border border-gray-700 hover:border-gray-600 transition-colors">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 shadow-sm hover:border-gray-600 transition-colors">
     <div class="px-5 py-4">
       {% if post.source == "django" %}
       <a href="{% url 'fossil:forum_thread' slug=project.slug thread_uuid=post.uuid %}"

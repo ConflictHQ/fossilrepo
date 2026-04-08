@@ -22,18 +22,18 @@
   </div>
   <div class="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
     <a href="{% url 'accounts:profile_edit' %}"
-       class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-600">
+       class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-600 border border-gray-600 transition-colors">
       Edit Profile
     </a>
     <a href="{% url 'organization:user_password' username=user.username %}"
-       class="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-700 ring-1 ring-gray-700">
+       class="rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-gray-700 ring-1 ring-gray-700 transition-colors">
       Change Password
     </a>
   </div>
 </div>
 
 <!-- Profile Info Card -->
-<div class="rounded-lg bg-gray-800 border border-gray-700 p-6 mb-6">
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-6 mb-6 shadow-sm">
   <h2 class="text-lg font-semibold text-gray-200 mb-4">Profile Info</h2>
   <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
     <div>
@@ -68,7 +68,7 @@
 </div>
 
 <!-- SSH Keys Card -->
-<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6">
+<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6 shadow-sm">
   <div class="p-4 border-b border-gray-700 flex items-center justify-between">
     <h2 class="text-lg font-semibold text-gray-200">SSH Keys</h2>
     <a href="{% url 'accounts:ssh_keys' %}" class="text-sm text-brand-light hover:text-brand">Manage Keys</a>
@@ -96,7 +96,7 @@
 </div>
 
 <!-- Notification Preferences Card -->
-<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6">
+<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6 shadow-sm">
   <div class="p-4 border-b border-gray-700 flex items-center justify-between">
     <h2 class="text-lg font-semibold text-gray-200">Notification Preferences</h2>
     <a href="{% url 'accounts:notification_prefs' %}" class="text-sm text-brand-light hover:text-brand">Edit Preferences</a>
@@ -123,11 +123,11 @@
 </div>
 
 <!-- Personal Access Tokens Card -->
-<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6">
+<div class="rounded-lg bg-gray-800 border border-gray-700 mb-6 shadow-sm">
   <div class="p-4 border-b border-gray-700 flex items-center justify-between">
     <h2 class="text-lg font-semibold text-gray-200">Personal Access Tokens</h2>
     <a href="{% url 'accounts:profile_token_create' %}"
-       class="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-hover">
+       class="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">
       Generate Token
     </a>
   </div>

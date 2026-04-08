@@ -1,4 +1,4 @@
-<div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden">
+<div class="rounded-lg bg-gray-800 border border-gray-700 overflow-hidden shadow-sm">
   <!-- Header -->
   <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
     <div>
@@ -63,7 +63,7 @@
         </thead>
         <tbody class="divide-y divide-gray-700 font-mono">
           {% for row in rows %}
-          <tr class="hover:bg-gray-700/50">
+          <tr class="hover:bg-gray-700/40 transition-colors">
             {% for cell in row %}
             <td class="px-3 py-1.5 text-gray-300 whitespace-nowrap max-w-xs truncate">{{ cell|default:"NULL" }}</td>
             {% endfor %}

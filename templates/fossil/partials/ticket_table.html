@@ -1,18 +1,18 @@
 <div id="ticket-table">
   <div class="overflow-x-auto rounded-lg border border-gray-700 bg-gray-800 shadow-sm">
     <table class="min-w-full divide-y divide-gray-700">
-      <thead class="bg-gray-900">
+      <thead class="bg-gray-900/80">
         <tr>
-          <th class="px-4 py-3 text-left text-xs font-medium uppercase text-gray-400">Title</th>
-          <th class="px-4 py-3 text-left text-xs font-medium uppercase text-gray-400 w-24">Status</th>
-          <th class="px-4 py-3 text-left text-xs font-medium uppercase text-gray-400 w-28">Type</th>
-          <th class="px-4 py-3 text-left text-xs font-medium uppercase text-gray-400 w-20">Priority</th>
-          <th class="px-4 py-3 text-right text-xs font-medium uppercase text-gray-400 w-36">Created</th>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">Title</th>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 w-24">Status</th>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 w-28">Type</th>
+          <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400 w-20">Priority</th>
+          <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-400 w-36">Created</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-700 bg-gray-800">
+      <tbody class="divide-y divide-gray-700/70 bg-gray-800">
         {% for ticket in tickets %}
-        <tr class="hover:bg-gray-700/50">
+        <tr class="hover:bg-gray-700/40 transition-colors">
           <td class="px-4 py-3">
             <a href="{% url 'fossil:ticket_detail' slug=project.slug ticket_uuid=ticket.uuid %}"
                class="text-brand-light hover:text-brand font-medium text-sm">

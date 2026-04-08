@@ -3,7 +3,7 @@
   <table class="min-w-full">
     <tbody class="divide-y divide-gray-700">
       {% for entry in tree %}
-      <tr class="hover:bg-gray-700/30">
+      <tr class="hover:bg-gray-700/30 transition-colors">
         <td class="px-4 py-2 whitespace-nowrap" style="width: 35%;">
           {% if entry.is_dir %}
           <a href="{% url 'fossil:code_dir' slug=project.slug dirpath=entry.path %}" class="flex items-center gap-2 text-sm text-gray-200 hover:text-brand-light">
