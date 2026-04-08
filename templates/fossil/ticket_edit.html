@@ -25,35 +25,40 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Status</label>
         <select name="status" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-          {% for s in "Open,Fixed,Closed,Review,Deferred".split %}
-          <option value="{{ s }}" {% if s == ticket.status %}selected{% endif %}>{{ s }}</option>
-          {% endfor %}
+          <option value="Open" {% if ticket.status == "Open" %}selected{% endif %}>Open</option>
+          <option value="Fixed" {% if ticket.status == "Fixed" %}selected{% endif %}>Fixed</option>
+          <option value="Closed" {% if ticket.status == "Closed" %}selected{% endif %}>Closed</option>
+          <option value="Review" {% if ticket.status == "Review" %}selected{% endif %}>Review</option>
+          <option value="Deferred" {% if ticket.status == "Deferred" %}selected{% endif %}>Deferred</option>
         </select>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Type</label>
         <select name="type" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-          {% for t in "Code_Defect,Feature_Request,Documentation,Incident".split %}
-          <option value="{{ t }}" {% if t == ticket.type %}selected{% endif %}>{{ t }}</option>
-          {% endfor %}
+          <option value="Code_Defect" {% if ticket.type == "Code_Defect" %}selected{% endif %}>Code Defect</option>
+          <option value="Feature_Request" {% if ticket.type == "Feature_Request" %}selected{% endif %}>Feature Request</option>
+          <option value="Documentation" {% if ticket.type == "Documentation" %}selected{% endif %}>Documentation</option>
+          <option value="Incident" {% if ticket.type == "Incident" %}selected{% endif %}>Incident</option>
         </select>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Severity</label>
         <select name="severity" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
           <option value="">—</option>
-          {% for s in "Critical,Important,Minor,Cosmetic".split %}
-          <option value="{{ s }}" {% if s == ticket.severity %}selected{% endif %}>{{ s }}</option>
-          {% endfor %}
+          <option value="Critical" {% if ticket.severity == "Critical" %}selected{% endif %}>Critical</option>
+          <option value="Important" {% if ticket.severity == "Important" %}selected{% endif %}>Important</option>
+          <option value="Minor" {% if ticket.severity == "Minor" %}selected{% endif %}>Minor</option>
+          <option value="Cosmetic" {% if ticket.severity == "Cosmetic" %}selected{% endif %}>Cosmetic</option>
         </select>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Priority</label>
         <select name="priority" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
           <option value="">—</option>
-          {% for p in "Critical,Important,Minor,Zero".split %}
-          <option value="{{ p }}" {% if p == ticket.priority %}selected{% endif %}>{{ p }}</option>
-          {% endfor %}
+          <option value="Critical" {% if ticket.priority == "Critical" %}selected{% endif %}>Critical</option>
+          <option value="Important" {% if ticket.priority == "Important" %}selected{% endif %}>Important</option>
+          <option value="Minor" {% if ticket.priority == "Minor" %}selected{% endif %}>Minor</option>
+          <option value="Zero" {% if ticket.priority == "Zero" %}selected{% endif %}>Zero</option>
         </select>
       </div>
     </div>
@@ -62,9 +67,13 @@
       <label class="block text-sm font-medium text-gray-300 mb-1">Resolution</label>
       <select name="resolution" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
         <option value="">—</option>
-        {% for r in "Fixed,Rejected,Overcome_By_Events,Works_As_Designed,Unable_To_Reproduce,Not_A_Bug,Duplicate".split %}
-        <option value="{{ r }}" {% if r == ticket.resolution %}selected{% endif %}>{{ r }}</option>
-        {% endfor %}
+        <option value="Fixed" {% if ticket.resolution == "Fixed" %}selected{% endif %}>Fixed</option>
+        <option value="Rejected" {% if ticket.resolution == "Rejected" %}selected{% endif %}>Rejected</option>
+        <option value="Overcome_By_Events" {% if ticket.resolution == "Overcome_By_Events" %}selected{% endif %}>Overcome By Events</option>
+        <option value="Works_As_Designed" {% if ticket.resolution == "Works_As_Designed" %}selected{% endif %}>Works As Designed</option>
+        <option value="Unable_To_Reproduce" {% if ticket.resolution == "Unable_To_Reproduce" %}selected{% endif %}>Unable To Reproduce</option>
+        <option value="Not_A_Bug" {% if ticket.resolution == "Not_A_Bug" %}selected{% endif %}>Not A Bug</option>
+        <option value="Duplicate" {% if ticket.resolution == "Duplicate" %}selected{% endif %}>Duplicate</option>
       </select>
     </div>
 

@@ -782,11 +782,15 @@ def ticket_detail(request, slug, ticket_uuid):
     body_html = mark_safe(sanitize_html(_render_fossil_content(ticket.body, project_slug=slug))) if ticket.body else ""
     rendered_comments = []
     for c in comments:
+        try:
+            comment_html = mark_safe(sanitize_html(_render_fossil_content(c["comment"], project_slug=slug)))
+        except Exception:
+            comment_html = mark_safe(f"<pre>{c['comment']}</pre>")
         rendered_comments.append(
             {
                 "user": c["user"],
                 "timestamp": c["timestamp"],
-                "html": mark_safe(sanitize_html(_render_fossil_content(c["comment"], project_slug=slug))),
+                "html": comment_html,
             }
         )
 
@@ -1441,14 +1445,19 @@ def ticket_comment(request, slug, ticket_uuid):
     if request.method == "POST":
         comment = request.POST.get("comment", "").strip()
         if comment:
-            from fossil.cli import FossilCLI
+            from django.contrib import messages
 
-            cli = FossilCLI()
-            success = cli.ticket_change(fossil_repo.full_path, ticket_uuid, {"icomment": comment})
-            if success:
-                from django.contrib import messages
+            try:
+                from fossil.cli import FossilCLI
 
-                messages.success(request, "Comment added.")
+                cli = FossilCLI()
+                success = cli.ticket_change(fossil_repo.full_path, ticket_uuid, {"icomment": comment})
+                if success:
+                    messages.success(request, "Comment added.")
+                else:
+                    messages.error(request, "Failed to add comment.")
+            except Exception:
+                messages.error(request, "Failed to add comment.")
     from django.shortcuts import redirect
 
     return redirect("fossil:ticket_detail", slug=slug, ticket_uuid=ticket_uuid)
