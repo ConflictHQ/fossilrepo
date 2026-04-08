@@ -8,7 +8,7 @@
 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
   <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500">
     <span>Status:</span>
-    <a href="{% url 'fossil:tickets' slug=project.slug %}"
+    <a href="{% url 'fossil:tickets' slug=project.slug %}?status=All"
        class="rounded-full px-2.5 py-1 {% if not status_filter %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">All</a>
     <a href="{% url 'fossil:tickets' slug=project.slug %}?status=Open"
        class="rounded-full px-2.5 py-1 {% if status_filter == 'Open' %}bg-brand text-white{% else %}bg-gray-800 text-gray-400 hover:text-white border border-gray-700{% endif %}">Open</a>

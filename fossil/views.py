@@ -727,7 +727,9 @@ def timeline(request, slug):
 def ticket_list(request, slug):
     project, fossil_repo, reader = _get_repo_and_reader(slug, request)
 
-    status_filter = request.GET.get("status", "")
+    status_filter = request.GET.get("status", "Open")
+    if status_filter == "All":
+        status_filter = ""
     search = request.GET.get("search", "").strip()
     page = int(request.GET.get("page", "1"))
     per_page = get_per_page(request, default=50)
