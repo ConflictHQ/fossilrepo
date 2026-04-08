@@ -12,19 +12,19 @@
 <div class="mx-auto max-w-2xl">
   <h2 class="text-xl font-bold text-gray-100 mb-4">Edit Ticket</h2>
 
-  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow-sm border border-gray-700">
     {% csrf_token %}
 
     <div>
       <label class="block text-sm font-medium text-gray-300 mb-1">Title</label>
       <input type="text" name="title" value="{{ ticket.title }}"
-             class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+             class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
     </div>
 
     <div class="grid grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Status</label>
-        <select name="status" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+        <select name="status" class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
           {% for s in "Open,Fixed,Closed,Review,Deferred".split %}
           <option value="{{ s }}" {% if s == ticket.status %}selected{% endif %}>{{ s }}</option>
           {% endfor %}
@@ -32,7 +32,7 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Type</label>
-        <select name="type" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+        <select name="type" class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
           {% for t in "Code_Defect,Feature_Request,Documentation,Incident".split %}
           <option value="{{ t }}" {% if t == ticket.type %}selected{% endif %}>{{ t }}</option>
           {% endfor %}
@@ -40,8 +40,8 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Severity</label>
-        <select name="severity" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-          <option value="">—</option>
+        <select name="severity" class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
+          <option value="">--</option>
           {% for s in "Critical,Important,Minor,Cosmetic".split %}
           <option value="{{ s }}" {% if s == ticket.severity %}selected{% endif %}>{{ s }}</option>
           {% endfor %}
@@ -49,8 +49,8 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Priority</label>
-        <select name="priority" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-          <option value="">—</option>
+        <select name="priority" class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
+          <option value="">--</option>
           {% for p in "Critical,Important,Minor,Zero".split %}
           <option value="{{ p }}" {% if p == ticket.priority %}selected{% endif %}>{{ p }}</option>
           {% endfor %}
@@ -60,8 +60,8 @@
 
     <div>
       <label class="block text-sm font-medium text-gray-300 mb-1">Resolution</label>
-      <select name="resolution" class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-        <option value="">—</option>
+      <select name="resolution" class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
+        <option value="">--</option>
         {% for r in "Fixed,Rejected,Overcome_By_Events,Works_As_Designed,Unable_To_Reproduce,Not_A_Bug,Duplicate".split %}
         <option value="{{ r }}" {% if r == ticket.resolution %}selected{% endif %}>{{ r }}</option>
         {% endfor %}
@@ -81,13 +81,13 @@
           {% if cf.field_type == "text" or cf.field_type == "url" or cf.field_type == "date" %}
           <input type="{% if cf.field_type == "url" %}url{% elif cf.field_type == "date" %}date{% else %}text{% endif %}"
                  name="custom_{{ cf.name }}" {% if cf.is_required %}required{% endif %}
-                 class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                 class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
           {% elif cf.field_type == "textarea" %}
           <textarea name="custom_{{ cf.name }}" rows="3" {% if cf.is_required %}required{% endif %}
-                    class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"></textarea>
+                    class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors"></textarea>
           {% elif cf.field_type == "select" %}
           <select name="custom_{{ cf.name }}" {% if cf.is_required %}required{% endif %}
-                  class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                  class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
             <option value="">--</option>
             {% for choice in cf.choices_list %}
             <option value="{{ choice }}">{{ choice }}</option>
@@ -108,10 +108,10 @@
 
     <div class="flex justify-end gap-3 pt-2">
       <a href="{% url 'fossil:ticket_detail' slug=project.slug ticket_uuid=ticket.uuid %}"
-         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600 transition-colors">
         Cancel
       </a>
-      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">
         Save Changes
       </button>
     </div>

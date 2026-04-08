@@ -6,7 +6,7 @@
   <h1 class="text-2xl font-bold text-gray-100">Projects</h1>
   {% if perms.projects.add_project %}
   <a href="{% url 'projects:create' %}"
-     class="inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+     class="inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">
     New Project
   </a>
   {% endif %}

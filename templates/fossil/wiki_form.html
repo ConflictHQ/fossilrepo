@@ -22,21 +22,21 @@
     </div>
   </div>
 
-  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow border border-gray-700">
+  <form method="post" class="space-y-4 rounded-lg bg-gray-800 p-6 shadow-sm border border-gray-700">
     {% csrf_token %}
 
     {% if not page %}
     <div>
       <label class="block text-sm font-medium text-gray-300 mb-1">Page Name <span class="text-red-400">*</span></label>
       <input type="text" name="name" required placeholder="Page title"
-             class="w-full rounded-md border-gray-700 bg-gray-900 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+             class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
     </div>
     {% endif %}
 
     <div x-show="tab === 'write'">
       <label class="block text-sm font-medium text-gray-300 mb-1">Content (Markdown)</label>
       <textarea id="content-input" name="content" rows="20" placeholder="Write in Markdown..."
-                class="w-full rounded-md border-gray-700 bg-gray-800 text-gray-100 shadow-sm focus:border-brand focus:ring-brand sm:text-sm font-mono">{% if page %}{{ page.content }}{% endif %}</textarea>
+                class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm font-mono transition-colors">{% if page %}{{ page.content }}{% endif %}</textarea>
     </div>
 
     <div x-show="tab === 'preview'" style="display:none">
@@ -47,10 +47,10 @@
 
     <div class="flex justify-end gap-3 pt-2">
       <a href="{% url 'fossil:wiki' slug=project.slug %}"
-         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600">
+         class="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-100 shadow-sm ring-1 ring-inset ring-gray-600 hover:bg-gray-600 transition-colors">
         Cancel
       </a>
-      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover">
+      <button type="submit" class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-gray-950 transition-colors">
         {% if page %}Update{% else %}Create{% endif %}
       </button>
     </div>

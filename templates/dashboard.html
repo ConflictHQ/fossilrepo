@@ -14,19 +14,19 @@
 
 <!-- Stats cards -->
 <div class="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
-  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-gray-600 transition-colors">
     <div class="text-2xl font-bold text-gray-100">{{ total_projects }}</div>
     <div class="text-xs text-gray-500 mt-1">Projects</div>
   </div>
-  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-gray-600 transition-colors">
     <div class="text-2xl font-bold text-gray-100">{{ total_checkins|default:"0" }}</div>
     <div class="text-xs text-gray-500 mt-1">Total Checkins</div>
   </div>
-  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-gray-600 transition-colors">
     <div class="text-2xl font-bold text-gray-100">{{ total_tickets|default:"0" }}</div>
     <div class="text-xs text-gray-500 mt-1">Tickets</div>
   </div>
-  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+  <div class="rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-gray-600 transition-colors">
     <div class="text-2xl font-bold text-gray-100">{{ total_wiki|default:"0" }}</div>
     <div class="text-xs text-gray-500 mt-1">Wiki Pages</div>
   </div>
@@ -34,7 +34,7 @@
 
 <!-- Activity heatmap (all projects, last year) -->
 {% if heatmap_json %}
-<div class="rounded-lg bg-gray-800 border border-gray-700 p-4 mb-6">
+<div class="rounded-lg bg-gray-800 border border-gray-700 p-4 mb-6 shadow-sm">
   <h3 class="text-sm font-medium text-gray-300 mb-3">Activity (last year)</h3>
   <div id="heatmap" class="overflow-x-auto"></div>
   <div class="flex items-center justify-end gap-1 mt-2 text-xs text-gray-500">
@@ -54,7 +54,7 @@
   <div class="lg:col-span-2 space-y-6">
     {% if system_activity_json and system_activity_json != "[]" %}
     <!-- System-wide activity chart -->
-    <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm">
       <h3 class="text-sm font-medium text-gray-300 mb-3">System Activity (26 weeks)</h3>
       <div style="height: 140px;">
         <canvas id="systemChart"></canvas>
@@ -64,13 +64,13 @@
 
     {% if recent_across_all %}
     <!-- Recent activity across all projects -->
-    <div class="rounded-lg bg-gray-800 border border-gray-700">
+    <div class="rounded-lg bg-gray-800 border border-gray-700 shadow-sm">
       <div class="px-4 py-3 border-b border-gray-700">
         <h3 class="text-sm font-medium text-gray-300">Recent Activity</h3>
       </div>
       <div class="divide-y divide-gray-700">
         {% for item in recent_across_all %}
-        <div class="px-4 py-3 flex items-start gap-3">
+        <div class="px-4 py-3 flex items-start gap-3 hover:bg-gray-700/30 transition-colors">
           <div class="flex-shrink-0 mt-1">
             <div class="w-2.5 h-2.5 rounded-full bg-brand"></div>
           </div>
@@ -104,31 +104,31 @@
   <div class="space-y-4">
     <!-- Quick links -->
     {% if perms.projects.view_project %}
-    <a href="{% url 'projects:list' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 hover:border-brand transition-colors">
+    <a href="{% url 'projects:list' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-brand hover:shadow-md transition-all">
       <h3 class="text-sm font-semibold text-gray-100">Projects</h3>
       <p class="mt-1 text-xs text-gray-500">Manage projects and team access</p>
     </a>
     {% endif %}
     {% if perms.organization.view_team %}
-    <a href="{% url 'organization:team_list' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 hover:border-brand transition-colors">
+    <a href="{% url 'organization:team_list' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-brand hover:shadow-md transition-all">
       <h3 class="text-sm font-semibold text-gray-100">Teams</h3>
       <p class="mt-1 text-xs text-gray-500">Organize members into teams</p>
     </a>
     {% endif %}
     {% if perms.pages.view_page %}
-    <a href="{% url 'pages:list' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 hover:border-brand transition-colors">
+    <a href="{% url 'pages:list' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-brand hover:shadow-md transition-all">
       <h3 class="text-sm font-semibold text-gray-100">FossilRepo Docs</h3>
       <p class="mt-1 text-xs text-gray-500">Guides, runbooks, documentation</p>
     </a>
     {% endif %}
     {% if perms.organization.view_organization %}
-    <a href="{% url 'organization:settings' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 hover:border-brand transition-colors">
+    <a href="{% url 'organization:settings' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-brand hover:shadow-md transition-all">
       <h3 class="text-sm font-semibold text-gray-100">Settings</h3>
       <p class="mt-1 text-xs text-gray-500">Organization configuration</p>
     </a>
     {% endif %}
     {% if user.is_staff %}
-    <a href="{% url 'admin:index' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 hover:border-brand transition-colors">
+    <a href="{% url 'admin:index' %}" class="block rounded-lg bg-gray-800 border border-gray-700 p-4 shadow-sm hover:border-brand hover:shadow-md transition-all">
       <h3 class="text-sm font-semibold text-gray-100">Admin</h3>
       <p class="mt-1 text-xs text-gray-500">Users, groups, permissions</p>
     </a>
