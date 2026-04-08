@@ -443,7 +443,99 @@ def code_file(request, slug, filepath):
     )
 
 
-# --- Split-diff helper ---
+# --- Diff helpers ---
+
+
+def _parse_unified_diff_lines(raw_lines):
+    """Parse raw unified diff output lines into structured diff_lines list.
+
+    Works with both fossil diff and difflib output.
+    Returns (diff_lines, additions, deletions) tuple.
+    """
+    diff_lines = []
+    additions = 0
+    deletions = 0
+    old_line = 0
+    new_line = 0
+
+    for line in raw_lines:
+        if line.startswith("====="):
+            continue
+
+        line_type = "context"
+        old_num = ""
+        new_num = ""
+
+        if line.startswith("+++") or line.startswith("---"):
+            line_type = "header"
+        elif line.startswith("@@"):
+            line_type = "hunk"
+            hunk_match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
+            if hunk_match:
+                old_line = int(hunk_match.group(1))
+                new_line = int(hunk_match.group(2))
+        elif line.startswith("+"):
+            line_type = "add"
+            additions += 1
+            new_num = new_line
+            new_line += 1
+        elif line.startswith("-"):
+            line_type = "del"
+            deletions += 1
+            old_num = old_line
+            old_line += 1
+        else:
+            old_num = old_line
+            new_num = new_line
+            old_line += 1
+            new_line += 1
+
+        if line_type in ("add", "del", "context") and len(line) > 0:
+            prefix = line[0]
+            code = line[1:]
+        else:
+            prefix = ""
+            code = line
+
+        diff_lines.append(
+            {
+                "text": line,
+                "type": line_type,
+                "old_num": old_num,
+                "new_num": new_num,
+                "prefix": prefix,
+                "code": code,
+            }
+        )
+
+    return diff_lines, additions, deletions
+
+
+def _parse_fossil_diff_output(raw_output):
+    """Split multi-file fossil diff output into per-file parsed diffs.
+
+    Returns dict mapping filename -> (diff_lines, additions, deletions).
+    """
+    if not raw_output or not raw_output.strip():
+        return {}
+
+    result = {}
+    current_name = None
+    current_lines = []
+
+    for line in raw_output.splitlines():
+        if line.startswith("Index: "):
+            if current_name is not None:
+                result[current_name] = _parse_unified_diff_lines(current_lines)
+            current_name = line[7:].strip()
+            current_lines = []
+        elif current_name is not None:
+            current_lines.append(line)
+
+    if current_name is not None:
+        result[current_name] = _parse_unified_diff_lines(current_lines)
+
+    return result
 
 
 def _compute_split_lines(diff_lines):
@@ -509,91 +601,56 @@ def checkin_detail(request, slug, checkin_uuid):
         if not checkin:
             raise Http404("Checkin not found")
 
-        # Compute diffs for each changed file
-        import difflib
+        # Try fossil native diff first for accurate results matching fossil-scm.org
+        fossil_diffs = {}
+        if checkin.parent_uuid:
+            try:
+                from .cli import FossilCLI
+
+                cli = FossilCLI()
+                raw_diff = cli.diff(fossil_repo.full_path, checkin.parent_uuid, checkin.uuid)
+                if raw_diff:
+                    fossil_diffs = _parse_fossil_diff_output(raw_diff)
+            except Exception:
+                pass
 
         file_diffs = []
         for f in checkin.files_changed:
-            old_text = ""
-            new_text = ""
-            if f["prev_uuid"]:
-                try:
-                    old_bytes = reader.get_file_content(f["prev_uuid"])
-                    old_text = old_bytes.decode("utf-8", errors="replace")
-                except Exception:
-                    old_text = ""
-            if f["uuid"]:
-                try:
-                    new_bytes = reader.get_file_content(f["uuid"])
-                    new_text = new_bytes.decode("utf-8", errors="replace")
-                except Exception:
-                    new_text = ""
+            ext = f["name"].rsplit(".", 1)[-1] if "." in f["name"] else ""
 
-            # Check if binary
-            is_binary = "\x00" in old_text[:1024] or "\x00" in new_text[:1024]
-            diff_lines = []
-            additions = 0
-            deletions = 0
+            if f["name"] in fossil_diffs:
+                diff_lines, additions, deletions = fossil_diffs[f["name"]]
+                is_binary = False
+            else:
+                # Fallback: difflib for files fossil skipped (binary, no parent, etc.)
+                import difflib
 
-            if not is_binary and (old_text or new_text):
-                diff = difflib.unified_diff(
-                    old_text.splitlines(keepends=True),
-                    new_text.splitlines(keepends=True),
-                    fromfile=f"a/{f['name']}",
-                    tofile=f"b/{f['name']}",
-                    lineterm="",
-                    n=3,
-                )
-                old_line = 0
-                new_line = 0
-                for line in diff:
-                    line_type = "context"
-                    old_num = ""
-                    new_num = ""
-                    if line.startswith("+++") or line.startswith("---"):
-                        line_type = "header"
-                    elif line.startswith("@@"):
-                        line_type = "hunk"
-                        # Parse @@ -old_start,old_count +new_start,new_count @@
-                        hunk_match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
-                        if hunk_match:
-                            old_line = int(hunk_match.group(1))
-                            new_line = int(hunk_match.group(2))
-                    elif line.startswith("+"):
-                        line_type = "add"
-                        additions += 1
-                        new_num = new_line
-                        new_line += 1
-                    elif line.startswith("-"):
-                        line_type = "del"
-                        deletions += 1
-                        old_num = old_line
-                        old_line += 1
-                    else:
-                        old_num = old_line
-                        new_num = new_line
-                        old_line += 1
-                        new_line += 1
-                    # Separate prefix character from code text for syntax highlighting
-                    if line_type in ("add", "del", "context") and len(line) > 0:
-                        prefix = line[0]
-                        code = line[1:]
-                    else:
-                        prefix = ""
-                        code = line
-                    diff_lines.append(
-                        {
-                            "text": line,
-                            "type": line_type,
-                            "old_num": old_num,
-                            "new_num": new_num,
-                            "prefix": prefix,
-                            "code": code,
-                        }
+                old_text = ""
+                new_text = ""
+                if f["prev_uuid"]:
+                    with contextlib.suppress(Exception):
+                        old_text = reader.get_file_content(f["prev_uuid"]).decode("utf-8", errors="replace")
+                if f["uuid"]:
+                    with contextlib.suppress(Exception):
+                        new_text = reader.get_file_content(f["uuid"]).decode("utf-8", errors="replace")
+
+                is_binary = "\x00" in old_text[:1024] or "\x00" in new_text[:1024]
+                diff_lines = []
+                additions = 0
+                deletions = 0
+
+                if not is_binary and (old_text or new_text):
+                    diff = difflib.unified_diff(
+                        old_text.splitlines(keepends=True),
+                        new_text.splitlines(keepends=True),
+                        fromfile=f"a/{f['name']}",
+                        tofile=f"b/{f['name']}",
+                        lineterm="",
+                        n=3,
                     )
+                    diff_lines, additions, deletions = _parse_unified_diff_lines(list(diff))
 
             split_left, split_right = _compute_split_lines(diff_lines)
-            ext = f["name"].rsplit(".", 1)[-1] if "." in f["name"] else ""
             file_diffs.append(
                 {
                     "name": f["name"],
@@ -1286,7 +1343,10 @@ def ticket_create(request, slug):
 
     from fossil.ticket_fields import TicketFieldDefinition
 
-    custom_fields = TicketFieldDefinition.objects.filter(repository=fossil_repo)
+    try:
+        custom_fields = list(TicketFieldDefinition.objects.filter(repository=fossil_repo))
+    except Exception:
+        custom_fields = []
 
     if request.method == "POST":
         title = request.POST.get("title", "").strip()
@@ -1330,7 +1390,10 @@ def ticket_edit(request, slug, ticket_uuid):
 
     from fossil.ticket_fields import TicketFieldDefinition
 
-    custom_fields = TicketFieldDefinition.objects.filter(repository=fossil_repo)
+    try:
+        custom_fields = list(TicketFieldDefinition.objects.filter(repository=fossil_repo))
+    except Exception:
+        custom_fields = []
 
     with reader:
         ticket = reader.get_ticket_detail(ticket_uuid)
@@ -2306,84 +2369,20 @@ def compare_checkins(request, slug):
             to_detail = reader.get_checkin_detail(to_uuid)
 
             if from_detail and to_detail:
-                # Get all files from both checkins and compute diffs
-                from_files = {f["name"]: f for f in from_detail.files_changed}
-                to_files = {f["name"]: f for f in to_detail.files_changed}
-                all_files = sorted(set(list(from_files.keys()) + list(to_files.keys())))
+                # Try fossil native diff first
+                fossil_diffs = {}
+                try:
+                    from .cli import FossilCLI
 
-                import difflib
+                    cli = FossilCLI()
+                    raw_diff = cli.diff(fossil_repo.full_path, from_uuid, to_uuid)
+                    if raw_diff:
+                        fossil_diffs = _parse_fossil_diff_output(raw_diff)
+                except Exception:
+                    pass
 
-                for fname in all_files[:20]:  # Limit to 20 files for performance
-                    old_text = ""
-                    new_text = ""
-                    f_from = from_files.get(fname, {})
-                    f_to = to_files.get(fname, {})
-
-                    if f_from.get("uuid"):
-                        with contextlib.suppress(Exception):
-                            old_text = reader.get_file_content(f_from["uuid"]).decode("utf-8", errors="replace")
-                    if f_to.get("uuid"):
-                        with contextlib.suppress(Exception):
-                            new_text = reader.get_file_content(f_to["uuid"]).decode("utf-8", errors="replace")
-
-                    if old_text != new_text:
-                        diff = difflib.unified_diff(
-                            old_text.splitlines(keepends=True),
-                            new_text.splitlines(keepends=True),
-                            fromfile=f"a/{fname}",
-                            tofile=f"b/{fname}",
-                            n=3,
-                        )
-                        diff_lines = []
-                        old_line = 0
-                        new_line = 0
-                        additions = 0
-                        deletions = 0
-                        for line in diff:
-                            line_type = "context"
-                            old_num = ""
-                            new_num = ""
-                            if line.startswith("+++") or line.startswith("---"):
-                                line_type = "header"
-                            elif line.startswith("@@"):
-                                line_type = "hunk"
-                                hunk_match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
-                                if hunk_match:
-                                    old_line = int(hunk_match.group(1))
-                                    new_line = int(hunk_match.group(2))
-                            elif line.startswith("+"):
-                                line_type = "add"
-                                additions += 1
-                                new_num = new_line
-                                new_line += 1
-                            elif line.startswith("-"):
-                                line_type = "del"
-                                deletions += 1
-                                old_num = old_line
-                                old_line += 1
-                            else:
-                                old_num = old_line
-                                new_num = new_line
-                                old_line += 1
-                                new_line += 1
-                            # Separate prefix from code text for syntax highlighting
-                            if line_type in ("add", "del", "context") and len(line) > 0:
-                                prefix = line[0]
-                                code = line[1:]
-                            else:
-                                prefix = ""
-                                code = line
-                            diff_lines.append(
-                                {
-                                    "text": line,
-                                    "type": line_type,
-                                    "old_num": old_num,
-                                    "new_num": new_num,
-                                    "prefix": prefix,
-                                    "code": code,
-                                }
-                            )
-
+                if fossil_diffs:
+                    for fname, (diff_lines, additions, deletions) in fossil_diffs.items():
                         if diff_lines:
                             split_left, split_right = _compute_split_lines(diff_lines)
                             file_diffs.append(
@@ -2396,6 +2395,49 @@ def compare_checkins(request, slug):
                                     "deletions": deletions,
                                 }
                             )
+                else:
+                    # Fallback to difflib
+                    import difflib
+
+                    from_files = {f["name"]: f for f in from_detail.files_changed}
+                    to_files = {f["name"]: f for f in to_detail.files_changed}
+                    all_files = sorted(set(list(from_files.keys()) + list(to_files.keys())))
+
+                    for fname in all_files[:20]:
+                        old_text = ""
+                        new_text = ""
+                        f_from = from_files.get(fname, {})
+                        f_to = to_files.get(fname, {})
+
+                        if f_from.get("uuid"):
+                            with contextlib.suppress(Exception):
+                                old_text = reader.get_file_content(f_from["uuid"]).decode("utf-8", errors="replace")
+                        if f_to.get("uuid"):
+                            with contextlib.suppress(Exception):
+                                new_text = reader.get_file_content(f_to["uuid"]).decode("utf-8", errors="replace")
+
+                        if old_text != new_text:
+                            diff = difflib.unified_diff(
+                                old_text.splitlines(keepends=True),
+                                new_text.splitlines(keepends=True),
+                                fromfile=f"a/{fname}",
+                                tofile=f"b/{fname}",
+                                n=3,
+                            )
+                            diff_lines, additions, deletions = _parse_unified_diff_lines(list(diff))
+
+                            if diff_lines:
+                                split_left, split_right = _compute_split_lines(diff_lines)
+                                file_diffs.append(
+                                    {
+                                        "name": fname,
+                                        "diff_lines": diff_lines,
+                                        "split_left": split_left,
+                                        "split_right": split_right,
+                                        "additions": additions,
+                                        "deletions": deletions,
+                                    }
+                                )
 
     return render(
         request,
@@ -3735,12 +3777,14 @@ def ticket_fields_list(request, slug):
 
     from fossil.ticket_fields import TicketFieldDefinition
 
-    fields = TicketFieldDefinition.objects.filter(repository=fossil_repo)
-
-    search = request.GET.get("search", "").strip()
-    if search:
-        fields = fields.filter(label__icontains=search) | fields.filter(name__icontains=search)
-        fields = fields.distinct()
+    try:
+        fields = TicketFieldDefinition.objects.filter(repository=fossil_repo)
+        search = request.GET.get("search", "").strip()
+        if search:
+            fields = fields.filter(label__icontains=search) | fields.filter(name__icontains=search)
+            fields = fields.distinct()
+    except Exception:
+        fields = TicketFieldDefinition.objects.none()
 
     per_page = get_per_page(request)
     paginator = Paginator(fields, per_page)

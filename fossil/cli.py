@@ -90,6 +90,20 @@ class FossilCLI:
             pass
         return ""
 
+    def diff(self, repo_path: Path, from_version: str, to_version: str) -> str:
+        """Run fossil diff between two versions. Returns raw unified diff output."""
+        try:
+            result = subprocess.run(
+                [self.binary, "diff", "--from", from_version, "--to", to_version, "-R", str(repo_path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=self._env,
+            )
+            return result.stdout
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return ""
+
     def tarball(self, repo_path: Path, checkin: str) -> bytes:
         """Generate a tar.gz archive of a checkin. Returns raw bytes."""
         result = subprocess.run(
