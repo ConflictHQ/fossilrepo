@@ -1336,6 +1336,8 @@ class TestSSEEventStream:
         assert response["Cache-Control"] == "no-cache"
         assert response["X-Accel-Buffering"] == "no"
         assert response.streaming is True
+        # Close the streaming response to release the DB connection
+        response.close()
 
     def test_sse_generator_yields_claim_events(self, sample_project, fossil_repo_obj, admin_user):
         """The SSE generator detects new TicketClaims and yields claim events.
