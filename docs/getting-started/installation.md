@@ -2,10 +2,10 @@
 
 ## Quick Start (Docker)
 
-=== "Fossil (recommended)"
+=== "Fossil"
 
     ```bash
-    fossil clone https://fossilrepo.io/fossilrepo fossilrepo.fossil
+    fossil clone https://fossilrepo.io/projects/fossilrepo/ fossilrepo.fossil
     fossil open fossilrepo.fossil --workdir fossilrepo
     cd fossilrepo
     docker compose up -d --build
@@ -14,7 +14,7 @@
     docker compose exec backend python manage.py seed_roles
     ```
 
-=== "Git (mirror)"
+=== "Git"
 
     ```bash
     git clone https://github.com/ConflictHQ/fossilrepo.git

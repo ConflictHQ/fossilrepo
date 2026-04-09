@@ -2,8 +2,8 @@ site_name: Fossilrepo
 site_url: https://fossilrepo.dev
 site_description: Self-hosted Fossil forge -- omnibus installer for production Fossil SCM hosting
 site_author: CONFLICT LLC
-repo_url: https://fossilrepo.io/fossilrepo
-repo_name: fossilrepo
+repo_url: https://github.com/ConflictHQ/fossilrepo
+repo_name: ConflictHQ/fossilrepo
 
 theme:
   name: material

@@ -25,30 +25,45 @@ A Fossil repository is a single SQLite file containing the full VCS history, iss
 | **Caddy** | SSL termination, subdomain-per-repo routing |
 | **Litestream** | Continuous SQLite replication to S3/MinIO |
 | **Django management UI** | Repository lifecycle, user management, dashboards |
-| **Sync bridge** | Mirror Fossil repos to GitHub/GitLab (read-only) |
+| **Sync bridge** | Bidirectional sync between Fossil and GitHub/GitLab |
 | **Celery workers** | Background sync, scheduled tasks |
 
 ## Quick Start
 
-```bash
-# Clone from Fossil
-fossil clone https://fossilrepo.io/fossilrepo fossilrepo.fossil
-fossil open fossilrepo.fossil --workdir fossilrepo
-cd fossilrepo
+=== "Fossil"
 
-# Start the full stack
-make build
+    ```bash
+    fossil clone https://fossilrepo.io/projects/fossilrepo/ fossilrepo.fossil
+    fossil open fossilrepo.fossil --workdir fossilrepo
+    cd fossilrepo
 
-# Seed development data
-make seed
+    # Start the full stack
+    make build
 
-# Open the dashboard
-open http://localhost:8000
-```
+    # Seed development data
+    make seed
 
-!!! note "Git mirror available"
-    A read-only mirror is maintained on GitHub for convenience:
-    `git clone https://github.com/ConflictHQ/fossilrepo.git`
+    # Open the dashboard
+    open http://localhost:8000
+    ```
+
+=== "Git"
+
+    ```bash
+    git clone https://github.com/ConflictHQ/fossilrepo.git
+    cd fossilrepo
+
+    # Start the full stack
+    make build
+
+    # Seed development data
+    make seed
+
+    # Open the dashboard
+    open http://localhost:8000
+    ```
+
+Both repositories are kept in sync bidirectionally via the [sync bridge](architecture/sync-bridge.md).
 
 ## Architecture
 

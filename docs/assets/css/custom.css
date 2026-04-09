@@ -144,6 +144,12 @@
   background: #3a3a3a;
 }
 
+/* Dual repo links in header */
+.md-header__source {
+  display: flex;
+  gap: 0.4rem;
+}
+
 /* Content max width for readability */
 .md-grid {
   max-width: 1220px;
