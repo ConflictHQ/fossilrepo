@@ -31,8 +31,9 @@ A Fossil repository is a single SQLite file containing the full VCS history, iss
 ## Quick Start
 
 ```bash
-# Clone the repo
-git clone https://github.com/ConflictHQ/fossilrepo.git
+# Clone from Fossil
+fossil clone https://fossilrepo.io/fossilrepo fossilrepo.fossil
+fossil open fossilrepo.fossil --workdir fossilrepo
 cd fossilrepo
 
 # Start the full stack
@@ -44,6 +45,10 @@ make seed
 # Open the dashboard
 open http://localhost:8000
 ```
+
+!!! note "Git mirror available"
+    A read-only mirror is maintained on GitHub for convenience:
+    `git clone https://github.com/ConflictHQ/fossilrepo.git`
 
 ## Architecture
 

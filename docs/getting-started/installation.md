@@ -2,14 +2,28 @@
 
 ## Quick Start (Docker)
 
-```bash
-git clone https://github.com/ConflictHQ/fossilrepo.git
-cd fossilrepo
-docker compose up -d --build
-docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py seed
-docker compose exec backend python manage.py seed_roles
-```
+=== "Fossil (recommended)"
+
+    ```bash
+    fossil clone https://fossilrepo.io/fossilrepo fossilrepo.fossil
+    fossil open fossilrepo.fossil --workdir fossilrepo
+    cd fossilrepo
+    docker compose up -d --build
+    docker compose exec backend python manage.py migrate
+    docker compose exec backend python manage.py seed
+    docker compose exec backend python manage.py seed_roles
+    ```
+
+=== "Git (mirror)"
+
+    ```bash
+    git clone https://github.com/ConflictHQ/fossilrepo.git
+    cd fossilrepo
+    docker compose up -d --build
+    docker compose exec backend python manage.py migrate
+    docker compose exec backend python manage.py seed
+    docker compose exec backend python manage.py seed_roles
+    ```
 
 Visit http://localhost:8000. Login: `admin` / `admin`.
 
