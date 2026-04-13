@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Software Development :: Version Control",
 ]
 dependencies = [
-    "django>=5.1,<6.0",
+    "django>=5.1,<7.0",
     "psycopg2-binary>=2.9",
     "redis>=5.0",
     "celery[redis]>=5.4",
