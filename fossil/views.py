@@ -1363,9 +1363,12 @@ def ticket_create(request, slug):
             from fossil.cli import FossilCLI
 
             cli = FossilCLI()
+            priority = request.POST.get("priority", "")
             fields = {"title": title, "type": ticket_type, "comment": body, "status": "Open"}
             if severity:
                 fields["severity"] = severity
+            if priority:
+                fields["priority"] = priority
             # Collect custom field values
             for cf in custom_fields:
                 if cf.field_type == "checkbox":

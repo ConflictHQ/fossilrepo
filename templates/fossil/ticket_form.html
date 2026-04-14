@@ -21,7 +21,7 @@
              class="w-full rounded-md border-gray-600 bg-gray-900 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Type</label>
         <select name="type" class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
@@ -34,11 +34,21 @@
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Severity</label>
         <select name="severity" class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
-          <option value="">--</option>
+          <option value="">—</option>
           <option value="Critical">Critical</option>
           <option value="Important">Important</option>
           <option value="Minor">Minor</option>
           <option value="Cosmetic">Cosmetic</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Priority</label>
+        <select name="priority" class="w-full rounded-md border-gray-600 bg-gray-800 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand sm:text-sm transition-colors">
+          <option value="">—</option>
+          <option value="Critical">Critical</option>
+          <option value="Important">Important</option>
+          <option value="Minor">Minor</option>
+          <option value="Zero">Zero</option>
         </select>
       </div>
     </div>

@@ -20,7 +20,7 @@
           <a href="{% url 'fossil:user_activity' slug=project.slug username=note.user %}"
              class="hover:text-brand-light">{{ note.user|display_user }}</a>
           <span class="font-mono text-brand-light">{{ note.uuid|truncatechars:16 }}</span>
-          <span>{{ note.timestamp|date:"Y-m-d H:i" }}</span>
+          <span>{{ note.timestamp|date:"Y-m-d H:i" }} UTC</span>
         </div>
       </div>
       {% if has_write %}

@@ -43,7 +43,7 @@
       <tr class="hover:bg-gray-700/30 transition-colors">
         <td class="px-6 py-3 text-sm text-gray-200 font-mono">{{ file.name }}</td>
         <td class="px-6 py-3 text-sm text-gray-400">{{ file.size|filesizeformat }}</td>
-        <td class="px-6 py-3 text-sm text-gray-400">{% if file.mtime %}{{ file.mtime|date:"Y-m-d H:i" }}{% else %}--{% endif %}</td>
+        <td class="px-6 py-3 text-sm text-gray-400">{% if file.mtime %}{{ file.mtime|date:"Y-m-d H:i" }} UTC{% else %}--{% endif %}</td>
         <td class="px-6 py-3 text-right">
           <a href="{% url 'fossil:unversioned_download' slug=project.slug filename=file.name %}"
              class="inline-flex items-center rounded-md bg-gray-700 px-3 py-1 text-xs font-semibold text-gray-300 hover:bg-gray-600">
