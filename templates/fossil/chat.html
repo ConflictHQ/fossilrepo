@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load fossil_filters %}
+{% block title %}Chat — {{ project.name }} — Fossilrepo{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-100 mb-2">{{ project.name }}</h1>
+{% include "fossil/_project_nav.html" %}
+
+<div class="rounded-lg bg-gray-800 border border-gray-700 flex flex-col" style="height: 600px;">
+  <div class="px-4 py-3 border-b border-gray-700 flex-shrink-0">
+    <h2 class="text-sm font-medium text-gray-300">Project Chat</h2>
+  </div>
+
+  <!-- Message list -->
+  <div id="chat-messages"
+       class="flex-1 overflow-y-auto px-4 py-3 space-y-2"
+       hx-get="{% url 'fossil:chat_send' slug=project.slug %}"
+       hx-trigger="every 5s"
+       hx-swap="innerHTML">
+    {% include "fossil/partials/chat_messages.html" %}
+  </div>
+
+  <!-- Input form -->
+  <div class="px-4 py-3 border-t border-gray-700 flex-shrink-0">
+    <form hx-post="{% url 'fossil:chat_send' slug=project.slug %}"
+          hx-target="#chat-messages"
+          hx-swap="innerHTML"
+          hx-on::after-request="this.reset(); document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight"
+          class="flex gap-2">
+      {% csrf_token %}
+      <input type="text" name="body" placeholder="Send a message..." required maxlength="2000" autocomplete="off"
+             class="flex-1 rounded-md border-gray-600 bg-gray-900 text-gray-100 shadow-inner focus:border-brand focus:ring-1 focus:ring-brand text-sm transition-colors">
+      <button type="submit"
+              class="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover transition-colors flex-shrink-0">
+        Send
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

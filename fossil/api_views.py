@@ -1530,6 +1530,7 @@ def api_events(request, slug):
     - claim: ticket claimed/released/submitted
     - workspace: workspace created/merged/abandoned
     - review: code review created/updated
+    - chat: new chat message posted
 
     Heartbeat sent every 15 seconds if no events. Poll interval: 5 seconds.
     """
@@ -1557,6 +1558,10 @@ def api_events(request, slug):
         last_claim_id = TicketClaim.all_objects.filter(repository=repo).order_by("-pk").values_list("pk", flat=True).first() or 0
         last_workspace_id = AgentWorkspace.all_objects.filter(repository=repo).order_by("-pk").values_list("pk", flat=True).first() or 0
         last_review_id = CodeReview.all_objects.filter(repository=repo).order_by("-pk").values_list("pk", flat=True).first() or 0
+
+        from fossil.chat import ChatMessage
+
+        last_chat_id = ChatMessage.objects.filter(repository=repo).order_by("-pk").values_list("pk", flat=True).first() or 0
 
         heartbeat_counter = 0
 
@@ -1634,6 +1639,25 @@ def api_events(request, slug):
                     }
                 )
                 last_review_id = review.pk
+
+            # Check for new chat messages
+            try:
+                new_msgs = ChatMessage.objects.filter(repository=repo, pk__gt=last_chat_id).order_by("pk")
+                for msg in new_msgs:
+                    events.append(
+                        {
+                            "type": "chat",
+                            "data": {
+                                "id": msg.pk,
+                                "username": msg.username,
+                                "body": msg.body,
+                                "timestamp": msg.created_at.strftime("%H:%M"),
+                            },
+                        }
+                    )
+                    last_chat_id = msg.pk
+            except Exception:
+                pass
 
             # Yield events
             for event in events:

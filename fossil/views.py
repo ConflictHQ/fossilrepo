@@ -4477,3 +4477,55 @@ def bundle_import(request, slug):
             return redirect("fossil:repo_settings", slug=slug)
 
     return render(request, "fossil/bundle_import.html", {"project": project, "active_tab": "settings"})
+
+
+# --- Chat ---
+
+
+@login_required
+def chat_room(request, slug):
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request)
+    from fossil.chat import ChatMessage
+
+    messages = ChatMessage.objects.filter(repository=fossil_repo).select_related("user").order_by("-created_at")[:50]
+    messages = list(reversed(messages))
+    return render(
+        request,
+        "fossil/chat.html",
+        {
+            "project": project,
+            "fossil_repo": fossil_repo,
+            "messages": messages,
+            "active_tab": "chat",
+        },
+    )
+
+
+@login_required
+def chat_send(request, slug):
+    from fossil.chat import ChatMessage
+
+    if request.method == "POST":
+        project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
+        body = request.POST.get("body", "").strip()
+        if body:
+            ChatMessage.objects.create(
+                repository=fossil_repo,
+                user=request.user,
+                username=request.user.username,
+                body=body[:2000],
+            )
+    else:
+        project, fossil_repo, reader = _get_repo_and_reader(slug, request)
+
+    # Return the updated message list partial for HTMX swap
+    chat_messages = ChatMessage.objects.filter(repository=fossil_repo).select_related("user").order_by("-created_at")[:50]
+    chat_messages = list(reversed(chat_messages))
+    return render(
+        request,
+        "fossil/partials/chat_messages.html",
+        {
+            "project": project,
+            "messages": chat_messages,
+        },
+    )

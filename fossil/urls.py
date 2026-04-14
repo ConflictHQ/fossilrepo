@@ -141,4 +141,7 @@ urlpatterns = [
     # Bundle export/import
     path("bundle/export/", views.bundle_export, name="bundle_export"),
     path("bundle/import/", views.bundle_import, name="bundle_import"),
+    # Chat
+    path("chat/", views.chat_room, name="chat"),
+    path("chat/send/", views.chat_send, name="chat_send"),
 ]

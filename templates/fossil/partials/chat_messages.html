@@ -1,0 +1,8 @@
+{% load fossil_filters %}
+{% for msg in messages %}
+<div class="flex gap-2 text-sm" id="chat-msg-{{ msg.pk }}">
+  <span class="font-medium text-brand-light flex-shrink-0">{{ msg.username|display_user }}</span>
+  <span class="text-gray-400 flex-shrink-0 text-xs mt-0.5">{{ msg.created_at|time:"H:i" }}</span>
+  <span class="text-gray-200 break-words min-w-0">{{ msg.body }}</span>
+</div>
+{% endfor %}

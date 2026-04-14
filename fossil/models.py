@@ -70,6 +70,7 @@ class FossilSnapshot(Tracking):
 from fossil.agent_claims import TicketClaim  # noqa: E402, F401
 from fossil.api_tokens import APIToken  # noqa: E402, F401
 from fossil.branch_protection import BranchProtection  # noqa: E402, F401
+from fossil.chat import ChatMessage  # noqa: E402, F401
 from fossil.ci import StatusCheck  # noqa: E402, F401
 from fossil.code_reviews import CodeReview, ReviewComment  # noqa: E402, F401
 from fossil.forum import ForumPost  # noqa: E402, F401
