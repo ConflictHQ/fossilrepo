@@ -28,4 +28,12 @@ fi
 # Run Django migrations as app user
 gosu app python manage.py migrate --noinput
 
+# If JupyterHub spawned this container for a specific user, ensure that user
+# exists in Django before the first request arrives.  ensure_user is idempotent.
+if [ -n "${JUPYTERHUB_USER:-}" ]; then
+    gosu app python manage.py ensure_user \
+        --username "$JUPYTERHUB_USER" \
+        --group "Administrators"
+fi
+
 exec supervisord -c /etc/supervisor/conf.d/fossilrepo.conf

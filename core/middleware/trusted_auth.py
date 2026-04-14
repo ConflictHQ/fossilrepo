@@ -26,6 +26,7 @@ SECURITY WARNING
     strips and re-sets the user header before forwarding.
 """
 
+import contextlib
 import logging
 
 from django.conf import settings
@@ -69,11 +70,8 @@ class TrustedProxyAuthMiddleware:
         if request.user.is_authenticated and request.user.get_username() == username:
             return
 
-        user_model = get_user_model()
-        try:
-            user = user_model.objects.get(username=username)
-        except user_model.DoesNotExist:
-            logger.warning("TrustedProxyAuthMiddleware: user %r not found in database", username)
+        user = self._get_user(username)
+        if user is None:
             return
 
         # If a different user is in the session, flush it first.
@@ -83,3 +81,36 @@ class TrustedProxyAuthMiddleware:
         user.backend = _BACKEND
         auth.login(request, user)
         logger.debug("TrustedProxyAuthMiddleware: authenticated request as %r", username)
+
+    def _get_user(self, username):
+        """Return the User for username.
+
+        In AUTO_AUTH_USERNAME mode: create the user (superuser, unusable password)
+        if they don't exist yet.  This is the safety net for the first request
+        when the entrypoint hasn't run ensure_user (local dev, manual starts, etc).
+
+        In TRUSTED_PROXY_AUTH mode: look up only — we don't auto-create accounts
+        for arbitrary proxy-supplied usernames.
+        """
+        from django.contrib.auth.models import Group
+
+        user_model = get_user_model()
+
+        if self.auto_user:
+            user, created = user_model.objects.get_or_create(
+                username=username,
+                defaults={"is_staff": True, "is_superuser": True},
+            )
+            if created:
+                user.set_unusable_password()
+                user.save()
+                with contextlib.suppress(Group.DoesNotExist):
+                    user.groups.add(Group.objects.get(name="Administrators"))
+                logger.info("TrustedProxyAuthMiddleware: auto-created user %r", username)
+            return user
+
+        try:
+            return user_model.objects.get(username=username)
+        except user_model.DoesNotExist:
+            logger.warning("TrustedProxyAuthMiddleware: user %r not found in database", username)
+            return None
