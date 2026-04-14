@@ -81,12 +81,15 @@ RUN useradd -r -m -d /home/app -s /bin/false app \
 # supervisord config for ECS
 COPY docker/supervisord.ecr.conf /etc/supervisor/conf.d/fossilrepo.conf
 
+# jupyter-server-proxy named-path config: /fossilrepo → port 8000
+COPY docker/jupyter_server_config.py /etc/jupyter/jupyter_server_config.py
+
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV DJANGO_SETTINGS_MODULE=config.settings
 ENV FOSSIL_PORT=8080
 ENV FOSSIL_REPOS_DIR=/data/repos
-ENV JUPYTERHUB_DEFAULT_URL=/proxy/8000/
+ENV JUPYTERHUB_DEFAULT_URL=/fossilrepo
 
 EXPOSE 8000 8070 8080 2222
 

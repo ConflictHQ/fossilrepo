@@ -182,8 +182,8 @@ USE_TZ = True
 # full absolute URL that browsers need to reach static files through the proxy.
 _jh_prefix = env_str("JUPYTERHUB_SERVICE_PREFIX", "")
 if _jh_prefix:
-    # e.g. /user/lmata/fssl/ → /user/lmata/fssl/proxy/8000
-    FORCE_SCRIPT_NAME = _jh_prefix.rstrip("/") + "/proxy/8000"
+    # e.g. /user/lmata/fssl/ → /user/lmata/fssl/fossilrepo
+    FORCE_SCRIPT_NAME = _jh_prefix.rstrip("/") + "/fossilrepo"
     STATIC_URL = FORCE_SCRIPT_NAME + "/static/"
 else:
     FORCE_SCRIPT_NAME = ""
