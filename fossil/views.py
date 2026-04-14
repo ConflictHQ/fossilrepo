@@ -4484,6 +4484,10 @@ def bundle_import(request, slug):
 
 @login_required
 def chat_room(request, slug):
+    from constance import config
+
+    if not config.FEATURE_CHAT:
+        raise Http404
     project, fossil_repo, reader = _get_repo_and_reader(slug, request)
     from fossil.chat import ChatMessage
 
@@ -4503,6 +4507,10 @@ def chat_room(request, slug):
 
 @login_required
 def chat_send(request, slug):
+    from constance import config
+
+    if not config.FEATURE_CHAT:
+        raise Http404
     from fossil.chat import ChatMessage
 
     if request.method == "POST":

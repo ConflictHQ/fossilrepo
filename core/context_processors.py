@@ -1,3 +1,5 @@
+from constance import config
+
 from pages.models import Page
 from projects.models import Project, ProjectGroup
 
@@ -40,4 +42,5 @@ def sidebar(request):
         "sidebar_pages": pages,  # Keep for backwards compat
         "sidebar_product_docs": product_docs,
         "sidebar_kb_pages": kb_pages,
+        "feature_chat": config.FEATURE_CHAT,
     }

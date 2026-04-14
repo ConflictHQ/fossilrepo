@@ -256,6 +256,8 @@ CONSTANCE_CONFIG = {
     "TURNSTILE_ENABLED": (False, "Enable Cloudflare Turnstile on the login page"),
     "TURNSTILE_SITE_KEY": ("", "Cloudflare Turnstile site key (public)"),
     "TURNSTILE_SECRET_KEY": ("", "Cloudflare Turnstile secret key (server-side verification)"),
+    # Feature flags
+    "FEATURE_CHAT": (False, "Enable project chat rooms"),
 }
 CONSTANCE_CONFIG_FIELDSETS = {
     "General": ("SITE_NAME",),
@@ -264,6 +266,7 @@ CONSTANCE_CONFIG_FIELDSETS = {
     "GitHub OAuth": ("GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET"),
     "GitLab OAuth": ("GITLAB_OAUTH_CLIENT_ID", "GITLAB_OAUTH_CLIENT_SECRET"),
     "Cloudflare Turnstile": ("TURNSTILE_ENABLED", "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"),
+    "Features": ("FEATURE_CHAT",),
 }
 
 # --- Sentry ---
