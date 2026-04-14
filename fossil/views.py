@@ -872,7 +872,7 @@ def wiki_list(request, slug):
     }
 
     if request.headers.get("HX-Request"):
-        return render(request, "fossil/wiki_list.html", ctx)
+        return render(request, "fossil/partials/wiki_list_content.html", ctx)
 
     return render(request, "fossil/wiki_list.html", ctx)
 

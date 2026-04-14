@@ -1,0 +1,47 @@
+<div class="flex gap-6">
+  <!-- Main content: home page or page index -->
+  <div class="flex-1 min-w-0">
+    {% if home_page and not search %}
+    <div class="overflow-hidden rounded-lg bg-gray-800 shadow-sm border border-gray-700">
+      <div class="px-6 py-4 border-b border-gray-700">
+        <h2 class="text-lg font-semibold text-gray-100">{{ home_page.name }}</h2>
+      </div>
+      <div class="px-6 py-6">
+        <div class="prose prose-invert prose-gray max-w-none">
+          {{ home_content_html }}
+        </div>
+      </div>
+    </div>
+    {% elif not pages %}
+    <div class="rounded-lg bg-gray-800 border border-gray-700 p-8 text-center">
+      <p class="text-sm text-gray-500">{% if search %}No wiki pages matching "{{ search }}".{% else %}No wiki pages yet. Create a "Home" page to get started.{% endif %}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right sidebar: all pages -->
+  <aside class="hidden lg:block w-52 flex-shrink-0">
+    <div class="sticky top-6">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Wiki Pages</h3>
+      <nav class="space-y-0.5">
+        {% for p in pages %}
+        <a href="{% url 'fossil:wiki_page' slug=project.slug page_name=p.name %}"
+           class="block rounded-md px-3 py-1.5 text-sm {% if p.name == 'Home' %}text-brand-light font-medium{% else %}text-gray-400{% endif %} hover:text-gray-200 hover:bg-gray-800/50">
+          {% if p.name == "Home" %}
+          <span class="flex items-center gap-1.5">
+            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+            {{ p.name }}
+          </span>
+          {% else %}
+          {{ p.name }}
+          {% endif %}
+        </a>
+        {% endfor %}
+      </nav>
+      {% if not pages %}
+      <p class="text-xs text-gray-600 px-3">No pages.</p>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% include "includes/_pagination_manual.html" %}
