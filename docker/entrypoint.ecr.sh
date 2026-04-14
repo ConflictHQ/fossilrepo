@@ -28,11 +28,13 @@ fi
 # Run Django migrations as app user
 gosu app python manage.py migrate --noinput
 
-# If JupyterHub spawned this container for a specific user, ensure that user
-# exists in Django before the first request arrives.  ensure_user is idempotent.
-if [ -n "${JUPYTERHUB_USER:-}" ]; then
+# Ensure the auto-auth user exists in Django before the first request arrives.
+# AUTO_AUTH_USERNAME is the canonical source; JUPYTERHUB_USER is the fallback
+# for when the spawner sets it separately.  ensure_user is idempotent.
+_SEED_USER="${AUTO_AUTH_USERNAME:-${JUPYTERHUB_USER:-}}"
+if [ -n "$_SEED_USER" ]; then
     gosu app python manage.py ensure_user \
-        --username "$JUPYTERHUB_USER" \
+        --username "$_SEED_USER" \
         --group "Administrators"
 fi
 
