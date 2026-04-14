@@ -171,7 +171,24 @@ USE_TZ = True
 
 # --- Static ---
 
-STATIC_URL = "/static/"
+# When deployed behind JupyterHub proxy, compute FORCE_SCRIPT_NAME from the
+# service prefix so that Django URL reversals and static file URLs include the
+# full proxy path (e.g. /user/{user}/fssl/proxy/8000/).
+#
+# Whitenoise 6.x natively handles FORCE_SCRIPT_NAME: it strips the script-name
+# prefix from STATIC_URL to determine the path it serves files at (which is
+# the stripped path that gunicorn sees after jupyter-server-proxy removes the
+# outer /proxy/8000/ segment).  Template {% static %} tags then generate the
+# full absolute URL that browsers need to reach static files through the proxy.
+_jh_prefix = env_str("JUPYTERHUB_SERVICE_PREFIX", "")
+if _jh_prefix:
+    # e.g. /user/lmata/fssl/ → /user/lmata/fssl/proxy/8000
+    FORCE_SCRIPT_NAME = _jh_prefix.rstrip("/") + "/proxy/8000"
+    STATIC_URL = FORCE_SCRIPT_NAME + "/static/"
+else:
+    FORCE_SCRIPT_NAME = ""
+    STATIC_URL = "/static/"
+
 STATIC_ROOT = BASE_DIR / "assets"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STORAGES = {
