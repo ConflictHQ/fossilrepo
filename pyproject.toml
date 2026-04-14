@@ -6,6 +6,7 @@ license = "MIT"
 requires-python = ">=3.12"
 readme = "README.md"
 authors = [
+    { name = "Leo Mata", email = "leo@weareconflict.com" },
     { name = "CONFLICT LLC", email = "open-source@weareconflict.com" },
 ]
 keywords = ["fossil", "scm", "vcs", "code-hosting", "self-hosted", "forge"]

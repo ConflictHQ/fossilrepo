@@ -12,6 +12,7 @@
 #   ./install.sh --docker --domain fossil.example.com --ssl
 #
 # https://github.com/ConflictHQ/fossilrepo
+# Copyright (c) 2026 Leo Mata & CONFLICT LLC
 # MIT License
 # ============================================================================
 
