@@ -64,7 +64,8 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
             return m.group(0)
 
         html = re.sub(r'<code class="language-pikchr">(.*?)</code>', _render_pikchr_md, html, flags=re.DOTALL)
-        return _rewrite_fossil_links(html, project_slug) if project_slug else html
+        html = _rewrite_fossil_links(html, project_slug) if project_slug else html
+        return _rewrite_img_srcs(html, project_slug, base_path) if project_slug else html
 
     # Fossil wiki / HTML: convert Fossil-specific syntax to HTML
     # Fossil links: [path | text] or [path|text] — spaces around pipe are optional
@@ -141,7 +142,8 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
     # Wrap bare text blocks in <p> tags (lines not inside HTML tags)
     content = re.sub(r"\n\n(?!<)", "\n\n<p>", content)
 
-    return _rewrite_fossil_links(content, project_slug) if project_slug else content
+    content = _rewrite_fossil_links(content, project_slug) if project_slug else content
+    return _rewrite_img_srcs(content, project_slug, base_path) if project_slug else content
 
 
 def _is_markdown(content: str) -> bool:
@@ -283,6 +285,28 @@ def _rewrite_fossil_links(html: str, project_slug: str) -> str:
     # instance. If we have it locally as a different project, the user can
     # navigate there directly. Rewriting cross-repo links is fragile.
     return html
+
+
+def _rewrite_img_srcs(html: str, project_slug: str, base_path: str) -> str:
+    """Rewrite relative img src attributes to the raw file endpoint.
+
+    Markdown files often reference images with relative paths (e.g. docs/tour.gif).
+    After rendering, those paths would resolve relative to the current page URL
+    (code/file/...) which returns HTML, not the image binary. Rewrite them to
+    code/raw/... which serves the raw file content.
+    """
+    if not project_slug:
+        return html
+    raw_base = f"/projects/{project_slug}/fossil/code/raw/{base_path}"
+
+    def replace_src(match):
+        src = match.group(1)
+        # Leave absolute URLs, root-relative paths, and data URIs alone
+        if src.startswith(("http://", "https://", "/", "data:")):
+            return match.group(0)
+        return f'src="{raw_base}{src}"'
+
+    return re.sub(r'src="([^"]*)"', replace_src, html)
 
 
 def _get_repo_and_reader(slug, request=None, require="read"):
