@@ -4432,3 +4432,51 @@ def repo_explorer_query(request, slug):
             "active_tab": "explorer",
         },
     )
+
+
+# --- Bundle Export / Import ---
+
+
+@login_required
+def bundle_export(request, slug):
+    """Export a Fossil bundle file for download."""
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "admin")
+    branch = request.GET.get("branch", "").strip()
+    checkin = request.GET.get("checkin", "").strip()
+
+    from fossil.cli import FossilCLI
+
+    cli = FossilCLI()
+    data = cli.bundle_export(fossil_repo.full_path, branch=branch, checkin=checkin)
+    if not data:
+        raise Http404("Bundle export failed")
+
+    filename = f"{project.slug}-{branch or checkin or 'trunk'}.bundle"
+    response = HttpResponse(data, content_type="application/octet-stream")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def bundle_import(request, slug):
+    """Import a Fossil bundle file into the repository."""
+    project, fossil_repo, reader = _get_repo_and_reader(slug, request, "admin")
+
+    if request.method == "POST":
+        bundle_file = request.FILES.get("bundle")
+        publish = request.POST.get("publish") == "on"
+        if bundle_file:
+            from fossil.cli import FossilCLI
+
+            cli = FossilCLI()
+            ok = cli.bundle_import(fossil_repo.full_path, bundle_file.read(), publish=publish)
+
+            from django.contrib import messages
+
+            if ok:
+                messages.success(request, "Bundle imported successfully.")
+            else:
+                messages.error(request, "Bundle import failed. Check the file is a valid Fossil bundle.")
+            return redirect("fossil:repo_settings", slug=slug)
+
+    return render(request, "fossil/bundle_import.html", {"project": project, "active_tab": "settings"})

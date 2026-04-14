@@ -138,4 +138,7 @@ urlpatterns = [
     path("explorer/", views.repo_explorer, name="explorer"),
     path("explorer/table/<str:table_name>/", views.repo_explorer_table, name="explorer_table"),
     path("explorer/query/", views.repo_explorer_query, name="explorer_query"),
+    # Bundle export/import
+    path("bundle/export/", views.bundle_export, name="bundle_export"),
+    path("bundle/import/", views.bundle_import, name="bundle_import"),
 ]

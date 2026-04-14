@@ -498,3 +498,40 @@ class FossilCLI:
         if result.returncode == 0:
             return [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
         return []
+
+    def bundle_export(self, repo_path: Path, branch: str = "", checkin: str = "") -> bytes:
+        """Export a Fossil bundle. Returns raw bytes of the .bundle file."""
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".bundle", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            cmd = [self.binary, "bundle", "export", str(tmp_path), "-R", str(repo_path)]
+            if branch:
+                cmd += ["--branch", branch]
+            elif checkin:
+                cmd += ["--checkin", checkin]
+            else:
+                cmd += ["--branch", "trunk"]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=self._env)
+            if result.returncode != 0:
+                return b""
+            return tmp_path.read_bytes()
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    def bundle_import(self, repo_path: Path, bundle_bytes: bytes, publish: bool = False) -> bool:
+        """Import a Fossil bundle into the repo. Returns True on success."""
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".bundle", delete=False) as tmp:
+            tmp.write(bundle_bytes)
+            tmp_path = Path(tmp.name)
+        try:
+            cmd = [self.binary, "bundle", "import", str(tmp_path), "-R", str(repo_path)]
+            if publish:
+                cmd.append("--publish")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=self._env)
+            return result.returncode == 0
+        finally:
+            tmp_path.unlink(missing_ok=True)
