@@ -1,0 +1,96 @@
+################################################################################
+# fossilrepo — JupyterHub-compatible ECS image
+#
+# Wraps the Django/Fossil app with supervisord + jupyterhub-singleuser so
+# JupyterHub can spawn it as a named server.
+#
+# Ports:
+#   8070  jupyterhub-singleuser (JupyterHub proxy target)
+#   8000  gunicorn / Django management UI
+#   8080  fossil server --repolist (raw VCS access via /proxy/8080/)
+#   2222  sshd (fossil clone/push over SSH)
+#
+# EFS is mounted at /mnt/efs; FOSSIL_REPOS_DIR points into that tree.
+################################################################################
+
+# ── Stage 1: Build Fossil from source ──────────────────────────────────────
+FROM debian:bookworm-slim AS fossil-builder
+
+ARG FOSSIL_VERSION=2.24
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl ca-certificates zlib1g-dev libssl-dev tcl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+RUN curl -sSL "https://fossil-scm.org/home/tarball/version-${FOSSIL_VERSION}/fossil-src-${FOSSIL_VERSION}.tar.gz" \
+    -o fossil.tar.gz \
+    && tar xzf fossil.tar.gz \
+    && cd fossil-src-${FOSSIL_VERSION} \
+    && ./configure --prefix=/usr/local --with-openssl=auto --json \
+    && make -j$(nproc) \
+    && make install
+
+# ── Stage 2: Runtime image ─────────────────────────────────────────────────
+FROM python:3.12-slim-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client ca-certificates zlib1g libssl3 openssh-server git \
+    gosu supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Fossil binary from builder
+COPY --from=fossil-builder /usr/local/bin/fossil /usr/local/bin/fossil
+RUN fossil version
+
+# Install Python deps including JupyterHub singleuser + Django app deps
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+COPY pyproject.toml ./
+RUN uv pip install --system --no-cache -r pyproject.toml
+
+# Add JupyterHub integration packages
+RUN pip install --no-cache-dir \
+    "jupyterhub>=4.0,<6.0" \
+    "jupyter-server-proxy>=4.0"
+
+COPY . .
+
+RUN DJANGO_SECRET_KEY=build-placeholder DJANGO_DEBUG=true python manage.py collectstatic --noinput
+
+# Create data directories
+RUN mkdir -p /data/repos /data/trash /data/ssh
+
+# SSH setup — restricted fossil user for clone/push
+RUN useradd -r -m -d /home/fossil -s /usr/sbin/nologin fossil \
+    && mkdir -p /run/sshd /home/fossil/.ssh \
+    && chown fossil:fossil /home/fossil/.ssh \
+    && chmod 700 /home/fossil/.ssh
+
+COPY docker/sshd_config /etc/ssh/sshd_config
+COPY docker/fossil-shell /usr/local/bin/fossil-shell
+RUN chmod +x /usr/local/bin/fossil-shell
+
+RUN ssh-keygen -A
+
+# Create non-root app user for running gunicorn
+RUN useradd -r -m -d /home/app -s /bin/false app \
+    && chown -R app:app /app /data
+
+# supervisord config for ECS
+COPY docker/supervisord.ecr.conf /etc/supervisor/conf.d/fossilrepo.conf
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV DJANGO_SETTINGS_MODULE=config.settings
+ENV FOSSIL_PORT=8080
+ENV FOSSIL_REPOS_DIR=/data/repos
+ENV JUPYTERHUB_DEFAULT_URL=/proxy/8000/
+
+EXPOSE 8000 8070 8080 2222
+
+COPY docker/entrypoint.ecr.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+CMD ["/usr/local/bin/entrypoint.sh"]
