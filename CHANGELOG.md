@@ -2,6 +2,30 @@
 
 All notable changes to Fossilrepo are documented here.
 
+## [0.1.1] - 2026-04-13
+
+### Added
+
+- **Chat** — per-project real-time messaging backed by HTMX polling; gated behind `FEATURE_CHAT` flag (off by default)
+- **Bundle export/import** — download a Fossil bundle for a branch or checkin, upload and import bundles; admin-only
+- **Feature flags** — runtime on/off switches for optional features via Constance (`FEATURE_CHAT`, `FEATURE_RELEASES`, `FEATURE_SYNC`, `FEATURE_FILES`); all default off so new installs start minimal
+- **Ticket priority field** — Priority (Critical / Important / Minor / Zero) added to ticket create form
+
+### Fixed
+
+- **Wiki links** — internal links in rendered wiki content were missing `/page/` in the URL (e.g. `.../wiki/Architecture` → `.../wiki/page/Architecture`); all three codepaths that generate wiki hrefs are now correct
+- **DAG fork connectors** — fork branch connectors were drawn at the newest commit on a branch instead of the actual fork point; now correctly drawn where the branch diverges from its parent
+- **Ticket 500 errors** — ticket list and detail views no longer 500 on malformed or missing ticket data
+- **Diffs** — switched from Python difflib to Fossil's native diff engine for accurate delta computation
+
+### Changed
+
+- All timestamps across code browser, timeline, ticket, wiki, and technote views now show explicit `UTC` suffix
+- UI polish: stronger card/input/table/button borders and definition throughout
+- Ticket list defaults to Open status filter instead of showing all tickets
+- Docs site now Fossil-forward: primary clone links point to Fossil instance; GitHub listed as mirror
+- Author attribution updated to Leo Mata & CONFLICT LLC
+
 ## [0.1.0] - 2026-04-07
 
 Initial open source release.

@@ -27,9 +27,21 @@
 - Compare any two checkins
 - Fossil delta decoding for accurate diff computation
 
+## Feature Flags
+
+Optional features can be toggled at runtime from **Super Admin → Constance → Config** without redeploying.
+
+| Flag | Feature | Default |
+|---|---|---|
+| `FEATURE_CHAT` | Per-project chat rooms | Off |
+| `FEATURE_RELEASES` | Releases tab and asset downloads | Off |
+| `FEATURE_SYNC` | Git sync and mirror configuration | Off |
+| `FEATURE_FILES` | Unversioned file storage | Off |
+
 ## Tickets
 - Full CRUD: create, edit, close/reopen, add comments
 - Filter by status, type, priority, severity
+- Priority field (Critical / Important / Minor / Zero) on ticket create
 - Pagination with configurable per-page (25/50/100)
 - Live search via HTMX
 - CSV export
@@ -62,6 +74,21 @@
 - Create and edit developer journal entries
 - Markdown body with preview
 - Timestamped, shown in timeline
+
+## Chat
+
+- Per-project chat rooms for team communication
+- HTMX-powered message list with 5-second polling (no WebSocket dependency)
+- Messages scoped to the repository — one room per project
+- Requires write access to send messages
+- Enabled via `FEATURE_CHAT` flag (off by default)
+
+## Bundles
+
+- Export a Fossil bundle for any branch or checkin as a single portable file
+- Import bundles from external sources to bring in changesets without a full clone
+- Admin-only — available from the project Settings page
+- Useful for air-gapped transfers and selective history sharing
 
 ## Unversioned Files
 - Browse Fossil's unversioned content (equivalent to Git LFS)
