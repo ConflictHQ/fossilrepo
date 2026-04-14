@@ -134,6 +134,11 @@
     html:not(.dark) main .group:hover { border-color: #DC394C !important; }
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <style>
+    /* highlight.js github-dark adds backgrounds to some token types (e.g. Makefile
+       targets via hljs-section) that create unwanted boxes on our dark background. */
+    .hljs-section, .hljs-keyword { background: transparent !important; }
+  </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
