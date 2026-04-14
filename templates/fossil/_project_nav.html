@@ -27,10 +27,6 @@
      class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'forum' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Forum
   </a>
-  <a href="{% url 'fossil:chat' slug=project.slug %}"
-     class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'chat' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
-    Chat
-  </a>
   <a href="{% url 'fossil:releases' slug=project.slug %}"
      class="px-3 py-2.5 sm:px-4 sm:py-2 text-sm font-medium rounded-t-md whitespace-nowrap {% if active_tab == 'releases' %}bg-gray-800 text-gray-100 border-b-2 border-brand{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors{% endif %}">
     Releases
