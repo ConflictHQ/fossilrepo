@@ -43,4 +43,7 @@ def sidebar(request):
         "sidebar_product_docs": product_docs,
         "sidebar_kb_pages": kb_pages,
         "feature_chat": config.FEATURE_CHAT,
+        "feature_releases": config.FEATURE_RELEASES,
+        "feature_sync": config.FEATURE_SYNC,
+        "feature_files": config.FEATURE_FILES,
     }

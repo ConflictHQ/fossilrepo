@@ -1501,6 +1501,10 @@ def user_activity(request, slug, username):
 @login_required
 def sync_pull(request, slug):
     """Sync configuration and pull from upstream remote."""
+    from constance import config
+
+    if not config.FEATURE_SYNC:
+        raise Http404
     project, fossil_repo, reader = _get_repo_and_reader(slug, request, "write")
 
     from fossil.cli import FossilCLI
@@ -2265,6 +2269,10 @@ def technote_edit(request, slug, technote_id):
 
 
 def unversioned_list(request, slug):
+    from constance import config
+
+    if not config.FEATURE_FILES:
+        raise Http404
     from projects.access import can_admin_project
 
     project, fossil_repo, reader = _get_repo_and_reader(slug, request)
@@ -3061,6 +3069,10 @@ def _get_project_and_repo(slug, request=None, require="read"):
 
 
 def release_list(request, slug):
+    from constance import config
+
+    if not config.FEATURE_RELEASES:
+        raise Http404
     from projects.access import can_write_project
 
     project, fossil_repo = _get_project_and_repo(slug, request, "read")
