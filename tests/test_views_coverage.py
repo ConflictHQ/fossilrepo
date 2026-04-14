@@ -181,8 +181,15 @@ class TestRenderFossilContent:
         from fossil.views import _render_fossil_content
 
         content = "<p>See [PageName]</p>"
-        html = _render_fossil_content(content)
-        assert 'href="PageName"' in html
+        html = _render_fossil_content(content, project_slug="my-project")
+        assert 'href="/projects/my-project/fossil/wiki/page/PageName"' in html
+
+    def test_fossil_pipe_wiki_link_no_base_path(self):
+        from fossil.views import _render_fossil_content
+
+        content = "<p>See [Architecture | Architecture]</p>"
+        html = _render_fossil_content(content, project_slug="my-project")
+        assert 'href="/projects/my-project/fossil/wiki/page/Architecture"' in html
 
     def test_markdown_fossil_link_resolved(self):
         from fossil.views import _render_fossil_content

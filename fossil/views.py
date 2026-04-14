@@ -43,7 +43,7 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
             if path.startswith("./"):
                 path = "/" + base_path + path[2:]
             elif not path.startswith("/") and not path.startswith("http"):
-                path = "/" + base_path + path
+                path = "/" + base_path + path if base_path else "/wiki/" + path
             return f"[{text}]({path})"
 
         content = re.sub(r"\[([^\]\|]+?)\s*\|\s*([^\]]+?)\]", _fossil_to_md_link, content)
@@ -75,7 +75,7 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
         if path.startswith("./"):
             path = "/" + base_path + path[2:]
         elif not path.startswith("/") and not path.startswith("http"):
-            path = "/" + base_path + path
+            path = "/" + base_path + path if base_path else "/wiki/" + path
         return f'<a href="{path}">{text}</a>'
 
     # Match [path | text] with flexible whitespace around the pipe
@@ -84,8 +84,8 @@ def _render_fossil_content(content: str, project_slug: str = "", base_path: str 
     content = re.sub(r"\[wikipedia:([^\]]+)\]", r'<a href="https://en.wikipedia.org/wiki/\1">\1</a>', content)
     # Anchor links: [#anchor-name] -> local anchor
     content = re.sub(r"\[#([^\]]+)\]", r'<a href="#\1">\1</a>', content)
-    # Bare wiki links: [PageName] (no pipe, not a URL)
-    content = re.sub(r"\[([A-Z][a-zA-Z0-9_]+)\]", r'<a href="\1">\1</a>', content)
+    # Bare wiki links: [PageName] (no pipe, not a URL) — use /wiki/ prefix so _rewrite_fossil_links maps it correctly
+    content = re.sub(r"\[([A-Z][a-zA-Z0-9_]+)\]", r'<a href="/wiki/\1">\1</a>', content)
 
     # Verbatim blocks
     # Pikchr diagrams: <verbatim type="pikchr">...</verbatim> → SVG
