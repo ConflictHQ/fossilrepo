@@ -1,3 +1,4 @@
+repos/*.fossil
 **/__pycache__/**
 **/*.pyc
 **/*.pyo
