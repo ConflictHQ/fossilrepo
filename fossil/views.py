@@ -2924,17 +2924,12 @@ def _compute_dag_graph(entries):
             rid_to_rail[entry.rid] = max(entry.rail, 0)
 
     # Track which rids have a child on the same rail (for leaf detection).
-    # Also track which rails have had a previous entry (for fork detection:
-    # first entry on a rail whose parent is on a different rail = fork).
     has_child_on_rail: set[int] = set()  # parent rids that have a same-rail child
-    rail_first_seen: dict[int, int] = {}  # rail -> index of first entry on that rail
 
-    for i, entry in enumerate(entries):
+    for _i, entry in enumerate(entries):
         if entry.event_type != "ci":
             continue
         rail = max(entry.rail, 0)
-        if rail not in rail_first_seen:
-            rail_first_seen[rail] = i
         # Mark the primary parent as having a child on this rail
         if entry.parent_rid in rid_to_rail and rid_to_rail[entry.parent_rid] == rail:
             has_child_on_rail.add(entry.parent_rid)
@@ -2961,11 +2956,13 @@ def _compute_dag_graph(entries):
             continue
         child_rail = max(entry.rail, 0)
 
-        # Fork detection: this entry's primary parent is on a different rail,
-        # and this is the first entry we've seen on this rail.
+        # Fork detection: primary parent is on a different rail = actual branch point.
+        # Draw the connector at the fork commit itself (the oldest entry on the branch),
+        # not at the newest entry. In newest-first order, this is the entry whose parent
+        # is on a different rail — there is exactly one such entry per branch.
         if entry.parent_rid in rid_to_rail:
             parent_rail = rid_to_rail[entry.parent_rid]
-            if child_rail != parent_rail and rail_first_seen.get(child_rail) == i:
+            if child_rail != parent_rail:
                 row_fork_from[i] = parent_rail
                 # Draw the fork connector at this row (where the branch starts)
                 left_rail = min(child_rail, parent_rail)
