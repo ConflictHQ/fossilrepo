@@ -135,8 +135,10 @@
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
   <style>
-    /* highlight.js github-dark adds backgrounds to some token types (e.g. Makefile
-       targets via hljs-section) that create unwanted boxes on our dark background. */
+    /* highlight.js github-dark sets a dark background on .hljs code blocks. Since
+       our code viewer renders each line as its own <code class="hljs"> element,
+       this creates individual dark boxes per line. We own the background already. */
+    .hljs { background: transparent !important; }
     .hljs-section, .hljs-keyword { background: transparent !important; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
