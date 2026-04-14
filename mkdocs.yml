@@ -1,7 +1,7 @@
 site_name: Fossilrepo
 site_url: https://fossilrepo.dev
 site_description: Self-hosted Fossil forge -- omnibus installer for production Fossil SCM hosting
-site_author: CONFLICT LLC
+site_author: Leo Mata & CONFLICT LLC
 repo_url: https://github.com/ConflictHQ/fossilrepo
 repo_name: ConflictHQ/fossilrepo
 
@@ -92,4 +92,4 @@ extra:
       link: https://github.com/ConflictHQ/fossilrepo
       name: GitHub Mirror
 
-copyright: Copyright &copy; 2026 CONFLICT LLC
+copyright: Copyright &copy; 2026 Leo Mata &amp; CONFLICT LLC

@@ -98,6 +98,24 @@ This is Django's built-in admin interface. Use it for:
 
 Most day-to-day operations should be done through the main UI, not Super Admin.
 
+## Feature Flags
+
+Feature flags let you enable or disable optional functionality at runtime without redeploying. All flags default to **off** so you can ship a minimal install and turn things on as you need them.
+
+Navigate to **Super Admin → Constance → Config** (or `/admin/constance/config/`) and look for the **Features** section.
+
+| Flag | What it enables |
+|---|---|
+| `FEATURE_CHAT` | Per-project chat rooms — real-time messaging backed by HTMX polling |
+| `FEATURE_RELEASES` | Releases tab — tag-based releases with downloadable assets and source archives |
+| `FEATURE_SYNC` | Sync tab — Git mirror configuration (GitHub/GitLab OAuth, push/pull schedules) |
+| `FEATURE_FILES` | Files tab — unversioned file storage attached to a project (like GitHub release assets but not version-controlled) |
+
+Changes take effect immediately — no restart needed.
+
+!!! tip "Recommended starting point"
+    Enable `FEATURE_RELEASES`, `FEATURE_SYNC`, and `FEATURE_FILES` once your instance is stable. Leave `FEATURE_CHAT` off until you need it — the model and routes are present but hidden.
+
 ## Project Settings
 
 Each project has its own settings tab (visible to project admins):
