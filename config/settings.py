@@ -78,6 +78,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Must run after AuthenticationMiddleware so request.user is populated from session first.
+    "core.middleware.trusted_auth.TrustedProxyAuthMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
@@ -124,6 +126,17 @@ CACHES = {
         "LOCATION": REDIS_URL,
     }
 }
+
+# --- Trusted-network / no-auth mode ---
+# See core/middleware/trusted_auth.py for full documentation.
+#
+# AUTO_AUTH_USERNAME — authenticate every request as this user (single-tenant / homelab).
+# TRUSTED_PROXY_AUTH — authenticate via upstream proxy header (Cloudflare Access, Google IAP, etc.).
+# TRUSTED_PROXY_USER_HEADER — request.META key for the proxy-injected username (default: HTTP_X_REMOTE_USER).
+
+AUTO_AUTH_USERNAME = env_str("AUTO_AUTH_USERNAME")
+TRUSTED_PROXY_AUTH = env_bool("TRUSTED_PROXY_AUTH", False)
+TRUSTED_PROXY_USER_HEADER = env_str("TRUSTED_PROXY_USER_HEADER", "HTTP_X_REMOTE_USER")
 
 # --- Auth ---
 

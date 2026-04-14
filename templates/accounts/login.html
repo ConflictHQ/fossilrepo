@@ -17,6 +17,12 @@
       <p class="mt-2 text-center text-sm text-gray-400">Fossilrepo Django + HTMX</p>
     </div>
 
+    {% if debug %}
+    <div class="rounded-md bg-yellow-900/40 border border-yellow-700/60 p-3 text-center">
+      <p class="text-xs font-mono text-yellow-300">dev mode &mdash; default credentials: <strong>admin / admin</strong></p>
+    </div>
+    {% endif %}
+
     {% if form.errors %}
     <div class="rounded-md bg-red-900/50 border border-red-700 p-4">
       <p class="text-sm text-red-300">Invalid username or password.</p>
