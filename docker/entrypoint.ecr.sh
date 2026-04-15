@@ -38,4 +38,6 @@ if [ -n "$_SEED_USER" ]; then
         --group "Administrators"
 fi
 
+gosu app python manage.py seed_content
+
 exec supervisord -c /etc/supervisor/conf.d/fossilrepo.conf
