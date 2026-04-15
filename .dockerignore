@@ -1,0 +1,34 @@
+# Version control
+.git/
+.gitignore
+
+# Test fixture repos — not needed in the production image
+repos/
+
+# Local dev / editor artifacts
+.env
+.env.*
+*.local
+.claude/
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Node (if any frontend tooling is added)
+node_modules/
+
+# CI / worktree artifacts
+.github/

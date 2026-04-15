@@ -947,7 +947,11 @@ class Command(BaseCommand):
         from fossil.models import FossilRepository
         from projects.models import Project
 
-        data_dir = Path(config.FOSSIL_DATA_DIR)
+        # FOSSIL_REPOS_DIR (injected by the spawner / compose) takes precedence
+        # over Constance so that the seeded file lands in the same directory the
+        # fossil server is actually serving from.  Constance is the fallback for
+        # local dev where the env var is not set.
+        data_dir = Path(os.environ.get("FOSSIL_REPOS_DIR") or config.FOSSIL_DATA_DIR)
         fossil_filename = "fossilrepo.fossil"
         fossil_path = data_dir / fossil_filename
 
