@@ -5,12 +5,18 @@ Creates:
   - Knowledge Base landing page
   - FossilRepo Docs section (8 pages)
   - FossilSCM Guide page
-  - fossilrepo project (cloned from fossilrepo.io, if FOSSIL_DATA_DIR is writable)
+  - fossilrepo project (.fossil seed from local copy, then fossilrepo.io fallback)
+
+Seed resolution order for fossilrepo.fossil:
+  1. FOSSILREPO_SEED_PATH env var  — explicit override, e.g. a pre-baked artifact
+  2. /app/fossilrepo.fossil         — bundled by COPY . . in Dockerfile.ecr
+  3. fossil clone fossilrepo.io     — remote fallback (requires network + fossil binary)
 
 Safe to run multiple times — all operations are idempotent.
 """
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -928,6 +934,13 @@ class Command(BaseCommand):
         Page.objects.create(organization=org, name=name, content=content, is_published=True)
         self.stdout.write(self.style.SUCCESS(f"Created page: {name}"))
 
+    # Candidate local seed paths, in priority order.
+    # FOSSILREPO_SEED_PATH overrides; /app/fossilrepo.fossil is bundled by COPY . .
+    _LOCAL_SEED_CANDIDATES = [
+        os.environ.get("FOSSILREPO_SEED_PATH", ""),
+        "/app/fossilrepo.fossil",
+    ]
+
     def _seed_fossilrepo_project(self, org):
         from constance import config
 
@@ -938,16 +951,29 @@ class Command(BaseCommand):
         fossil_filename = "fossilrepo.fossil"
         fossil_path = data_dir / fossil_filename
 
-        # Ensure DB record exists if file is already there.
+        # Ensure DB record exists if file is already on disk (any previous run).
         if fossil_path.exists():
-            self.stdout.write(f"fossilrepo.fossil already on disk, ensuring DB record ...")
+            self.stdout.write("fossilrepo.fossil already on disk, ensuring DB record ...")
             self._ensure_project_record(org, fossil_path, fossil_filename)
             return
 
-        # Try to clone.
-        self.stdout.write("Cloning fossilrepo from fossilrepo.io ...")
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Try local seed candidates first (no network, no fossil binary needed).
+        for candidate in self._LOCAL_SEED_CANDIDATES:
+            if not candidate:
+                continue
+            src = Path(candidate)
+            if src.exists() and src.is_file():
+                self.stdout.write(f"Copying seed from {src} ...")
+                shutil.copy2(src, fossil_path)
+                self.stdout.write(self.style.SUCCESS(f"Seeded fossilrepo.fossil from local copy ({src})"))
+                self._ensure_project_record(org, fossil_path, fossil_filename)
+                return
+
+        # 2. Fall back to cloning from fossilrepo.io.
+        self.stdout.write("No local seed found — cloning fossilrepo from fossilrepo.io ...")
         try:
-            data_dir.mkdir(parents=True, exist_ok=True)
             result = subprocess.run(
                 ["fossil", "clone", "https://fossilrepo.io/projects/fossilrepo/", str(fossil_path)],
                 capture_output=True,
