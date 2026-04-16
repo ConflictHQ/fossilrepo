@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from django.db import models
@@ -39,7 +40,12 @@ class FossilRepository(Tracking):
     def full_path(self) -> Path:
         from constance import config
 
-        return Path(config.FOSSIL_DATA_DIR) / self.filename
+        # FOSSIL_REPOS_DIR env var takes precedence (used by ECS/Docker deployments
+        # where the data dir is injected at runtime, e.g. an EFS mount).
+        # Falls back to the Constance-configurable FOSSIL_DATA_DIR for self-hosted
+        # deployments that manage the path via the Django admin panel.
+        data_dir = os.environ.get("FOSSIL_REPOS_DIR") or config.FOSSIL_DATA_DIR
+        return Path(data_dir) / self.filename
 
     @property
     def exists_on_disk(self) -> bool:
