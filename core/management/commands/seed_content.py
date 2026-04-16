@@ -876,20 +876,7 @@ fossil pull
 # Pages to seed: (name, content) pairs in display order
 # ---------------------------------------------------------------------------
 
-PAGES = [
-    ("Knowledge Base", KNOWLEDGE_BASE_CONTENT),
-    # FossilRepo Docs
-    ("Getting Started", GETTING_STARTED_CONTENT),
-    ("Architecture Overview", ARCHITECTURE_OVERVIEW_CONTENT),
-    ("Architecture", ARCHITECTURE_CONTENT),
-    ("API Reference", API_REFERENCE_CONTENT),
-    ("Agentic Development", AGENTIC_DEVELOPMENT_CONTENT),
-    ("Setup Guide", SETUP_GUIDE_CONTENT),
-    ("Admin Guide", ADMIN_GUIDE_CONTENT),
-    ("Administration", ADMINISTRATION_CONTENT),
-    # FossilSCM Guide
-    ("FossilSCM Guide", FOSSIL_SCM_GUIDE_CONTENT),
-]
+PAGES = []  # KB starts empty; users create their own pages
 
 
 class Command(BaseCommand):
