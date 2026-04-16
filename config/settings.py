@@ -162,6 +162,12 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
+# Trust X-Forwarded-Host so request.get_host() returns the public hostname
+# when running behind a reverse proxy (JupyterHub, nginx, Caddy, etc.).
+# Without this, get_host() returns the internal IP/port, which breaks
+# clone URLs and any other absolute URL construction.
+USE_X_FORWARDED_HOST = True
+
 # --- i18n ---
 
 LANGUAGE_CODE = "en-us"
