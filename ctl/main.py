@@ -426,10 +426,7 @@ def check_update(source: str) -> None:
 def update(source: str) -> None:
     """Update fossilrepo to the latest version."""
     if source == "auto":
-        if (PROJECT_ROOT / ".git").exists():
-            source = "git"
-        else:
-            source = "pypi"
+        source = "git" if (PROJECT_ROOT / ".git").exists() else "pypi"
 
     if source == "git":
         console.print("[bold]Pulling latest from git...[/bold]")
