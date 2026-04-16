@@ -919,6 +919,10 @@ class Command(BaseCommand):
         for name, content in PAGES:
             self._seed_page(org, name, content)
 
+        # Seed the fossil-scm project (just the DB record; docs index works without a file).
+        # Attempt to clone the actual Fossil SCM repository so individual doc pages work too.
+        self._seed_fossil_scm_project(org)
+
         # Optionally clone fossilrepo.io and register it as a project.
         skip_clone = options["skip_clone"] or os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
         if not skip_clone:
@@ -1021,3 +1025,101 @@ class Command(BaseCommand):
             remote_url="https://fossilrepo.io/projects/fossilrepo/",
         )
         self.stdout.write(self.style.SUCCESS("Registered fossilrepo project in database"))
+
+    def _seed_fossil_scm_project(self, org):
+        """Seed the Fossil SCM project (slug='fossil-scm').
+
+        The docs index page (fossil:docs) only needs the Project row to exist.
+        Individual documentation pages need the actual fossil-scm.fossil file; we
+        attempt to clone it opportunistically but the index works even if it's absent.
+        """
+        from constance import config
+
+        from fossil.models import FossilRepository
+        from projects.models import Project
+
+        SLUG = "fossil-scm"
+        FOSSIL_FILENAME = "fossil-scm.fossil"
+        CLONE_URL = "https://fossil-scm.org/home"
+
+        # ── 1. Ensure the Project row exists ──────────────────────────────────────
+        project, created = Project.objects.get_or_create(
+            slug=SLUG,
+            defaults={
+                "organization": org,
+                "name": "Fossil SCM",
+                "description": (
+                    "The Fossil SCM source repository. "
+                    "Includes the full developer documentation served by the FossilSCM Guide."
+                ),
+                "visibility": Project.Visibility.PUBLIC,
+            },
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f"Created project: {SLUG}"))
+        else:
+            self.stdout.write(f"Project already exists: {SLUG}")
+
+        # ── 2. Resolve the target path for the fossil file ────────────────────────
+        data_dir = Path(os.environ.get("FOSSIL_REPOS_DIR") or config.FOSSIL_DATA_DIR)
+        fossil_path = data_dir / FOSSIL_FILENAME
+
+        # ── 3. Ensure FossilRepository row (needed for doc pages) ─────────────────
+        repo_qs = FossilRepository.all_objects.filter(project=project)
+        if repo_qs.exists():
+            self.stdout.write(f"FossilRepository record already exists for {SLUG}")
+            return
+
+        # ── 4. Attempt to obtain the fossil file ──────────────────────────────────
+        if not fossil_path.exists():
+            skip_clone = os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
+            if skip_clone:
+                self.stdout.write(
+                    f"SEED_SKIP_CLONE set — skipping fossil-scm clone. "
+                    f"Docs index will work; individual doc pages will 404 until "
+                    f"'{FOSSIL_FILENAME}' is placed in {data_dir}."
+                )
+            else:
+                data_dir.mkdir(parents=True, exist_ok=True)
+                self.stdout.write(f"Cloning Fossil SCM repository from {CLONE_URL} ...")
+                try:
+                    result = subprocess.run(
+                        ["fossil", "clone", CLONE_URL, str(fossil_path)],
+                        capture_output=True,
+                        text=True,
+                        timeout=300,  # fossil-scm is larger than fossilrepo.io
+                    )
+                    if result.returncode == 0:
+                        self.stdout.write(self.style.SUCCESS("Cloned fossil-scm successfully"))
+                    else:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"fossil-scm clone failed (rc={result.returncode}): "
+                                f"{result.stderr[:300]}"
+                            )
+                        )
+                except subprocess.TimeoutExpired:
+                    self.stdout.write(self.style.WARNING("fossil-scm clone timed out (300s) — skipping"))
+                except FileNotFoundError:
+                    self.stdout.write(self.style.WARNING("fossil binary not found — skipping fossil-scm clone"))
+                except OSError as e:
+                    self.stdout.write(self.style.WARNING(f"fossil-scm clone skipped: {e}"))
+
+        # ── 5. Create FossilRepository record (file may or may not exist yet) ─────
+        file_size = fossil_path.stat().st_size if fossil_path.exists() else 0
+        FossilRepository.objects.create(
+            project=project,
+            filename=FOSSIL_FILENAME,
+            file_size_bytes=file_size,
+            remote_url=CLONE_URL,
+        )
+        if fossil_path.exists():
+            self.stdout.write(self.style.SUCCESS(f"Registered fossil-scm project with {file_size // 1024 // 1024} MB repo"))
+        else:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Registered fossil-scm project (no file yet). "
+                    f"Docs index works; run 'fossil clone {CLONE_URL} {data_dir / FOSSIL_FILENAME}' "
+                    f"to enable individual doc pages."
+                )
+            )
