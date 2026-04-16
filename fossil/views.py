@@ -2790,11 +2790,25 @@ FOSSIL_SCM_SLUG = "fossil-scm"
 
 def fossil_docs(request, slug):
     """Curated Fossil documentation index page."""
+    from pages.models import Page
     from projects.access import require_project_read
 
     project = get_object_or_404(Project, slug=slug, deleted_at__isnull=True)
     require_project_read(request, project)
-    return render(request, "fossil/docs_index.html", {"project": project, "fossil_scm_slug": slug, "active_tab": "wiki"})
+
+    PRODUCT_DOC_SLUGS = [
+        "getting-started", "architecture", "api-reference",
+        "agentic-development", "setup-guide", "administration",
+    ]
+    product_docs = list(Page.objects.filter(slug__in=PRODUCT_DOC_SLUGS, is_published=True))
+    product_docs.sort(key=lambda p: PRODUCT_DOC_SLUGS.index(p.slug) if p.slug in PRODUCT_DOC_SLUGS else 99)
+
+    return render(request, "fossil/docs_index.html", {
+        "project": project,
+        "fossil_scm_slug": slug,
+        "active_tab": "wiki",
+        "product_docs": product_docs,
+    })
 
 
 def fossil_doc_page(request, slug, doc_path):

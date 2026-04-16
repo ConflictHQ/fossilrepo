@@ -1,117 +1,49 @@
 {% extends "base.html" %}
-{% block title %}FossilSCM Guide — Fossilrepo{% endblock %}
+{% block title %}FossilRepo Docs{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl">
-  <h1 class="text-2xl font-bold text-gray-100 mb-2">FossilSCM Guide</h1>
-  <p class="text-sm text-gray-400 mb-4">Reference documentation for Fossil SCM, bundled with your FossilRepo installation.</p>
+  <h1 class="text-2xl font-bold text-gray-100 mb-2">FossilRepo Docs</h1>
+  <p class="text-sm text-gray-400 mb-6">Documentation for the FossilRepo platform — setup, architecture, and API reference.</p>
 
-  <div class="flex items-center gap-4 text-xs text-gray-500 mb-6">
-    <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-green-500"></span> Supported in FossilRepo</span>
-    <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-yellow-500"></span> Partial support</span>
-    <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 rounded-full bg-gray-600"></span> Not yet supported</span>
+  {% if product_docs %}
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-8">
+    {% for doc in product_docs %}
+    <a href="{% url 'pages:detail' slug=doc.slug %}"
+       class="block rounded-lg bg-gray-800 border border-gray-700 p-5 hover:border-gray-500 transition-colors group">
+      <h3 class="text-sm font-semibold text-gray-200 group-hover:text-brand-light">{{ doc.name }}</h3>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-sm text-gray-500 mb-8">No documentation pages published yet.</p>
+  {% endif %}
+
+  <!-- FossilSCM Reference -->
+  <div class="rounded-lg bg-gray-800/50 border border-gray-700 p-5">
+    <h3 class="text-sm font-semibold text-gray-200 mb-1">FossilSCM Reference</h3>
+    <p class="text-xs text-gray-500 mb-4">Official Fossil SCM documentation at <a href="https://fossil-scm.org/home/doc/trunk/www/" target="_blank" rel="noopener" class="text-brand-light hover:text-brand">fossil-scm.org</a>.</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+      <a href="https://fossil-scm.org/home/doc/trunk/www/quickstart.wiki" target="_blank" rel="noopener" class="flex items-center gap-2 text-gray-400 hover:text-brand-light">
+        <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+        Quick Start</a>
+      <a href="https://fossil-scm.org/home/doc/trunk/www/concepts.wiki" target="_blank" rel="noopener" class="flex items-center gap-2 text-gray-400 hover:text-brand-light">
+        <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+        Core Concepts</a>
+      <a href="https://fossil-scm.org/home/doc/trunk/www/fossil-v-git.wiki" target="_blank" rel="noopener" class="flex items-center gap-2 text-gray-400 hover:text-brand-light">
+        <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+        Fossil vs Git</a>
+      <a href="https://fossil-scm.org/home/doc/trunk/www/permutedindex.html" target="_blank" rel="noopener" class="flex items-center gap-2 text-gray-400 hover:text-brand-light">
+        <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+        Command Reference</a>
+      <a href="https://fossil-scm.org/home/doc/trunk/www/faq.wiki" target="_blank" rel="noopener" class="flex items-center gap-2 text-gray-400 hover:text-brand-light">
+        <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+        FAQ</a>
+      <a href="https://fossil-scm.org/home/doc/trunk/www/changes.wiki" target="_blank" rel="noopener" class="flex items-center gap-2 text-gray-400 hover:text-brand-light">
+        <svg class="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+        Changelog</a>
+    </div>
   </div>
 
-  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
-      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Getting Started</h3>
-      <div class="space-y-2">
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/quickstart.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Quick Start Guide</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/build.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Building from Source</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/concepts.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Core Concepts</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/faq.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> FAQ</a>
-      </div>
-    </div>
-
-    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
-      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Version Control</h3>
-      <div class="space-y-2">
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/checkin.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Check-in Overview</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/branching.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Branching</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/merge.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Merging</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/delta_format.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Delta Format</a>
-      </div>
-    </div>
-
-    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
-      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Built-in Features</h3>
-      <div class="space-y-2">
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/wikitheory.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Wiki</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/tickets.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Ticket System</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/forum.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-yellow-500 flex-shrink-0"></span> Forum
-          <span class="text-xs text-gray-500">(read from Fossil + Django write)</span></a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/alerts.md' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Email Alerts</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/chat.md' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-gray-600 flex-shrink-0"></span> Chat
-          <span class="text-xs text-gray-500">(not yet — multiple approaches under evaluation)</span></a>
-      </div>
-    </div>
-
-    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5">
-      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Administration</h3>
-      <div class="space-y-2">
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/server/index.md' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-yellow-500 flex-shrink-0"></span> Server Setup
-          <span class="text-xs text-gray-500">(FossilRepo replaces native server)</span></a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/sync.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Sync Protocol</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/backup.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Backups</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/fileformat.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> File Format</a>
-      </div>
-    </div>
-
-    <div class="rounded-lg bg-gray-800 border border-gray-700 p-5 sm:col-span-2">
-      <h3 class="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wider">Reference</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/changes.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Changelog</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/permutedindex.html' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Command Reference</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/th1.md' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-gray-600 flex-shrink-0"></span> TH1 Scripting
-          <span class="text-xs text-gray-500">(native Fossil only)</span></a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/fossil-v-git.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Fossil vs Git</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/hashpolicy.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Hash Policy</a>
-        <a href="{% url 'fossil:doc_page' slug=fossil_scm_slug doc_path='www/embeddeddoc.wiki' %}" class="flex items-center gap-2 text-sm text-brand-light hover:text-brand">
-          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Embedded Docs</a>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- FossilRepo-specific additions -->
-  <div class="mt-6 rounded-lg bg-gray-800/50 border border-gray-700 p-5">
-    <h3 class="text-sm font-semibold text-gray-200 mb-2">FossilRepo Additions</h3>
-    <p class="text-xs text-gray-400 mb-3">Features added by FossilRepo beyond native Fossil:</p>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-400">
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Git mirror sync (GitHub/GitLab)</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> MCP server for AI tools</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> JSON API + batch operations</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Agent workspaces + task claiming</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> CI status checks + SVG badges</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Webhooks with HMAC signing</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Org roles + project-level RBAC</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Release management with archives</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> SQLite schema explorer</span>
-      <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span> Custom ticket fields + SQL reports</span>
-    </div>
-  </div>
 </div>
 {% endblock %}
