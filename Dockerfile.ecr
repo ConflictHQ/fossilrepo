@@ -36,7 +36,7 @@ FROM python:3.12-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client ca-certificates zlib1g libssl3 openssh-server git \
-    gosu supervisor redis-server \
+    gosu supervisor redis-server curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Fossil binary from builder
