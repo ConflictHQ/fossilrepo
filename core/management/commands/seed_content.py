@@ -1070,38 +1070,58 @@ class Command(BaseCommand):
 
         # ── 4. Attempt to obtain the fossil file ──────────────────────────────────
         if not fossil_path.exists():
-            skip_clone = os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
-            if skip_clone:
-                self.stdout.write(
-                    f"SEED_SKIP_CLONE set — skipping fossil-scm clone. "
-                    f"Docs index will work; individual doc pages will 404 until "
-                    f"'{FOSSIL_FILENAME}' is placed in {data_dir}."
-                )
-            else:
-                data_dir.mkdir(parents=True, exist_ok=True)
-                self.stdout.write(f"Cloning Fossil SCM repository from {CLONE_URL} ...")
-                try:
-                    result = subprocess.run(
-                        ["fossil", "clone", CLONE_URL, str(fossil_path)],
-                        capture_output=True,
-                        text=True,
-                        timeout=300,  # fossil-scm is larger than fossilrepo.io
+            data_dir.mkdir(parents=True, exist_ok=True)
+
+            # 4a. Try local candidates first (bundled in image via COPY . .)
+            local_candidates = [
+                os.environ.get("FOSSIL_SCM_SEED_PATH", ""),
+                "/app/fossil-scm.fossil",
+            ]
+            seeded_locally = False
+            for candidate in local_candidates:
+                if not candidate:
+                    continue
+                src = Path(candidate)
+                if src.exists() and src.is_file():
+                    self.stdout.write(f"Copying fossil-scm seed from {src} ...")
+                    shutil.copy2(src, fossil_path)
+                    self.stdout.write(self.style.SUCCESS(f"Seeded fossil-scm.fossil from local copy ({src})"))
+                    seeded_locally = True
+                    break
+
+            # 4b. Fall back to cloning from fossil-scm.org
+            if not seeded_locally:
+                skip_clone = os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
+                if skip_clone:
+                    self.stdout.write(
+                        f"SEED_SKIP_CLONE set — skipping fossil-scm clone. "
+                        f"Docs index will work; individual doc pages will 404 until "
+                        f"'{FOSSIL_FILENAME}' is placed in {data_dir}."
                     )
-                    if result.returncode == 0:
-                        self.stdout.write(self.style.SUCCESS("Cloned fossil-scm successfully"))
-                    else:
-                        self.stdout.write(
-                            self.style.WARNING(
-                                f"fossil-scm clone failed (rc={result.returncode}): "
-                                f"{result.stderr[:300]}"
-                            )
+                else:
+                    self.stdout.write(f"No local seed found — cloning Fossil SCM from {CLONE_URL} ...")
+                    try:
+                        result = subprocess.run(
+                            ["fossil", "clone", CLONE_URL, str(fossil_path)],
+                            capture_output=True,
+                            text=True,
+                            timeout=300,
                         )
-                except subprocess.TimeoutExpired:
-                    self.stdout.write(self.style.WARNING("fossil-scm clone timed out (300s) — skipping"))
-                except FileNotFoundError:
-                    self.stdout.write(self.style.WARNING("fossil binary not found — skipping fossil-scm clone"))
-                except OSError as e:
-                    self.stdout.write(self.style.WARNING(f"fossil-scm clone skipped: {e}"))
+                        if result.returncode == 0:
+                            self.stdout.write(self.style.SUCCESS("Cloned fossil-scm successfully"))
+                        else:
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"fossil-scm clone failed (rc={result.returncode}): "
+                                    f"{result.stderr[:300]}"
+                                )
+                            )
+                    except subprocess.TimeoutExpired:
+                        self.stdout.write(self.style.WARNING("fossil-scm clone timed out (300s) — skipping"))
+                    except FileNotFoundError:
+                        self.stdout.write(self.style.WARNING("fossil binary not found — skipping fossil-scm clone"))
+                    except OSError as e:
+                        self.stdout.write(self.style.WARNING(f"fossil-scm clone skipped: {e}"))
 
         # ── 5. Create FossilRepository record (file may or may not exist yet) ─────
         file_size = fossil_path.stat().st_size if fossil_path.exists() else 0
