@@ -876,7 +876,18 @@ fossil pull
 # Pages to seed: (name, content) pairs in display order
 # ---------------------------------------------------------------------------
 
-PAGES = []  # KB starts empty; users create their own pages
+PAGES = [
+    # FossilRepo product documentation (slugs must match PRODUCT_DOC_SLUGS in context_processors.py
+    # so they appear under "FossilRepo Docs" in the sidebar, not the user KB).
+    ("Getting Started", GETTING_STARTED_CONTENT),
+    ("Architecture", ARCHITECTURE_CONTENT),
+    ("API Reference", API_REFERENCE_CONTENT),
+    ("Agentic Development", AGENTIC_DEVELOPMENT_CONTENT),
+    ("Setup Guide", SETUP_GUIDE_CONTENT),
+    ("Administration", ADMINISTRATION_CONTENT),
+    # FossilSCM Guide is NOT a pages-app page — it is served by fossil:docs
+    # via the fossil-scm project seeded by _seed_fossil_scm_project() below.
+]
 
 
 class Command(BaseCommand):
