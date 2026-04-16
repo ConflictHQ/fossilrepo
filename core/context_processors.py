@@ -28,8 +28,13 @@ def sidebar(request):
 
     # Split pages: product docs (known slugs) vs org knowledge base (user-created)
     product_doc_slugs = {
-        "agentic-development", "api-reference", "architecture",
-        "administration", "setup-guide", "getting-started", "features",
+        "agentic-development",
+        "api-reference",
+        "architecture",
+        "administration",
+        "setup-guide",
+        "getting-started",
+        "features",
         "roadmap",
     }
     product_docs = [p for p in pages if p.slug in product_doc_slugs]

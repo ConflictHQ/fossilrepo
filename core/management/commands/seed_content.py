@@ -1016,11 +1016,7 @@ class Command(BaseCommand):
                         if result.returncode == 0:
                             self.stdout.write(self.style.SUCCESS("Cloned fossilrepo.io successfully"))
                         else:
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"Clone failed (rc={result.returncode}): {result.stderr[:300]}"
-                                )
-                            )
+                            self.stdout.write(self.style.WARNING(f"Clone failed (rc={result.returncode}): {result.stderr[:300]}"))
                     except subprocess.TimeoutExpired:
                         self.stdout.write(self.style.WARNING("Clone timed out after 120s — skipping"))
                     except FileNotFoundError:
@@ -1075,8 +1071,7 @@ class Command(BaseCommand):
                 "organization": org,
                 "name": "Fossil SCM",
                 "description": (
-                    "The Fossil SCM source repository. "
-                    "Includes the full developer documentation served by the FossilSCM Guide."
+                    "The Fossil SCM source repository. Includes the full developer documentation served by the FossilSCM Guide."
                 ),
                 "visibility": Project.Visibility.PUBLIC,
             },
@@ -1145,10 +1140,7 @@ class Command(BaseCommand):
                             self.stdout.write(self.style.SUCCESS("Cloned fossil-scm successfully"))
                         else:
                             self.stdout.write(
-                                self.style.WARNING(
-                                    f"fossil-scm clone failed (rc={result.returncode}): "
-                                    f"{result.stderr[:300]}"
-                                )
+                                self.style.WARNING(f"fossil-scm clone failed (rc={result.returncode}): {result.stderr[:300]}")
                             )
                     except subprocess.TimeoutExpired:
                         self.stdout.write(self.style.WARNING("fossil-scm clone timed out (300s) — skipping"))

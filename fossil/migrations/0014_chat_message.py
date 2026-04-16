@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("fossil", "0013_ticketsyncmapping_wikisyncmapping"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

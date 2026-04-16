@@ -5,6 +5,7 @@ Configures jupyter-server-proxy to route /fossilrepo → gunicorn on port 8000.
 absolute_url=False strips the /fossilrepo prefix so Django sees clean paths
 (e.g. /dashboard/ instead of /user/.../fossilrepo/dashboard/).
 """
+
 import os
 
 from traitlets.config import get_config
