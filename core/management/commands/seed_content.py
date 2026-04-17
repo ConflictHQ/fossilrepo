@@ -1052,7 +1052,7 @@ class Command(BaseCommand):
 
         slug = "fossilrepo"
         fossil_filename = "fossilrepo.fossil"
-        clone_url = "https://fossilrepo.io/projects/fossilrepo/"
+        clone_url = "https://fossilrepo.io/projects/fossilrepo/fossil/xfer"
 
         data_dir = Path(os.environ.get("FOSSIL_REPOS_DIR") or config.FOSSIL_DATA_DIR)
         fossil_path = data_dir / fossil_filename
@@ -1087,7 +1087,7 @@ class Command(BaseCommand):
         data_dir.mkdir(parents=True, exist_ok=True)
         seeded_locally = False
 
-        # 3a. Try local candidates first (bundled via COPY . . in Dockerfile.ecr)
+        # 3a. Try bundled seed (cloned from fossilrepo.io at image build time)
         for candidate in self._LOCAL_SEED_CANDIDATES:
             if not candidate:
                 continue
@@ -1104,23 +1104,12 @@ class Command(BaseCommand):
                 self.stdout.write(f"Skipping local seed ({src}) — existing file appears to have real content")
             break  # only try the first valid candidate
 
-        # 3b. Runtime population from /app/ source when the file is still tiny/empty.
-        # fossilrepo.fossil is gitignored so /app/fossilrepo.fossil won't be in the image.
-        # Instead, open the fossil init'd file (from the post_save signal) and commit
-        # the source tree into it so the project shows real code.
-        if not seeded_locally:
-            file_needs_seed = not fossil_path.exists() or fossil_path.stat().st_size < empty_fossil_bytes
-            if file_needs_seed:
-                self._populate_fossilrepo_from_source(fossil_path)
-                if fossil_path.exists() and fossil_path.stat().st_size >= empty_fossil_bytes:
-                    seeded_locally = True
-
         # Early-exit only when the file has real content and the DB record exists.
         if repo_exists and fossil_path.exists() and not seeded_locally:
             self.stdout.write("fossilrepo.fossil on disk — nothing to do")
             return
 
-        # 3d. Clone from fossilrepo.io if still missing
+        # 3b. Clone from fossilrepo.io if still missing
         if not fossil_path.exists():
             skip_clone = os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
             if skip_clone:
@@ -1215,76 +1204,86 @@ class Command(BaseCommand):
         repo_qs = FossilRepository.all_objects.filter(project=project)
         repo_exists = repo_qs.exists()
 
-        if repo_exists and fossil_path.exists():
+        # ── 4. Attempt to obtain the fossil file ──────────────────────────────────
+        # Check local candidates BEFORE the early-exit guard.  The post_save
+        # signal (create_fossil_repo) calls `fossil init` the moment the Project
+        # row is first created, leaving a tiny (~224 KB) empty .fossil file.
+        # Without this check first, "repo_exists and fossil_path.exists()" fires
+        # and we return before ever replacing the empty init with the bundled clone.
+        empty_fossil_bytes = 1_048_576  # Fossil 2.24 empty init ≈ 224 KB; real repos >> 1 MB
+        data_dir.mkdir(parents=True, exist_ok=True)
+        local_candidates = [
+            os.environ.get("FOSSIL_SCM_SEED_PATH", ""),
+            "/app/fossil-scm.fossil",
+        ]
+        seeded_locally = False
+        for candidate in local_candidates:
+            if not candidate:
+                continue
+            src = Path(candidate)
+            if not (src.exists() and src.is_file()):
+                continue
+            file_needs_seed = not fossil_path.exists() or fossil_path.stat().st_size < empty_fossil_bytes
+            if file_needs_seed:
+                self.stdout.write(f"Copying fossil-scm seed from {src} ...")
+                shutil.copy2(src, fossil_path)
+                self.stdout.write(self.style.SUCCESS(f"Seeded fossil-scm.fossil from local copy ({src})"))
+                seeded_locally = True
+            else:
+                self.stdout.write(f"Skipping local seed ({src}) — existing file appears to have real content")
+            break
+
+        if repo_exists and fossil_path.exists() and not seeded_locally:
             self.stdout.write(f"FossilRepository record and file exist for {slug}")
             return
 
         # Record exists but file is missing — fall through to attempt clone
-        if repo_exists:
+        if repo_exists and not fossil_path.exists():
             self.stdout.write("FossilRepository record exists but file is missing — will attempt clone")
 
-        # ── 4. Attempt to obtain the fossil file ──────────────────────────────────
-        if not fossil_path.exists():
-            data_dir.mkdir(parents=True, exist_ok=True)
+        # 4b. Clone from fossil-scm.org if still missing/small
+        if not fossil_path.exists() or fossil_path.stat().st_size < empty_fossil_bytes:
+            if fossil_path.exists():
+                fossil_path.unlink()  # remove empty init so fossil clone can create fresh
 
-            # 4a. Try local candidates first (bundled in image via COPY . .)
-            local_candidates = [
-                os.environ.get("FOSSIL_SCM_SEED_PATH", ""),
-                "/app/fossil-scm.fossil",
-            ]
-            seeded_locally = False
-            for candidate in local_candidates:
-                if not candidate:
-                    continue
-                src = Path(candidate)
-                if src.exists() and src.is_file():
-                    self.stdout.write(f"Copying fossil-scm seed from {src} ...")
-                    shutil.copy2(src, fossil_path)
-                    self.stdout.write(self.style.SUCCESS(f"Seeded fossil-scm.fossil from local copy ({src})"))
-                    seeded_locally = True
-                    break
-
-            # 4b. Fall back to cloning from fossil-scm.org (or skip and init empty repo)
-            if not seeded_locally:
-                if skip_clone:
-                    self.stdout.write(
-                        "skip-clone set — skipping fossil-scm.org clone. Initialising an empty .fossil file so all views work immediately."
+            # Fall back to cloning from fossil-scm.org (or skip and init empty repo)
+            if skip_clone:
+                self.stdout.write(
+                    "skip-clone set — skipping fossil-scm.org clone. Initialising an empty .fossil file so all views work immediately."
+                )
+            else:
+                self.stdout.write(f"No local seed found — cloning Fossil SCM from {clone_url} ...")
+                try:
+                    result = subprocess.run(
+                        ["fossil", "clone", clone_url, str(fossil_path)],
+                        capture_output=True,
+                        text=True,
+                        timeout=300,
                     )
-                else:
-                    self.stdout.write(f"No local seed found — cloning Fossil SCM from {clone_url} ...")
-                    try:
-                        result = subprocess.run(
-                            ["fossil", "clone", clone_url, str(fossil_path)],
-                            capture_output=True,
-                            text=True,
-                            timeout=300,
-                        )
-                        if result.returncode == 0:
-                            self.stdout.write(self.style.SUCCESS("Cloned fossil-scm successfully"))
-                        else:
-                            self.stdout.write(
-                                self.style.WARNING(f"fossil-scm clone failed (rc={result.returncode}): {result.stderr[:300]}")
-                            )
-                    except subprocess.TimeoutExpired:
-                        self.stdout.write(self.style.WARNING("fossil-scm clone timed out (300s) — falling back to fossil init"))
-                    except FileNotFoundError:
-                        self.stdout.write(self.style.WARNING("fossil binary not found — skipping fossil-scm clone"))
-                    except OSError as e:
-                        self.stdout.write(self.style.WARNING(f"fossil-scm clone skipped: {e}"))
+                    if result.returncode == 0:
+                        self.stdout.write(self.style.SUCCESS("Cloned fossil-scm successfully"))
+                    else:
+                        self.stdout.write(self.style.WARNING(f"fossil-scm clone failed (rc={result.returncode}): {result.stderr[:300]}"))
+                except subprocess.TimeoutExpired:
+                    self.stdout.write(self.style.WARNING("fossil-scm clone timed out (300s) — falling back to fossil init"))
+                except FileNotFoundError:
+                    self.stdout.write(self.style.WARNING("fossil binary not found — skipping fossil-scm clone"))
+                except OSError as e:
+                    self.stdout.write(self.style.WARNING(f"fossil-scm clone skipped: {e}"))
 
-                # If the file still doesn't exist (clone skipped/failed), init an empty repo.
-                if not fossil_path.exists():
-                    try:
-                        from fossil.cli import FossilCLI
+            # If the file still doesn't exist (clone skipped/failed), init an empty repo.
+            if not fossil_path.exists():
+                try:
+                    from fossil.cli import FossilCLI
 
-                        cli = FossilCLI()
-                        if cli.is_available():
-                            cli.init(fossil_path)
-                            self.stdout.write(self.style.SUCCESS(f"Initialised empty fossil repo at {fossil_path}"))
-                        else:
-                            self.stdout.write(self.style.WARNING("fossil binary unavailable — .fossil file not created"))
-                    except Exception as exc:
-                        self.stdout.write(self.style.WARNING(f"fossil init failed: {exc}"))
+                    cli = FossilCLI()
+                    if cli.is_available():
+                        cli.init(fossil_path)
+                        self.stdout.write(self.style.SUCCESS(f"Initialised empty fossil repo at {fossil_path}"))
+                    else:
+                        self.stdout.write(self.style.WARNING("fossil binary unavailable — .fossil file not created"))
+                except Exception as exc:
+                    self.stdout.write(self.style.WARNING(f"fossil init failed: {exc}"))
 
         # ── 5. Create or update FossilRepository record ───────────────────────────
         file_size = fossil_path.stat().st_size if fossil_path.exists() else 0
