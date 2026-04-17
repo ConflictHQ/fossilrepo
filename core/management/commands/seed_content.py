@@ -1083,25 +1083,30 @@ class Command(BaseCommand):
         # .fossil file.  Without checking here first, "repo_exists and
         # fossil_path.exists()" would be True and we'd return before ever
         # replacing that empty init with the bundled seed that has real commits.
-        empty_fossil_bytes = 1_048_576  # Fossil 2.24 empty init ≈ 224 KB; any real source tree >> 1 MB
         data_dir.mkdir(parents=True, exist_ok=True)
         seeded_locally = False
 
-        # 3a. Try bundled seed (cloned from fossilrepo.io at image build time)
+        # 3a. Try bundled seed (cloned from fossilrepo.io at image build time).
+        # Reseed if the EFS file is smaller than the bundled local clone — this
+        # catches stale files left by earlier init / partial-clone / wrong-source
+        # attempts.  Once properly seeded the EFS file starts at the same size as
+        # the local clone and may only grow (from subsequent commits), so the
+        # local-size threshold naturally becomes a no-op after the first good seed.
         for candidate in self._LOCAL_SEED_CANDIDATES:
             if not candidate:
                 continue
             src = Path(candidate)
             if not (src.exists() and src.is_file()):
                 continue
-            file_needs_seed = not fossil_path.exists() or fossil_path.stat().st_size < empty_fossil_bytes
+            src_size = src.stat().st_size
+            file_needs_seed = not fossil_path.exists() or fossil_path.stat().st_size < src_size
             if file_needs_seed:
-                self.stdout.write(f"Copying seed from {src} ...")
+                self.stdout.write(f"Copying seed from {src} ({src_size // 1024 // 1024} MB) ...")
                 shutil.copy2(src, fossil_path)
                 self.stdout.write(self.style.SUCCESS(f"Seeded fossilrepo.fossil from local copy ({src})"))
                 seeded_locally = True
             else:
-                self.stdout.write(f"Skipping local seed ({src}) — existing file appears to have real content")
+                self.stdout.write(f"Skipping local seed ({src}) — EFS file is same size or larger than bundled clone")
             break  # only try the first valid candidate
 
         # Early-exit only when the file has real content and the DB record exists.
@@ -1210,7 +1215,6 @@ class Command(BaseCommand):
         # row is first created, leaving a tiny (~224 KB) empty .fossil file.
         # Without this check first, "repo_exists and fossil_path.exists()" fires
         # and we return before ever replacing the empty init with the bundled clone.
-        empty_fossil_bytes = 1_048_576  # Fossil 2.24 empty init ≈ 224 KB; real repos >> 1 MB
         data_dir.mkdir(parents=True, exist_ok=True)
         local_candidates = [
             os.environ.get("FOSSIL_SCM_SEED_PATH", ""),
@@ -1223,14 +1227,15 @@ class Command(BaseCommand):
             src = Path(candidate)
             if not (src.exists() and src.is_file()):
                 continue
-            file_needs_seed = not fossil_path.exists() or fossil_path.stat().st_size < empty_fossil_bytes
+            src_size = src.stat().st_size
+            file_needs_seed = not fossil_path.exists() or fossil_path.stat().st_size < src_size
             if file_needs_seed:
-                self.stdout.write(f"Copying fossil-scm seed from {src} ...")
+                self.stdout.write(f"Copying fossil-scm seed from {src} ({src_size // 1024 // 1024} MB) ...")
                 shutil.copy2(src, fossil_path)
                 self.stdout.write(self.style.SUCCESS(f"Seeded fossil-scm.fossil from local copy ({src})"))
                 seeded_locally = True
             else:
-                self.stdout.write(f"Skipping local seed ({src}) — existing file appears to have real content")
+                self.stdout.write(f"Skipping local seed ({src}) — EFS file is same size or larger than bundled clone")
             break
 
         if repo_exists and fossil_path.exists() and not seeded_locally:
