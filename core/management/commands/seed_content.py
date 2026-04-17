@@ -940,6 +940,102 @@ class Command(BaseCommand):
         "/app/fossilrepo.fossil",
     ]
 
+    # Source dirs/names excluded when populating a fossil repo from /app/ at runtime
+    _FOSSIL_SOURCE_EXCLUDES = {
+        ".git",
+        ".fslckout",
+        ".fslhist",
+        "staticfiles",
+        "repos",
+        "fossilrepo.fossil",
+        "fossil-scm.fossil",
+        "__pycache__",
+        "node_modules",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+    }
+
+    def _populate_fossilrepo_from_source(self, fossil_path):
+        """Open the fossil repo at fossil_path and add /app/ source as one commit.
+
+        Called at seed time when the repo exists but contains no checkins (fresh
+        ``fossil init`` from the post_save signal).  After this call the repo has
+        one revision containing the full Django source tree.
+        """
+        import tempfile
+
+        app_dir = Path("/app")
+        if not app_dir.exists():
+            self.stdout.write(self.style.WARNING("/app/ not found — skipping runtime source population"))
+            return
+
+        try:
+            with tempfile.TemporaryDirectory(prefix="fossilrepo-seed-") as tmpdir:
+                # Open the existing (empty) fossil repo into the temp dir
+                result = subprocess.run(
+                    ["fossil", "open", str(fossil_path)],
+                    capture_output=True,
+                    text=True,
+                    cwd=tmpdir,
+                    timeout=30,
+                    env={**os.environ, "HOME": "/tmp"},
+                )
+                if result.returncode != 0:
+                    self.stdout.write(self.style.WARNING(f"fossil open failed: {result.stderr[:300]}"))
+                    return
+
+                # Copy source files from /app/ into the checkout
+                for item in sorted(app_dir.iterdir()):
+                    if item.name in self._FOSSIL_SOURCE_EXCLUDES or item.suffix == ".fossil":
+                        continue
+                    dest = Path(tmpdir) / item.name
+                    try:
+                        if item.is_dir():
+                            shutil.copytree(
+                                str(item),
+                                str(dest),
+                                ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo", ".git"),
+                            )
+                        else:
+                            shutil.copy2(str(item), str(dest))
+                    except Exception as copy_err:
+                        self.stdout.write(self.style.WARNING(f"Skipping {item.name}: {copy_err}"))
+
+                env = {**os.environ, "HOME": "/tmp"}
+                subprocess.run(
+                    ["fossil", "settings", "autosync", "off"],
+                    cwd=tmpdir,
+                    capture_output=True,
+                    env=env,
+                )
+                subprocess.run(
+                    ["fossil", "addremove", "--quiet"],
+                    cwd=tmpdir,
+                    capture_output=True,
+                    timeout=60,
+                    env=env,
+                )
+                result = subprocess.run(
+                    ["fossil", "commit", "-m", "Initial fossilrepo source snapshot", "--user", "seed"],
+                    capture_output=True,
+                    text=True,
+                    cwd=tmpdir,
+                    timeout=120,
+                    env=env,
+                )
+                if result.returncode == 0:
+                    self.stdout.write(self.style.SUCCESS("Populated fossilrepo.fossil with /app/ source code"))
+                else:
+                    self.stdout.write(self.style.WARNING(f"fossil commit failed: {result.stderr[:300]}"))
+
+        except subprocess.TimeoutExpired:
+            self.stdout.write(self.style.WARNING("Fossil source population timed out — skipping"))
+        except FileNotFoundError:
+            self.stdout.write(self.style.WARNING("fossil binary not found — skipping source population"))
+        except Exception as exc:
+            self.stdout.write(self.style.WARNING(f"Fossil source population failed: {exc}"))
+
     def _seed_fossilrepo_project(self, org):
         """Seed the Fossilrepo project (slug='fossilrepo').
 
@@ -1006,12 +1102,23 @@ class Command(BaseCommand):
                 self.stdout.write(f"Skipping local seed ({src}) — existing file appears to have real content")
             break  # only try the first valid candidate
 
+        # 3b. Runtime population from /app/ source when the file is still tiny/empty.
+        # fossilrepo.fossil is gitignored so /app/fossilrepo.fossil won't be in the image.
+        # Instead, open the fossil init'd file (from the post_save signal) and commit
+        # the source tree into it so the project shows real code.
+        if not seeded_locally:
+            file_needs_seed = not fossil_path.exists() or fossil_path.stat().st_size < empty_fossil_bytes
+            if file_needs_seed:
+                self._populate_fossilrepo_from_source(fossil_path)
+                if fossil_path.exists() and fossil_path.stat().st_size >= empty_fossil_bytes:
+                    seeded_locally = True
+
         # Early-exit only when the file has real content and the DB record exists.
         if repo_exists and fossil_path.exists() and not seeded_locally:
             self.stdout.write("fossilrepo.fossil on disk — nothing to do")
             return
 
-        # 3b. Clone from fossilrepo.io if still missing
+        # 3d. Clone from fossilrepo.io if still missing
         if not fossil_path.exists():
             skip_clone = os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
             if skip_clone:
