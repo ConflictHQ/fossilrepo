@@ -919,7 +919,8 @@ class Command(BaseCommand):
         # Seed fossil-scm and fossilrepo projects.
         # DB records are always created even if clones are skipped or fail.
         # Actual .fossil files are obtained opportunistically (local copy → clone).
-        self._seed_fossil_scm_project(org)
+        skip_clone = options.get("skip_clone", False) or os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
+        self._seed_fossil_scm_project(org, skip_clone=skip_clone)
         self._seed_fossilrepo_project(org)
 
     def _seed_page(self, org, name, content):
@@ -1048,12 +1049,14 @@ class Command(BaseCommand):
                 )
             )
 
-    def _seed_fossil_scm_project(self, org):
+    def _seed_fossil_scm_project(self, org, skip_clone=False):
         """Seed the Fossil SCM project (slug='fossil-scm').
 
         The docs index page (fossil:docs) only needs the Project row to exist.
         Individual documentation pages need the actual fossil-scm.fossil file; we
         attempt to clone it opportunistically but the index works even if it's absent.
+        When clone is skipped or fails, an empty fossil init'd file is created so all
+        views work immediately without 404ing.
         """
         from constance import config
 
@@ -1118,14 +1121,12 @@ class Command(BaseCommand):
                     seeded_locally = True
                     break
 
-            # 4b. Fall back to cloning from fossil-scm.org
+            # 4b. Fall back to cloning from fossil-scm.org (or skip and init empty repo)
             if not seeded_locally:
-                skip_clone = os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
                 if skip_clone:
                     self.stdout.write(
-                        f"SEED_SKIP_CLONE set — skipping fossil-scm clone. "
-                        f"Docs index will work; individual doc pages will 404 until "
-                        f"'{fossil_filename}' is placed in {data_dir}."
+                        "skip-clone set — skipping fossil-scm.org clone. "
+                        "Initialising an empty .fossil file so all views work immediately."
                     )
                 else:
                     self.stdout.write(f"No local seed found — cloning Fossil SCM from {clone_url} ...")
@@ -1143,11 +1144,25 @@ class Command(BaseCommand):
                                 self.style.WARNING(f"fossil-scm clone failed (rc={result.returncode}): {result.stderr[:300]}")
                             )
                     except subprocess.TimeoutExpired:
-                        self.stdout.write(self.style.WARNING("fossil-scm clone timed out (300s) — skipping"))
+                        self.stdout.write(self.style.WARNING("fossil-scm clone timed out (300s) — falling back to fossil init"))
                     except FileNotFoundError:
                         self.stdout.write(self.style.WARNING("fossil binary not found — skipping fossil-scm clone"))
                     except OSError as e:
                         self.stdout.write(self.style.WARNING(f"fossil-scm clone skipped: {e}"))
+
+                # If the file still doesn't exist (clone skipped/failed), init an empty repo.
+                if not fossil_path.exists():
+                    try:
+                        from fossil.cli import FossilCLI
+
+                        cli = FossilCLI()
+                        if cli.is_available():
+                            cli.init(fossil_path)
+                            self.stdout.write(self.style.SUCCESS(f"Initialised empty fossil repo at {fossil_path}"))
+                        else:
+                            self.stdout.write(self.style.WARNING("fossil binary unavailable — .fossil file not created"))
+                    except Exception as exc:
+                        self.stdout.write(self.style.WARNING(f"fossil init failed: {exc}"))
 
         # ── 5. Create or update FossilRepository record ───────────────────────────
         file_size = fossil_path.stat().st_size if fossil_path.exists() else 0

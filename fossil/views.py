@@ -329,7 +329,23 @@ def _get_repo_and_reader(slug, request=None, require="read"):
 
     fossil_repo = get_object_or_404(FossilRepository, project=project, deleted_at__isnull=True)
     if not fossil_repo.exists_on_disk:
-        raise Http404("Repository file not found on disk")
+        # Auto-init: create an empty .fossil file so the repo is immediately usable.
+        # This handles the case where seed_content ran but the clone/copy failed, or
+        # the EFS volume was wiped and DB records survived.
+        try:
+            from fossil.cli import FossilCLI
+
+            cli = FossilCLI()
+            if cli.is_available():
+                cli.init(fossil_repo.full_path)
+                fossil_repo.file_size_bytes = fossil_repo.full_path.stat().st_size
+                fossil_repo.save(update_fields=["file_size_bytes", "updated_at", "version"])
+            else:
+                raise Http404("Repository file not found on disk and fossil binary is unavailable")
+        except Http404:
+            raise
+        except Exception:
+            raise Http404("Repository file not found on disk")
     reader = FossilReader(fossil_repo.full_path)
     return project, fossil_repo, reader
 
