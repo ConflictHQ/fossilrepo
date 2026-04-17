@@ -978,52 +978,66 @@ class Command(BaseCommand):
         repo_qs = FossilRepository.all_objects.filter(project=project)
         repo_exists = repo_qs.exists()
 
-        if repo_exists and fossil_path.exists():
+        # ── 3. Attempt to obtain the fossil file ──────────────────────────────
+        # IMPORTANT: check local seeds BEFORE the early-exit guard.  The
+        # post_save signal (create_fossil_repo) calls `fossil init` the moment
+        # the Project row is first created, leaving a tiny (~8–20 KB) empty
+        # .fossil file.  Without checking here first, "repo_exists and
+        # fossil_path.exists()" would be True and we'd return before ever
+        # replacing that empty init with the bundled seed that has real commits.
+        empty_fossil_bytes = 50_000  # empty init ≈ 8–20 KB; any real repo >> this
+        data_dir.mkdir(parents=True, exist_ok=True)
+        seeded_locally = False
+
+        # 3a. Try local candidates first (bundled via COPY . . in Dockerfile.ecr)
+        for candidate in self._LOCAL_SEED_CANDIDATES:
+            if not candidate:
+                continue
+            src = Path(candidate)
+            if not (src.exists() and src.is_file()):
+                continue
+            file_needs_seed = not fossil_path.exists() or fossil_path.stat().st_size < empty_fossil_bytes
+            if file_needs_seed:
+                self.stdout.write(f"Copying seed from {src} ...")
+                shutil.copy2(src, fossil_path)
+                self.stdout.write(self.style.SUCCESS(f"Seeded fossilrepo.fossil from local copy ({src})"))
+                seeded_locally = True
+            else:
+                self.stdout.write(f"Skipping local seed ({src}) — existing file appears to have real content")
+            break  # only try the first valid candidate
+
+        # Early-exit only when the file has real content and the DB record exists.
+        if repo_exists and fossil_path.exists() and not seeded_locally:
             self.stdout.write("fossilrepo.fossil on disk — nothing to do")
             return
 
-        # ── 3. Attempt to obtain the fossil file ──────────────────────────────
+        # 3b. Clone from fossilrepo.io if still missing
         if not fossil_path.exists():
-            data_dir.mkdir(parents=True, exist_ok=True)
-
-            # 3a. Try local candidates first (bundled via COPY . . in Dockerfile.ecr)
-            for candidate in self._LOCAL_SEED_CANDIDATES:
-                if not candidate:
-                    continue
-                src = Path(candidate)
-                if src.exists() and src.is_file():
-                    self.stdout.write(f"Copying seed from {src} ...")
-                    shutil.copy2(src, fossil_path)
-                    self.stdout.write(self.style.SUCCESS(f"Seeded fossilrepo.fossil from local copy ({src})"))
-                    break
-
-            # 3b. Clone from fossilrepo.io if still missing
-            if not fossil_path.exists():
-                skip_clone = os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
-                if skip_clone:
-                    self.stdout.write(
-                        f"SEED_SKIP_CLONE set — skipping fossilrepo clone. "
-                        f"Code/history views will 404 until '{fossil_filename}' is placed in {data_dir}."
+            skip_clone = os.environ.get("SEED_SKIP_CLONE", "").lower() in ("1", "true", "yes")
+            if skip_clone:
+                self.stdout.write(
+                    f"SEED_SKIP_CLONE set — skipping fossilrepo clone. "
+                    f"Code/history views will 404 until '{fossil_filename}' is placed in {data_dir}."
+                )
+            else:
+                self.stdout.write(f"No local seed found — cloning fossilrepo from {clone_url} ...")
+                try:
+                    result = subprocess.run(
+                        ["fossil", "clone", clone_url, str(fossil_path)],
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
                     )
-                else:
-                    self.stdout.write(f"No local seed found — cloning fossilrepo from {clone_url} ...")
-                    try:
-                        result = subprocess.run(
-                            ["fossil", "clone", clone_url, str(fossil_path)],
-                            capture_output=True,
-                            text=True,
-                            timeout=120,
-                        )
-                        if result.returncode == 0:
-                            self.stdout.write(self.style.SUCCESS("Cloned fossilrepo.io successfully"))
-                        else:
-                            self.stdout.write(self.style.WARNING(f"Clone failed (rc={result.returncode}): {result.stderr[:300]}"))
-                    except subprocess.TimeoutExpired:
-                        self.stdout.write(self.style.WARNING("Clone timed out after 120s — skipping"))
-                    except FileNotFoundError:
-                        self.stdout.write(self.style.WARNING("fossil binary not found — skipping clone"))
-                    except OSError as e:
-                        self.stdout.write(self.style.WARNING(f"Clone skipped: {e}"))
+                    if result.returncode == 0:
+                        self.stdout.write(self.style.SUCCESS("Cloned fossilrepo.io successfully"))
+                    else:
+                        self.stdout.write(self.style.WARNING(f"Clone failed (rc={result.returncode}): {result.stderr[:300]}"))
+                except subprocess.TimeoutExpired:
+                    self.stdout.write(self.style.WARNING("Clone timed out after 120s — skipping"))
+                except FileNotFoundError:
+                    self.stdout.write(self.style.WARNING("fossil binary not found — skipping clone"))
+                except OSError as e:
+                    self.stdout.write(self.style.WARNING(f"Clone skipped: {e}"))
 
         # ── 4. Create or update FossilRepository record ───────────────────────
         file_size = fossil_path.stat().st_size if fossil_path.exists() else 0
