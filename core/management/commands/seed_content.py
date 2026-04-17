@@ -1125,8 +1125,7 @@ class Command(BaseCommand):
             if not seeded_locally:
                 if skip_clone:
                     self.stdout.write(
-                        "skip-clone set — skipping fossil-scm.org clone. "
-                        "Initialising an empty .fossil file so all views work immediately."
+                        "skip-clone set — skipping fossil-scm.org clone. Initialising an empty .fossil file so all views work immediately."
                     )
                 else:
                     self.stdout.write(f"No local seed found — cloning Fossil SCM from {clone_url} ...")

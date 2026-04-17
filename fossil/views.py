@@ -344,8 +344,8 @@ def _get_repo_and_reader(slug, request=None, require="read"):
                 raise Http404("Repository file not found on disk and fossil binary is unavailable")
         except Http404:
             raise
-        except Exception:
-            raise Http404("Repository file not found on disk")
+        except Exception as exc:
+            raise Http404("Repository file not found on disk") from exc
     reader = FossilReader(fossil_repo.full_path)
     return project, fossil_repo, reader
 
