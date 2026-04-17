@@ -979,7 +979,7 @@ class Command(BaseCommand):
                     text=True,
                     cwd=tmpdir,
                     timeout=30,
-                    env={**os.environ, "HOME": "/tmp"},
+                    env={**os.environ, "HOME": "/tmp", "USER": "app", "LOGNAME": "app"},
                 )
                 if result.returncode != 0:
                     self.stdout.write(self.style.WARNING(f"fossil open failed: {result.stderr[:300]}"))
@@ -1002,7 +1002,9 @@ class Command(BaseCommand):
                     except Exception as copy_err:
                         self.stdout.write(self.style.WARNING(f"Skipping {item.name}: {copy_err}"))
 
-                env = {**os.environ, "HOME": "/tmp"}
+                # USER must match a user that exists in the fossil repo.
+                # fossil init creates a user for whoever ran it (the "app" container user).
+                env = {**os.environ, "HOME": "/tmp", "USER": "app", "LOGNAME": "app"}
                 subprocess.run(
                     ["fossil", "settings", "autosync", "off"],
                     cwd=tmpdir,
@@ -1017,7 +1019,7 @@ class Command(BaseCommand):
                     env=env,
                 )
                 result = subprocess.run(
-                    ["fossil", "commit", "-m", "Initial fossilrepo source snapshot", "--user", "seed"],
+                    ["fossil", "commit", "-m", "Initial fossilrepo source snapshot"],
                     capture_output=True,
                     text=True,
                     cwd=tmpdir,
