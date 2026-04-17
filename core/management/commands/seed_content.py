@@ -985,7 +985,7 @@ class Command(BaseCommand):
         # .fossil file.  Without checking here first, "repo_exists and
         # fossil_path.exists()" would be True and we'd return before ever
         # replacing that empty init with the bundled seed that has real commits.
-        empty_fossil_bytes = 50_000  # empty init ≈ 8–20 KB; any real repo >> this
+        empty_fossil_bytes = 1_048_576  # Fossil 2.24 empty init ≈ 224 KB; any real source tree >> 1 MB
         data_dir.mkdir(parents=True, exist_ok=True)
         seeded_locally = False
 
