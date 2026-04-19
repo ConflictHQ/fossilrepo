@@ -1246,11 +1246,8 @@ class Command(BaseCommand):
         if repo_exists and not fossil_path.exists():
             self.stdout.write("FossilRepository record exists but file is missing — will attempt clone")
 
-        # 4b. Clone from fossil-scm.org if still missing/small
-        if not fossil_path.exists() or fossil_path.stat().st_size < empty_fossil_bytes:
-            if fossil_path.exists():
-                fossil_path.unlink()  # remove empty init so fossil clone can create fresh
-
+        # 4b. Clone from fossil-scm.org if still missing
+        if not fossil_path.exists():
             # Fall back to cloning from fossil-scm.org (or skip and init empty repo)
             if skip_clone:
                 self.stdout.write(
